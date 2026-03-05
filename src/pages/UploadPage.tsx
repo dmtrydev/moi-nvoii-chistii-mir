@@ -29,15 +29,31 @@ function getApiUrl(path: string): string {
   return base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
 }
 
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof TypeError) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /failed to fetch|network error|load failed/i.test(msg);
+}
+
 async function analyzeLicense(file: File): Promise<LicenseData> {
   const formData = new FormData();
   formData.append('file', file);
   const url = getApiUrl('/api/analyze-license');
 
-  const res = await fetch(url, {
-    method: 'POST',
-    body: formData,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+  } catch (err) {
+    if (isNetworkError(err)) {
+      throw new Error(
+        'Не удалось подключиться к серверу. Запустите API в отдельном терминале: зайдите в папку server и выполните «npm start». Убедитесь, что в корневом .env указан правильный порт (VITE_API_URL=http://localhost:3001) или уберите VITE_API_URL, чтобы использовался прокси.'
+      );
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
