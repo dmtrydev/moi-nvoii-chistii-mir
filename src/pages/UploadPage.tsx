@@ -4,9 +4,10 @@ import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle } from 'lucide-react';
 import { VerificationScreen } from '@/components/VerificationScreen';
 import type { LicenseData } from '@/types';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+// На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
+const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 const API_HEALTH_URL = (() => {
-  const base = API_BASE.replace(/\/$/, '');
+  const base = String(API_BASE).replace(/\/$/, '');
   return base ? `${base}/api/health` : '/api/health';
 })();
 
@@ -53,7 +54,9 @@ async function analyzeLicense(file: File): Promise<LicenseData> {
   } catch (err) {
     if (isNetworkError(err)) {
       throw new Error(
-        'Не удалось подключиться к серверу. Запустите API в отдельном терминале: зайдите в папку server и выполните «npm start». Убедитесь, что в корневом .env указан правильный порт (VITE_API_URL=http://localhost:3001) или уберите VITE_API_URL, чтобы использовался прокси.'
+        import.meta.env.PROD
+          ? 'Сервер временно недоступен. Попробуйте ещё раз через минуту.'
+          : 'Не удалось подключиться к серверу. Запустите API: в папке server выполните «npm start». В .env укажите VITE_API_URL=http://localhost:3001 или уберите переменную.'
       );
     }
     throw err;
@@ -218,13 +221,21 @@ export default function UploadPage(): JSX.Element {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-amber-100">Сервер API недоступен (ERR_CONNECTION_REFUSED)</p>
-              <p className="text-sm mt-1 text-amber-200/90">
-                Запрос идёт по адресу: <code className="bg-black/30 px-1 rounded text-xs break-all">{API_HEALTH_URL}</code>
+              <p className="font-medium text-amber-100">
+                {import.meta.env.PROD
+                  ? 'Сервер временно недоступен. Попробуйте обновить страницу через минуту.'
+                  : 'Сервер API недоступен (ERR_CONNECTION_REFUSED)'}
               </p>
-              <p className="text-sm mt-2">
-                1) Откройте новый терминал. 2) Выполните: <code className="bg-black/30 px-1 rounded">cd server</code>, затем <code className="bg-black/30 px-1 rounded">npm start</code>. 3) Если в .env указан <code className="bg-black/30 px-1 rounded">VITE_API_URL</code>, порт в нём должен совпадать с портом сервера (по умолчанию 3001). Или удалите <code className="bg-black/30 px-1 rounded">VITE_API_URL</code> из .env — тогда будет использоваться прокси на localhost:3001.
-              </p>
+              {!import.meta.env.PROD && (
+                <>
+                  <p className="text-sm mt-1 text-amber-200/90">
+                    Запрос идёт по адресу: <code className="bg-black/30 px-1 rounded text-xs break-all">{API_HEALTH_URL}</code>
+                  </p>
+                  <p className="text-sm mt-2">
+                    1) Откройте новый терминал. 2) Выполните: <code className="bg-black/30 px-1 rounded">cd server</code>, затем <code className="bg-black/30 px-1 rounded">npm start</code>. 3) В .env укажите <code className="bg-black/30 px-1 rounded">VITE_API_URL=http://localhost:3001</code> или уберите переменную для прокси.
+                  </p>
+                </>
+              )}
               <button
                 type="button"
                 onClick={checkApiReachable}
