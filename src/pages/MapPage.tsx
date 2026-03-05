@@ -112,10 +112,6 @@ export default function MapPage(): JSX.Element {
               <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
               <span>Утилизация / обработка</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#dc2626]" />
-              <span>Критические зоны</span>
-            </div>
           </div>
         </section>
 
@@ -131,10 +127,6 @@ export default function MapPage(): JSX.Element {
             <label className="flex items-center justify-between gap-3">
               <span>Кадастровые кварталы</span>
               <input type="checkbox" className="w-4 h-4 accent-[#4caf50]" />
-            </label>
-            <label className="flex items-center justify-between gap-3">
-              <span>Маршруты</span>
-              <input type="checkbox" className="w-4 h-4 accent-[#4caf50]" defaultChecked />
             </label>
           </div>
         </section>

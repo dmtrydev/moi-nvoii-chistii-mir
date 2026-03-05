@@ -141,17 +141,6 @@ export function HeroBannerSection(): JSX.Element {
               >
                 Сбросить фильтры
               </button>
-              <div className="flex items-center gap-3 text-xs text-white/60">
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#4caf50]" /> Объекты
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#8bc34a]" /> Маршруты
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#f44336]" /> Критические зоны
-                </span>
-              </div>
             </div>
           </div>
         </article>
