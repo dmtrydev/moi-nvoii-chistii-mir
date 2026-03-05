@@ -30,6 +30,50 @@ const upload = multer({
   },
 });
 
+// VirusTotal API v3 — проверка файла перед обработкой
+const VIRUSTOTAL_API_KEY = process.env.VIRUSTOTAL_API_KEY;
+const VT_BASE = 'https://www.virustotal.com/api/v3';
+
+async function scanFileWithVirusTotal(buffer, filename) {
+  if (!VIRUSTOTAL_API_KEY) return { skip: true };
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: 'application/pdf' }), filename || 'document.pdf');
+  const uploadRes = await fetch(`${VT_BASE}/files`, {
+    method: 'POST',
+    headers: { 'x-apikey': VIRUSTOTAL_API_KEY },
+    body: form,
+  });
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text();
+    throw new Error(`VirusTotal upload: ${uploadRes.status} ${err}`);
+  }
+  const { data } = await uploadRes.json();
+  const analysisId = data?.id;
+  if (!analysisId) throw new Error('VirusTotal: no analysis id');
+
+  const maxAttempts = 24;
+  const pollMs = 2500;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((r) => setTimeout(r, pollMs));
+    const analysisRes = await fetch(`${VT_BASE}/analyses/${analysisId}`, {
+      headers: { 'x-apikey': VIRUSTOTAL_API_KEY },
+    });
+    if (!analysisRes.ok) throw new Error(`VirusTotal analysis: ${analysisRes.status}`);
+    const analysisJson = await analysisRes.json();
+    const attrs = analysisJson?.data?.attributes;
+    const status = attrs?.status;
+    if (status === 'completed') {
+      const stats = attrs?.stats ?? {};
+      const malicious = Number(stats.malicious ?? 0);
+      const suspicious = Number(stats.suspicious ?? 0);
+      return { malicious, suspicious, clean: malicious === 0 && suspicious === 0 };
+    }
+    if (status === 'queued' || status === 'in-progress') continue;
+    throw new Error(`VirusTotal: unexpected status ${status}`);
+  }
+  throw new Error('VirusTotal: анализ занял слишком много времени');
+}
+
 // Timeweb Cloud AI (OpenAI-совместимый endpoint)
 const TIMEWEB_ACCESS_ID = process.env.TIMEWEB_ACCESS_ID;
 const TIMEWEB_BEARER_TOKEN = process.env.TIMEWEB_BEARER_TOKEN || TIMEWEB_ACCESS_ID;
@@ -65,6 +109,22 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
     const file = req.file;
     if (!file || !file.buffer) {
       return res.status(400).json({ message: 'Файл не загружен' });
+    }
+
+    // Проверка на вирусы через VirusTotal API (если задан VIRUSTOTAL_API_KEY)
+    try {
+      const vtResult = await scanFileWithVirusTotal(file.buffer, file.originalname);
+      if (!vtResult.skip && !vtResult.clean) {
+        return res.status(422).json({
+          message:
+            'Файл не прошёл проверку безопасности. Загрузите другой PDF-документ.',
+        });
+      }
+    } catch (scanErr) {
+      console.error('VirusTotal scan error:', scanErr);
+      return res.status(500).json({
+        message: 'Не удалось проверить файл. Попробуйте другой документ.',
+      });
     }
 
     const text = await extractTextFromPdf(file.buffer);
@@ -164,6 +224,9 @@ function startServer(tryPort) {
     }
     if (!TIMEWEB_ACCESS_ID) {
       console.warn('TIMEWEB_ACCESS_ID не задан — анализ лицензий через Timeweb недоступен.');
+    }
+    if (!VIRUSTOTAL_API_KEY) {
+      console.warn('VIRUSTOTAL_API_KEY не задан — проверка файлов на вирусы отключена.');
     }
   });
   server.on('error', (err) => {
