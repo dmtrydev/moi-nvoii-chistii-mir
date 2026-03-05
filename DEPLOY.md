@@ -139,15 +139,21 @@ npm start
 
 ## Как обновить сайт после изменений в коде
 
-1. Закоммитьте и запушьте изменения в тот же репозиторий и ветку, которые подключены к Render:
+После **каждого** изменения в коде делайте так, чтобы обновления применились на Render:
+
+1. **Сохраните файлы** в редакторе.
+2. **Закоммитьте и запушьте** в ту же ветку, что подключена к Render (у вас это `master`):
    ```bash
    git add .
    git commit -m "Описание изменений"
-   git push origin main
+   git push origin master
    ```
-2. В [Dashboard Render](https://dashboard.render.com) откройте ваш Web Service.
-3. Render обычно запускает новый деплой автоматически после `git push`. Если нет — нажмите **Manual Deploy** → **Deploy latest commit**.
-4. Дождитесь окончания деплоя — заказчик снова увидит обновлённую версию по той же ссылке.
+   (Если у вас ветка `main`, замените на `git push origin main`.)
+3. **Render сам запустит деплой** — зайдите в [Dashboard Render](https://dashboard.render.com) → ваш Web Service. Во вкладке **Events** появится новый деплой (Building → Deploying → Live).
+4. Если деплой не стартовал сам — на странице сервиса нажмите **Manual Deploy** → **Deploy latest commit**.
+5. Дождитесь окончания (статус **Live**) — сайт по той же ссылке уже с вашими изменениями.
+
+**Кратко:** сохранили код → `git add .` → `git commit -m "..."` → `git push origin master` → ждём деплой на Render.
 
 ---
 

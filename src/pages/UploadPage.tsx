@@ -76,11 +76,17 @@ export default function UploadPage(): JSX.Element {
     setIsDragging(false);
   }, []);
 
+  const isPdfFile = useCallback((file: File) => {
+    const okType = file.type === 'application/pdf';
+    const okExt = file.name.toLowerCase().endsWith('.pdf');
+    return okType && okExt;
+  }, []);
+
   const processFile = useCallback(
     async (file: File) => {
       if (step !== 'idle') return;
-      if (!file?.type.includes('pdf')) {
-        setErrorMessage('Загрузите файл PDF.');
+      if (!file || !isPdfFile(file)) {
+        setErrorMessage('Разрешены только файлы PDF (расширение .pdf).');
         setStep('error');
         return;
       }
@@ -99,7 +105,7 @@ export default function UploadPage(): JSX.Element {
         setStep('error');
       }
     },
-    [step]
+    [step, isPdfFile]
   );
 
   const onDrop = useCallback(
@@ -179,7 +185,7 @@ export default function UploadPage(): JSX.Element {
               <label className="flex flex-col items-center justify-center gap-4 py-16 px-8 cursor-pointer">
                 <input
                   type="file"
-                  accept="application/pdf"
+                  accept=".pdf,application/pdf"
                   onChange={onFileInput}
                   className="sr-only"
                 />

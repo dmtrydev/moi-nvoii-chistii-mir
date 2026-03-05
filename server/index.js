@@ -20,10 +20,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    const okMime = file.mimetype === 'application/pdf';
+    const okExt = file.originalname && file.originalname.toLowerCase().endsWith('.pdf');
+    if (okMime && okExt) {
       cb(null, true);
     } else {
-      cb(new Error('Только PDF'));
+      cb(new Error('Разрешены только файлы с расширением .pdf'));
     }
   },
 });
