@@ -1,0 +1,16 @@
+# Render.com — один сервис: и фронт, и API по одной ссылке
+# https://dashboard.render.com → New → Blueprint → подключить репо и выбрать этот файл
+services:
+  - type: web
+    name: zakaz2-demo
+    runtime: node
+    plan: free
+    buildCommand: npm install && cd server && npm install && cd .. && npm run build:client
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TIMEWEB_ACCESS_ID
+        sync: false
+      - key: TIMEWEB_BEARER_TOKEN
+        sync: false

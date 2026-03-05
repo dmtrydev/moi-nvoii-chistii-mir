@@ -1,0 +1,9 @@
+# Не загружать на Railway (сборка и зависимости — на сервере)
+node_modules
+server/node_modules
+.env
+.env.*
+!.env.example
+dist
+*.log
+.git

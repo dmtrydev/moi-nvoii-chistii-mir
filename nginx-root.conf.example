@@ -1,0 +1,29 @@
+# greenx site in /root — replace ВАШ_ДОМЕН_ИЛИ_IP then: sudo nginx -t && sudo systemctl reload nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name 5.129.200.61;
+
+    root /root;
+    index index.html;
+
+    access_log /var/log/nginx/greenx_access.log;
+    error_log  /var/log/nginx/greenx_error.log;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location ~* \.(ico|svg|png|jpg|jpeg|gif|webp|woff2?)$ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
