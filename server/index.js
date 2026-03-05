@@ -117,21 +117,20 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'Файл не загружен' });
     }
 
-    // Проверка на вирусы через VirusTotal API (если задан VIRUSTOTAL_API_KEY)
-    try {
-      const vtResult = await scanFileWithVirusTotal(file.buffer, file.originalname);
-      if (!vtResult.skip && !vtResult.clean) {
-        return res.status(422).json({
-          message:
-            'Файл не прошёл проверку безопасности. Загрузите другой PDF-документ.',
-        });
-      }
-    } catch (scanErr) {
-      console.error('VirusTotal scan error:', scanErr);
-      return res.status(500).json({
-        message: 'Не удалось проверить файл. Попробуйте другой документ.',
-      });
-    }
+    // Проверка на вирусы временно отключена. Чтобы включить — раскомментируйте блок ниже и задайте VIRUSTOTAL_API_KEY.
+    // try {
+    //   const vtResult = await scanFileWithVirusTotal(file.buffer, file.originalname);
+    //   if (!vtResult.skip && !vtResult.clean) {
+    //     return res.status(422).json({
+    //       message: 'Файл не прошёл проверку безопасности. Загрузите другой PDF-документ.',
+    //     });
+    //   }
+    // } catch (scanErr) {
+    //   console.error('VirusTotal scan error:', scanErr);
+    //   return res.status(500).json({
+    //     message: 'Не удалось проверить файл. Попробуйте другой документ.',
+    //   });
+    // }
 
     const text = await extractTextFromPdf(file.buffer);
     if (!text || text.trim().length < 50) {
