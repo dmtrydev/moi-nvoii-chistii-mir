@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Mesh } from 'three';
 
@@ -80,12 +80,15 @@ function createEarthProceduralTexture(): THREE.Texture {
   return tex;
 }
 
-function GlobeMesh(): JSX.Element {
+function GlobeMesh({
+  onCursorChange,
+}: {
+  onCursorChange: (c: 'grab' | 'grabbing') => void;
+}): JSX.Element {
   const meshRef = useRef<Mesh>(null);
   const [map, setMap] = useState<THREE.Texture | null>(null);
   const [rotationY, setRotationY] = useState(INITIAL_ROTATION_Y);
   const [rotationX, setRotationX] = useState(0);
-  const [cursor, setCursor] = useState<'grab' | 'grabbing'>('grab');
   const isDragging = useRef(false);
   const prevX = useRef(0);
   const prevY = useRef(0);
@@ -122,22 +125,20 @@ function GlobeMesh(): JSX.Element {
     }
   });
 
-  const onPointerDown = (e: THREE.Event) => {
+  const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     isDragging.current = true;
-    setCursor('grabbing');
-    const pe = e as unknown as React.PointerEvent;
-    prevX.current = pe.clientX;
-    prevY.current = pe.clientY;
+    onCursorChange('grabbing');
+    prevX.current = e.clientX;
+    prevY.current = e.clientY;
   };
 
-  const onPointerMove = (e: THREE.Event) => {
+  const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (!isDragging.current) return;
-    const pe = e as unknown as React.PointerEvent;
-    const deltaX = (pe.clientX - prevX.current) * ROTATE_SENSITIVITY;
-    const deltaY = (pe.clientY - prevY.current) * ROTATE_SENSITIVITY;
-    prevX.current = pe.clientX;
-    prevY.current = pe.clientY;
+    const deltaX = (e.clientX - prevX.current) * ROTATE_SENSITIVITY;
+    const deltaY = (e.clientY - prevY.current) * ROTATE_SENSITIVITY;
+    prevX.current = e.clientX;
+    prevY.current = e.clientY;
     setRotationY((y) => y + deltaX);
     setRotationX((x) =>
       Math.max(-MAX_TILT, Math.min(MAX_TILT, x + deltaY))
@@ -146,7 +147,7 @@ function GlobeMesh(): JSX.Element {
 
   const stopDragging = () => {
     isDragging.current = false;
-    setCursor('grab');
+    onCursorChange('grab');
   };
 
   const texture = map ?? proceduralTex;
@@ -160,7 +161,6 @@ function GlobeMesh(): JSX.Element {
         onPointerMove={onPointerMove}
         onPointerUp={stopDragging}
         onPointerLeave={stopDragging}
-        style={{ cursor }}
       >
         <sphereGeometry args={[1, 64, 64]} />
         <meshStandardMaterial
@@ -186,27 +186,35 @@ function GlobeMesh(): JSX.Element {
   );
 }
 
-function GlobeScene(): JSX.Element {
+function GlobeScene({
+  onCursorChange,
+}: {
+  onCursorChange: (c: 'grab' | 'grabbing') => void;
+}): JSX.Element {
   return (
     <>
       <ambientLight intensity={0.35} />
       <directionalLight position={[4, 4, 4]} intensity={1.4} />
       <directionalLight position={[-2, -1, 2]} intensity={0.25} />
       <pointLight position={[6, 4, 5]} intensity={0.4} color="#7eb8da" />
-      <GlobeMesh />
+      <GlobeMesh onCursorChange={onCursorChange} />
     </>
   );
 }
 
 export function EarthGlobe(): JSX.Element {
+  const [cursor, setCursor] = useState<'grab' | 'grabbing'>('grab');
   return (
-    <div className="relative w-full h-full min-w-[200px] min-h-[200px] rounded-full overflow-hidden bg-[#0a1628]">
+    <div
+      className="relative w-full h-full min-w-[200px] min-h-[200px] rounded-full overflow-hidden bg-[#0a1628]"
+      style={{ cursor }}
+    >
       <Canvas
         gl={{ antialias: true, alpha: true }}
         camera={{ position: [0, 0, 2.2], fov: 45 }}
         className="block w-full h-full rounded-full"
       >
-        <GlobeScene />
+        <GlobeScene onCursorChange={setCursor} />
       </Canvas>
     </div>
   );
