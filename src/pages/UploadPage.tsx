@@ -1,10 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, Loader2, ArrowLeft, MapPin } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle } from 'lucide-react';
 import { VerificationScreen } from '@/components/VerificationScreen';
 import type { LicenseData } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_HEALTH_URL = (() => {
+  const base = API_BASE.replace(/\/$/, '');
+  return base ? `${base}/api/health` : '/api/health';
+})();
 
 type Step = 'idle' | 'dragging' | 'analyzing' | 'form' | 'error' | 'published';
 
@@ -78,8 +82,21 @@ export default function UploadPage(): JSX.Element {
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<LicenseData | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  /** null = проверяем, true = API доступен, false = connection refused */
+  const [apiReachable, setApiReachable] = useState<boolean | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
+
+  const checkApiReachable = useCallback(() => {
+    setApiReachable(null);
+    fetch(API_HEALTH_URL, { method: 'GET' })
+      .then((r) => setApiReachable(r.ok))
+      .catch(() => setApiReachable(false));
+  }, []);
+
+  useEffect(() => {
+    checkApiReachable();
+  }, [checkApiReachable]);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -195,6 +212,30 @@ export default function UploadPage(): JSX.Element {
           Карта объектов
         </Link>
       </header>
+
+      {apiReachable === false && (
+        <div className="relative mx-4 mt-4 p-4 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-amber-100">Сервер API недоступен (ERR_CONNECTION_REFUSED)</p>
+              <p className="text-sm mt-1 text-amber-200/90">
+                Запрос идёт по адресу: <code className="bg-black/30 px-1 rounded text-xs break-all">{API_HEALTH_URL}</code>
+              </p>
+              <p className="text-sm mt-2">
+                1) Откройте новый терминал. 2) Выполните: <code className="bg-black/30 px-1 rounded">cd server</code>, затем <code className="bg-black/30 px-1 rounded">npm start</code>. 3) Если в .env указан <code className="bg-black/30 px-1 rounded">VITE_API_URL</code>, порт в нём должен совпадать с портом сервера (по умолчанию 3001). Или удалите <code className="bg-black/30 px-1 rounded">VITE_API_URL</code> из .env — тогда будет использоваться прокси на localhost:3001.
+              </p>
+              <button
+                type="button"
+                onClick={checkApiReachable}
+                className="mt-3 px-3 py-1.5 rounded-lg bg-amber-500/30 text-amber-100 text-sm font-medium hover:bg-amber-500/50 transition-colors"
+              >
+                Проверить снова
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="relative flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-xl">
