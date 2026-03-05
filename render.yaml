@@ -11,6 +11,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: TIMEWEB_ACCESS_ID
-        sync: false
+        value: adea83eb-75b9-41cb-95e0-6cb244587767
       - key: TIMEWEB_BEARER_TOKEN
         sync: false
