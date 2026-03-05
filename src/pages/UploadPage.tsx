@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, FileText, Loader2, ArrowLeft, MapPin } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, MapPin } from 'lucide-react';
+import { VerificationScreen } from '@/components/VerificationScreen';
 import type { LicenseData } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -60,7 +61,7 @@ export default function UploadPage(): JSX.Element {
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<LicenseData | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
 
@@ -99,6 +100,7 @@ export default function UploadPage(): JSX.Element {
           data = { ...data, lat: coords.lat, lng: coords.lng };
         }
         setFormData(data);
+        setUploadedFile(file);
         setStep('form');
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : 'Ошибка анализа лицензии.');
@@ -128,25 +130,35 @@ export default function UploadPage(): JSX.Element {
     [processFile]
   );
 
-  const handlePublish = useCallback(async () => {
-    if (!formData) return;
-    setIsPublishing(true);
+  const handleConfirmPublish = useCallback(async (_payload: LicenseData) => {
     try {
-      // Здесь можно отправить данные на бэкенд для публикации на карте
+      // TODO: отправить _payload на бэкенд для публикации на карте
       await new Promise((r) => setTimeout(r, 800));
       setStep('published');
-    } finally {
-      setIsPublishing(false);
+    } catch {
+      // ignore
     }
-  }, [formData]);
+  }, []);
 
   const reset = useCallback(() => {
     setStep('idle');
     setErrorMessage('');
     setFormData(null);
+    setUploadedFile(null);
   }, []);
 
   const highlight = isDragging || step === 'dragging';
+
+  if (step === 'form' && formData && uploadedFile) {
+    return (
+      <VerificationScreen
+        file={uploadedFile}
+        formData={formData}
+        onConfirm={handleConfirmPublish}
+        onBack={reset}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
@@ -232,109 +244,6 @@ export default function UploadPage(): JSX.Element {
                 >
                   На главную
                 </Link>
-              </div>
-            </div>
-          )}
-
-          {step === 'form' && formData && (
-            <div className="rounded-2xl border border-white/10 bg-[#161616] p-8 space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-white/10">
-                <FileText className="w-6 h-6 text-[#4caf50]" />
-                <h2 className="text-xl font-semibold text-white">Проверьте данные объекта</h2>
-              </div>
-
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
-                    Название компании
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyName}
-                    onChange={(e) =>
-                      setFormData((prev) => prev && { ...prev, companyName: e.target.value })
-                    }
-                    className="w-full h-11 rounded-xl bg-[#1e1e1e] border border-white/15 px-4 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
-                    ИНН
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.inn}
-                    onChange={(e) =>
-                      setFormData((prev) => prev && { ...prev, inn: e.target.value })
-                    }
-                    className="w-full h-11 rounded-xl bg-[#1e1e1e] border border-white/15 px-4 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
-                    Адрес объекта
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                    <input
-                      type="text"
-                      value={formData.address}
-                      onChange={(e) =>
-                        setFormData((prev) => prev && { ...prev, address: e.target.value })
-                      }
-                      className="w-full h-11 rounded-xl bg-[#1e1e1e] border border-white/15 pl-10 pr-4 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
-                    />
-                  </div>
-                  {formData.lat != null && formData.lng != null && (
-                    <p className="mt-1.5 text-xs text-white/50">
-                      Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
-                    Коды ФККО
-                  </label>
-                  <input
-                    type="text"
-                    value={Array.isArray(formData.fkkoCodes) ? formData.fkkoCodes.join(', ') : (formData.fkkoCodes as unknown as string) ?? ''}
-                    onChange={(e) =>
-                      setFormData((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              fkkoCodes: e.target.value.split(/[,;\s]+/).filter(Boolean),
-                            }
-                          : null
-                      )
-                    }
-                    placeholder="Через запятую или пробел"
-                    className="w-full h-11 rounded-xl bg-[#1e1e1e] border border-white/15 px-4 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#4caf50]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={handlePublish}
-                  disabled={isPublishing}
-                  className="inline-flex items-center justify-center gap-2 px-6 h-11 rounded-full bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors disabled:opacity-60"
-                >
-                  {isPublishing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <MapPin className="w-4 h-4" />
-                  )}
-                  Опубликовать на карте
-                </button>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="px-4 py-2 rounded-full border border-white/20 text-sm text-white/70 hover:bg-white/10 transition-colors"
-                >
-                  Загрузить другой файл
-                </button>
               </div>
             </div>
           )}

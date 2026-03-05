@@ -86,13 +86,19 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'analyze-license' });
 });
 
-const EXTRACT_PROMPT = `Извлеки из текста лицензии (или документа об обращении с отходами) следующие данные:
-- Название компании (полное наименование организации)
-- ИНН (числовой код)
-- Полный адрес объекта (адрес размещения/эксплуатации объекта)
-- Список кодов ФККО (федеральный классификационный каталог отходов) — массив строк, например ["7 31 100 01 40 4"]
+const EXTRACT_PROMPT = `Извлеки из текста лицензии (или документа об обращении с отходами) следующие данные. Для КАЖДОГО поля укажи также точную цитату из документа (как она написана в тексте).
 
-Верни строго один JSON-объект без markdown и без лишнего текста, с ключами на латинице: companyName, inn, address, fkkoCodes (массив строк). Если какого-то поля нет в документе — используй пустую строку или пустой массив.`;
+Верни строго один JSON-объект без markdown, с ключами на латинице:
+- companyName (строка) — полное наименование организации
+- companyName_found_text (строка) — дословная цитата из документа для названия
+- inn (строка) — ИНН (числовой код)
+- inn_found_text (строка) — дословная цитата из документа для ИНН
+- address (строка) — полный адрес объекта
+- address_found_text (строка) — дословная цитата из документа для адреса
+- fkkoCodes (массив строк) — коды ФККО, например ["7 31 100 01 40 4"]
+- fkkoCodes_found_text (строка) — дословная цитата из документа, где перечислены коды ФККО (одна строка)
+
+Если какого-то поля нет в документе — используй пустую строку или пустой массив. *_found_text должны быть подстроками исходного текста документа.`;
 
 async function extractTextFromPdf(buffer) {
   const parser = new PDFParse({ data: buffer });
@@ -187,6 +193,12 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       fkkoCodes: Array.isArray(parsed.fkkoCodes)
         ? parsed.fkkoCodes.map((c) => String(c).trim()).filter(Boolean)
         : [],
+      foundTexts: {
+        companyName: String(parsed.companyName_found_text ?? '').trim(),
+        inn: String(parsed.inn_found_text ?? '').trim(),
+        address: String(parsed.address_found_text ?? '').trim(),
+        fkkoCodes: String(parsed.fkkoCodes_found_text ?? '').trim(),
+      },
     };
 
     return res.json(result);

@@ -50,6 +50,14 @@ export interface FeatureItem {
   text: string;
 }
 
+/** Цитаты из документа для подсветки в PDF (Double Check) */
+export interface LicenseDataFoundTexts {
+  companyName: string;
+  inn: string;
+  address: string;
+  fkkoCodes: string;
+}
+
 /** Данные, извлечённые из лицензии (ответ ИИ + геокодинг) */
 export interface LicenseData {
   companyName: string;
@@ -58,4 +66,6 @@ export interface LicenseData {
   fkkoCodes: string[];
   lat?: number;
   lng?: number;
+  /** Точные цитаты из документа для подсветки при фокусе на поле */
+  foundTexts?: LicenseDataFoundTexts;
 }
