@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
@@ -82,6 +82,7 @@ async function analyzeLicense(file: File): Promise<LicenseData> {
 export default function UploadPage(): JSX.Element {
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [formData, setFormData] = useState<LicenseData | null>(null);
   /** null = проверяем, true = API доступен, false = connection refused */
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
 
@@ -142,14 +143,14 @@ export default function UploadPage(): JSX.Element {
         if (coords) {
           data = { ...data, lat: coords.lat, lng: coords.lng };
         }
-        await handleConfirmPublish(data);
-        setStep('published');
+        setFormData(data);
+        setStep('form');
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : 'Ошибка анализа лицензии.');
         setStep('error');
       }
     },
-    [step, isPdfFile, handleConfirmPublish]
+    [step, isPdfFile]
   );
 
   const onDrop = useCallback(
@@ -175,7 +176,19 @@ export default function UploadPage(): JSX.Element {
   const reset = useCallback(() => {
     setStep('idle');
     setErrorMessage('');
+    setFormData(null);
   }, []);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handlePublishClick = useCallback(async () => {
+    if (!formData) return;
+    setIsSubmitting(true);
+    try {
+      await handleConfirmPublish(formData);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, handleConfirmPublish]);
 
   const highlight = isDragging || step === 'dragging';
 
@@ -264,6 +277,79 @@ export default function UploadPage(): JSX.Element {
                   <p className="text-sm text-white/50">или нажмите, чтобы выбрать файл</p>
                 </div>
               </label>
+            </div>
+          )}
+
+          {step === 'form' && formData && (
+            <div className="rounded-2xl border border-white/10 bg-[#161616] p-6 sm:p-8">
+              <div className="flex items-center gap-2 mb-4 text-white/70 text-sm">
+                <CheckCircle className="w-5 h-5 text-[#4caf50]" />
+                <span>Проверьте данные и при необходимости отредактируйте поля. Затем нажмите «Опубликовать».</span>
+              </div>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">Название организации</label>
+                  <input
+                    type="text"
+                    value={formData.companyName}
+                    onChange={(e) => setFormData((prev) => prev ? { ...prev, companyName: e.target.value } : prev)}
+                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">ИНН</label>
+                  <input
+                    type="text"
+                    value={formData.inn}
+                    onChange={(e) => setFormData((prev) => prev ? { ...prev, inn: e.target.value } : prev)}
+                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">Адрес</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData((prev) => prev ? { ...prev, address: e.target.value } : prev)}
+                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">Коды ФККО</label>
+                  <input
+                    type="text"
+                    value={Array.isArray(formData.fkkoCodes) ? formData.fkkoCodes.join(', ') : ''}
+                    onChange={(e) =>
+                      setFormData((prev) =>
+                        prev ? { ...prev, fkkoCodes: e.target.value.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) } : prev
+                      )
+                    }
+                    placeholder="Через запятую или пробел"
+                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60 placeholder-white/40"
+                  />
+                </div>
+                {formData.lat != null && formData.lng != null && (
+                  <p className="text-xs text-white/50">Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}</p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handlePublishClick}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors disabled:opacity-60"
+                >
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
+                  Опубликовать
+                </button>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="px-4 py-2 rounded-full border border-white/20 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                >
+                  Загрузить другой файл
+                </button>
+              </div>
             </div>
           )}
 
