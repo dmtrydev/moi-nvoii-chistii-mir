@@ -151,14 +151,26 @@ export function HeroBannerSection(): JSX.Element {
         </article>
         </div>
 
-        {/* Правая колонка: планета напротив текста */}
+        {/* Правая колонка: планета и мерцающие звёзды */}
         <div className="hero-reveal group flex flex-col items-center justify-center gap-4 flex-shrink-0 w-full lg:w-auto">
-          <button
-            type="button"
-            onClick={() => navigate('/map')}
-            className="group relative flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4caf50] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1e1e1e] rounded-full transition-transform duration-500 group-hover:scale-110 group-active:scale-105 w-[min(320px,85vw)] h-[min(320px,85vw)] lg:w-[min(400px,40vw)] lg:h-[min(400px,40vw)]"
-            aria-label="Нажмите на планету — открыть рабочую площадку на карте"
-          >
+          <div className="relative w-[min(320px,85vw)] h-[min(320px,85vw)] lg:w-[min(400px,40vw)] lg:h-[min(400px,40vw)] flex items-center justify-center">
+            {/* Звёзды вокруг планеты */}
+            <span className="star star--small" style={{ top: '8%', left: '12%', '--star-delay': '0s' } as React.CSSProperties} aria-hidden />
+            <span className="star" style={{ top: '5%', right: '18%', '--star-delay': '0.4s' } as React.CSSProperties} aria-hidden />
+            <span className="star star--large" style={{ top: '18%', right: '5%', '--star-delay': '1.2s' } as React.CSSProperties} aria-hidden />
+            <span className="star star--small" style={{ top: '35%', right: '2%', '--star-delay': '0.8s' } as React.CSSProperties} aria-hidden />
+            <span className="star" style={{ bottom: '28%', right: '10%', '--star-delay': '1.6s' } as React.CSSProperties} aria-hidden />
+            <span className="star star--small" style={{ bottom: '12%', right: '22%', '--star-delay': '0.2s' } as React.CSSProperties} aria-hidden />
+            <span className="star" style={{ bottom: '8%', left: '15%', '--star-delay': '1s' } as React.CSSProperties} aria-hidden />
+            <span className="star star--large" style={{ bottom: '22%', left: '5%', '--star-delay': '0.6s' } as React.CSSProperties} aria-hidden />
+            <span className="star star--small" style={{ top: '42%', left: '3%', '--star-delay': '1.4s' } as React.CSSProperties} aria-hidden />
+            <span className="star" style={{ top: '25%', left: '8%', '--star-delay': '0.3s' } as React.CSSProperties} aria-hidden />
+            <button
+              type="button"
+              onClick={() => navigate('/map')}
+              className="group relative flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4caf50] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1e1e1e] rounded-full transition-transform duration-500 group-hover:scale-110 group-active:scale-105 w-full h-full"
+              aria-label="Нажмите на планету — открыть рабочую площадку на карте"
+            >
             <span
               className="absolute inset-0 rounded-full bg-[#4caf50]/20 blur-3xl scale-150 group-hover:bg-[#4caf50]/30 group-hover:scale-[1.8] transition-all duration-500"
               aria-hidden
@@ -213,6 +225,7 @@ export function HeroBannerSection(): JSX.Element {
               aria-hidden
             />
           </button>
+          </div>
           <span className="text-sm text-white/50 tracking-widest uppercase group-hover:text-white/80 transition-colors">
             Нажмите на планету — открыть карту
           </span>
