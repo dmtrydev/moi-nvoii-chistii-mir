@@ -86,19 +86,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'analyze-license' });
 });
 
-const EXTRACT_PROMPT = `Извлеки из текста лицензии (или документа об обращении с отходами) следующие данные. Для КАЖДОГО поля укажи также точную цитату из документа (как она написана в тексте).
+const EXTRACT_PROMPT = `Извлеки из текста лицензии (или документа об обращении с отходами) следующие данные.
 
-Верни строго один JSON-объект без markdown, с ключами на латинице:
-- companyName (строка) — полное наименование организации
-- companyName_found_text (строка) — дословная цитата из документа для названия
-- inn (строка) — ИНН (числовой код)
-- inn_found_text (строка) — дословная цитата из документа для ИНН
-- address (строка) — полный адрес объекта
-- address_found_text (строка) — дословная цитата из документа для адреса
-- fkkoCodes (массив строк) — коды ФККО, например ["7 31 100 01 40 4"]
-- fkkoCodes_found_text (строка) — дословная цитата из документа, где перечислены коды ФККО (одна строка)
+Ответь строго в таком формате — по одной строке на поле, без лишнего текста и без JSON:
 
-Если какого-то поля нет в документе — используй пустую строку или пустой массив. *_found_text должны быть подстроками исходного текста документа.`;
+НАЗВАНИЕ_ОРГАНИЗАЦИИ: полное наименование организации
+ИНН: числовой код ИНН
+АДРЕС: полный адрес объекта
+КОДЫ_ФККО: коды ФККО через запятую или пробел, например 7 31 100 01 40 4, 7 31 110 01 40 4
+
+Если какого-то поля нет в документе — оставь после двоеточия пустое место или напиши «не указано».`;
 
 async function extractTextFromPdf(buffer) {
   const parser = new PDFParse({ data: buffer });
@@ -159,7 +156,7 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
           {
             role: 'system',
             content:
-              'Ты извлекаешь структурированные данные из текста лицензии. Отвечай только валидным JSON.',
+              'Ты извлекаешь данные из текста лицензии. Отвечай только в формате строк с метками НАЗВАНИЕ_ОРГАНИЗАЦИИ:, ИНН:, АДРЕС:, КОДЫ_ФККО: — без JSON и без лишнего текста.',
           },
           {
             role: 'user',
@@ -182,40 +179,31 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
     const completion = await chatRes.json();
     const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
     rawContent = raw;
-    let json = raw;
-    const mdMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (mdMatch) json = mdMatch[1].trim();
-    else {
-      const first = raw.indexOf('{');
-      const last = raw.lastIndexOf('}');
-      if (first !== -1 && last !== -1 && last > first) json = raw.slice(first, last + 1);
+
+    function extractLine(prefix) {
+      const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`^${escaped}\\s*[:：]?\\s*(.*)`, 'im');
+      const m = raw.match(re);
+      return m ? String(m[1] ?? '').trim() : '';
     }
-    // Убираем trailing commas (частая ошибка ИИ)
-    json = json.replace(/,(\s*[}\]])/g, '$1');
-    const parsed = JSON.parse(json);
+
+    const companyName = extractLine('НАЗВАНИЕ_ОРГАНИЗАЦИИ').replace(/\bне указано\b/gi, '').trim();
+    const inn = extractLine('ИНН').replace(/\bне указано\b/gi, '').trim();
+    const address = extractLine('АДРЕС').replace(/\bне указано\b/gi, '').trim();
+    const fkkoRaw = extractLine('КОДЫ_ФККО').replace(/\bне указано\b/gi, '').trim();
+    const fkkoCodes = fkkoRaw ? fkkoRaw.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) : [];
 
     const result = {
-      companyName: String(parsed.companyName ?? '').trim(),
-      inn: String(parsed.inn ?? '').trim(),
-      address: String(parsed.address ?? '').trim(),
-      fkkoCodes: Array.isArray(parsed.fkkoCodes)
-        ? parsed.fkkoCodes.map((c) => String(c).trim()).filter(Boolean)
-        : [],
-      foundTexts: {
-        companyName: String(parsed.companyName_found_text ?? '').trim(),
-        inn: String(parsed.inn_found_text ?? '').trim(),
-        address: String(parsed.address_found_text ?? '').trim(),
-        fkkoCodes: String(parsed.fkkoCodes_found_text ?? '').trim(),
-      },
+      companyName,
+      inn,
+      address,
+      fkkoCodes,
     };
 
     return res.json(result);
   } catch (err) {
     console.error('analyze-license error:', err);
-    if (err instanceof SyntaxError) {
-      if (rawContent) console.error('ИИ ответ (сырой):', rawContent.slice(0, 1500));
-      return res.status(502).json({ message: 'ИИ вернул невалидный JSON. Попробуйте загрузить файл ещё раз.' });
-    }
+    if (rawContent) console.error('ИИ ответ (сырой):', rawContent.slice(0, 1500));
     return res
       .status(500)
       .json({ message: err.message || 'Ошибка при анализе лицензии' });
