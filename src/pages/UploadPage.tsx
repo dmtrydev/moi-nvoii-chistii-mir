@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle } from 'lucide-react';
-import { VerificationScreen } from '@/components/VerificationScreen';
 import type { LicenseData } from '@/types';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
@@ -84,7 +83,6 @@ export default function UploadPage(): JSX.Element {
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<LicenseData | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   /** null = проверяем, true = API доступен, false = connection refused */
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
 
@@ -119,6 +117,16 @@ export default function UploadPage(): JSX.Element {
     return okType && okExt;
   }, []);
 
+  const handleConfirmPublish = useCallback(async (_payload: LicenseData) => {
+    try {
+      // TODO: отправить _payload на бэкенд для публикации на карте
+      await new Promise((r) => setTimeout(r, 800));
+      setStep('published');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const processFile = useCallback(
     async (file: File) => {
       if (step !== 'idle') return;
@@ -136,14 +144,14 @@ export default function UploadPage(): JSX.Element {
           data = { ...data, lat: coords.lat, lng: coords.lng };
         }
         setFormData(data);
-        setUploadedFile(file);
-        setStep('form');
+        await handleConfirmPublish(data);
+        setStep('published');
       } catch (err) {
         setErrorMessage(err instanceof Error ? err.message : 'Ошибка анализа лицензии.');
         setStep('error');
       }
     },
-    [step, isPdfFile]
+    [step, isPdfFile, handleConfirmPublish]
   );
 
   const onDrop = useCallback(
@@ -166,35 +174,13 @@ export default function UploadPage(): JSX.Element {
     [processFile]
   );
 
-  const handleConfirmPublish = useCallback(async (_payload: LicenseData) => {
-    try {
-      // TODO: отправить _payload на бэкенд для публикации на карте
-      await new Promise((r) => setTimeout(r, 800));
-      setStep('published');
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const reset = useCallback(() => {
     setStep('idle');
     setErrorMessage('');
     setFormData(null);
-    setUploadedFile(null);
   }, []);
 
   const highlight = isDragging || step === 'dragging';
-
-  if (step === 'form' && formData && uploadedFile) {
-    return (
-      <VerificationScreen
-        file={uploadedFile}
-        formData={formData}
-        onConfirm={handleConfirmPublish}
-        onBack={reset}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
