@@ -111,6 +111,7 @@ async function extractTextFromPdf(buffer) {
 }
 
 app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
+  let rawContent = '';
   try {
     const file = req.file;
     if (!file || !file.buffer) {
@@ -180,9 +181,17 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
 
     const completion = await chatRes.json();
     const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
+    rawContent = raw;
     let json = raw;
     const mdMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (mdMatch) json = mdMatch[1].trim();
+    else {
+      const first = raw.indexOf('{');
+      const last = raw.lastIndexOf('}');
+      if (first !== -1 && last !== -1 && last > first) json = raw.slice(first, last + 1);
+    }
+    // Убираем trailing commas (частая ошибка ИИ)
+    json = json.replace(/,(\s*[}\]])/g, '$1');
     const parsed = JSON.parse(json);
 
     const result = {
@@ -204,7 +213,8 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
   } catch (err) {
     console.error('analyze-license error:', err);
     if (err instanceof SyntaxError) {
-      return res.status(502).json({ message: 'ИИ вернул невалидный JSON' });
+      if (rawContent) console.error('ИИ ответ (сырой):', rawContent.slice(0, 1500));
+      return res.status(502).json({ message: 'ИИ вернул невалидный JSON. Попробуйте загрузить файл ещё раз.' });
     }
     return res
       .status(500)
