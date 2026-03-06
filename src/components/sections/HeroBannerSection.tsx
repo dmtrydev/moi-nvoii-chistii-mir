@@ -31,11 +31,16 @@ export function HeroBannerSection(): JSX.Element {
         {/* Левая колонка: Умная экоплатформа, описание, контакты, фильтры */}
         <div className="flex flex-col w-full lg:max-w-[55%] xl:max-w-[600px] gap-8 lg:gap-10 flex-shrink-0">
           <div className="hero-reveal flex flex-col items-start gap-6">
-            <div className="space-y-3">
-              <h1 className="font-manrope font-bold text-white text-[48px] sm:text-[64px] lg:text-[72px] xl:text-[80px] leading-[1] tracking-[-0.04em]">
-                Умная экоплатформа
+            <div className="hero-title-wrap space-y-0">
+              <h1 className="block">
+                <span className="hero-title-small block">Мой</span>
+                <span className="hero-title-large block">
+                  <span className="hero-title-line">Новый</span>
+                  <span className="hero-title-line">Чистый</span>
+                  <span className="hero-title-line">Мир</span>
+                </span>
               </h1>
-              <p className="font-manrope font-semibold text-[#cccccc] text-xl sm:text-2xl lg:text-[28px] xl:text-[32px] leading-snug">
+              <p className="font-manrope font-semibold text-[#cccccc] text-xl sm:text-2xl lg:text-[28px] xl:text-[32px] leading-snug mt-6">
                 Управление отходами по ФККО, контроль объектов и маршрутов на одной карте.
               </p>
             </div>

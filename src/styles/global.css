@@ -206,6 +206,37 @@
   }
 }
 
+/* Hero title — стилистика «Мой новый чистый мир»: крупный белый sans-serif, лёгкая тень */
+.hero-title-wrap {
+  font-family: 'Manrope', Helvetica, sans-serif;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-align: left;
+  letter-spacing: 0.02em;
+}
+.hero-title-wrap h1 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+.hero-title-small {
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 0.35em;
+  opacity: 0.95;
+}
+.hero-title-large {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 40px rgba(0, 0, 0, 0.15);
+}
+.hero-title-large .hero-title-line {
+  display: block;
+}
+
 .animate-fade-in {
   animation: fade-in 1s var(--animation-delay, 0s) ease forwards;
 }
