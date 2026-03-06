@@ -82,7 +82,6 @@ async function analyzeLicense(file: File): Promise<LicenseData> {
 export default function UploadPage(): JSX.Element {
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
-  const [formData, setFormData] = useState<LicenseData | null>(null);
   /** null = проверяем, true = API доступен, false = connection refused */
   const [apiReachable, setApiReachable] = useState<boolean | null>(null);
 
@@ -143,7 +142,6 @@ export default function UploadPage(): JSX.Element {
         if (coords) {
           data = { ...data, lat: coords.lat, lng: coords.lng };
         }
-        setFormData(data);
         await handleConfirmPublish(data);
         setStep('published');
       } catch (err) {
@@ -177,7 +175,6 @@ export default function UploadPage(): JSX.Element {
   const reset = useCallback(() => {
     setStep('idle');
     setErrorMessage('');
-    setFormData(null);
   }, []);
 
   const highlight = isDragging || step === 'dragging';
