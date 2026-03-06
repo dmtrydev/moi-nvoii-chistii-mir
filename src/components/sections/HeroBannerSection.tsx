@@ -24,9 +24,7 @@ export function HeroBannerSection(): JSX.Element {
 
   return (
     <>
-    <section className="flex items-center justify-center min-h-screen px-0 relative self-stretch w-full flex-[0_0_auto] bg-[#1e1e1e] py-12 md:py-16">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_#4caf5040,_transparent_55%),_radial-gradient(circle_at_bottom,_#8bc34a33,_transparent_55%)] pointer-events-none" />
-
+    <section className="flex items-center justify-center min-h-screen px-0 relative self-stretch w-full flex-[0_0_auto] py-12 md:py-16">
       <div className="relative flex flex-col lg:flex-row items-center justify-center lg:justify-between gap-10 lg:gap-12 max-w-[1510px] w-full px-[24px] md:px-[50px]">
         {/* Левая колонка: Умная экоплатформа, описание, контакты, фильтры */}
         <div className="flex flex-col w-full lg:max-w-[55%] xl:max-w-[600px] gap-8 lg:gap-10 flex-shrink-0">
@@ -168,13 +166,9 @@ export function HeroBannerSection(): JSX.Element {
             <button
               type="button"
               onClick={() => navigate('/map')}
-              className="group relative flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4caf50] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1e1e1e] rounded-full transition-transform duration-500 group-hover:scale-110 group-active:scale-105 w-full h-full"
+              className="group relative flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4caf50] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1e1e1e] rounded-full w-full h-full"
               aria-label="Нажмите на планету — открыть рабочую площадку на карте"
             >
-            <span
-              className="absolute inset-0 rounded-full bg-[#4caf50]/20 blur-3xl scale-150 group-hover:bg-[#4caf50]/30 group-hover:scale-[1.8] transition-all duration-500"
-              aria-hidden
-            />
             <span className="relative cursor-pointer select-none block w-full h-full rounded-full overflow-hidden">
               <ErrorBoundary
                 fallback={

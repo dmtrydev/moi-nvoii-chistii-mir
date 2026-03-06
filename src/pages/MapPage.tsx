@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PanelLeftClose, PanelLeft } from 'lucide-react';
 
 const INITIAL_FKKO = '';
 const INITIAL_VID = '';
@@ -10,6 +10,7 @@ export default function MapPage(): JSX.Element {
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
+  const [menuVisible, setMenuVisible] = useState(true);
 
   const handleResetFilters = (): void => {
     setFilterFkko(INITIAL_FKKO);
@@ -19,15 +20,29 @@ export default function MapPage(): JSX.Element {
 
   return (
     <div className="flex min-h-screen bg-[#050608]">
-      <aside className="relative w-full max-w-[360px] lg:max-w-[420px] bg-[#050608] border-r border-white/10 px-5 py-6 overflow-y-auto brand-scroll no-scrollbar flex-shrink-0">
-        <div className="flex items-center justify-between gap-4 mb-6">
+      <aside
+        className={`relative bg-[#050608] border-r border-white/10 overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar flex-shrink-0 transition-[width] duration-300 ease-out ${
+          menuVisible ? 'w-full max-w-[360px] lg:max-w-[420px] px-5 py-6' : 'w-0 min-w-0 overflow-hidden border-r-0 px-0 py-0'
+        }`}
+      >
+        <div className={`min-w-0 w-full max-w-full ${!menuVisible ? 'invisible' : ''}`}>
+        <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors min-w-0 shrink"
           >
-            <ArrowLeft className="w-4 h-4" />
-            На главную
+            <ArrowLeft className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">На главную</span>
           </Link>
+          <button
+            type="button"
+            onClick={() => setMenuVisible(false)}
+            className="inline-flex items-center justify-center gap-2 flex-shrink-0 h-9 min-w-[100px] rounded-[999px] border border-white/15 bg-[#1e1e1e]/80 px-3 py-2 text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition-colors whitespace-nowrap"
+            title="Свернуть меню"
+          >
+            <PanelLeftClose className="w-4 h-4 flex-shrink-0" />
+            Свернуть
+          </button>
         </div>
         <div className="mb-6">
           <p className="text-[11px] uppercase tracking-[0.16em] text-white/50">Управление</p>
@@ -168,6 +183,7 @@ export default function MapPage(): JSX.Element {
             </div>
           </div>
         </section>
+        </div>
       </aside>
 
       <div className="flex-1 relative min-w-0">
@@ -177,24 +193,35 @@ export default function MapPage(): JSX.Element {
           className="w-full h-full min-h-screen"
           loading="lazy"
         />
+        {!menuVisible && (
+          <button
+            type="button"
+            onClick={() => setMenuVisible(true)}
+            className="absolute left-4 top-4 z-10 inline-flex items-center justify-center gap-2 h-9 min-w-[88px] rounded-[999px] bg-[#1e1e1e]/90 border border-white/15 px-3 py-2 text-xs font-medium text-white hover:bg-[#262626] transition-colors shadow-lg pointer-events-auto whitespace-nowrap"
+            title="Показать меню"
+          >
+            <PanelLeft className="w-4 h-4 flex-shrink-0" />
+            Меню
+          </button>
+        )}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-[999px] bg-[#1e1e1e]/80 border border-white/15 px-2 py-1">
+          <div className={`pointer-events-auto inline-flex items-center gap-1 rounded-[999px] bg-[#1e1e1e]/80 border border-white/15 p-1 ${!menuVisible ? 'ml-14' : ''}`}>
             <button
               type="button"
-              className="px-3 py-1 rounded-[999px] text-[11px] font-medium text-white bg-[#4caf50]"
+              className="h-8 min-w-[72px] rounded-[999px] px-3 text-[11px] font-medium text-white bg-[#4caf50] transition-colors whitespace-nowrap"
             >
               2D карта
             </button>
             <button
               type="button"
-              className="px-3 py-1 rounded-[999px] text-[11px] font-medium text-white/60 hover:text-white hover:bg-white/5"
+              className="h-8 min-w-[72px] rounded-[999px] px-3 text-[11px] font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap"
             >
               3D глобус
             </button>
           </div>
           <Link
             to="/upload"
-            className="pointer-events-auto px-4 py-2 rounded-[999px] bg-[#4caf50] text-[11px] font-medium text-white hover:bg-[#43a047] transition-colors"
+            className="pointer-events-auto inline-flex items-center justify-center h-9 min-w-[120px] rounded-[999px] bg-[#4caf50] px-4 py-2 text-[11px] font-medium text-white hover:bg-[#43a047] transition-colors whitespace-nowrap"
           >
             Разместить объект
           </Link>

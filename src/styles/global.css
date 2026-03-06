@@ -53,9 +53,33 @@
   }
 }
 
+/* Фон сайта: картинка + тёмный overlay. Файл фона — public/background.png */
+.site-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: #1e1e1e;
+  background-image: linear-gradient(
+      to bottom,
+      rgba(30, 30, 30, 0.82),
+      rgba(30, 30, 30, 0.75)
+    ),
+    url('/background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
 @layer components {
   .all-\[unset\] {
     all: unset;
+  }
+
+  /* Кнопки в flex-контейнерах не сжимаются и не обрезаются */
+  button.inline-flex {
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 }
 
