@@ -109,6 +109,7 @@ export default function LoginPage(): JSX.Element {
               onChange={(e) => setPassword(e.target.value)}
               className="glass-input"
               required
+              minLength={8}
             />
           </div>
           {error && <div className="text-xs glass-danger">{error}</div>}

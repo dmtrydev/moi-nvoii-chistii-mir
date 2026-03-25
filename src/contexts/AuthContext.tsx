@@ -118,9 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       try {
         const storedToken = localStorage.getItem('auth_access_token');
         if (storedToken) {
-          setAccessToken(storedToken);
-          await loadCurrentUser(storedToken);
-          return;
+          try {
+            setAccessToken(storedToken);
+            await loadCurrentUser(storedToken);
+            return;
+          } catch {
+            // Access token мог протухнуть/стать недействительным.
+            // Тогда пробуем восстановить сессию через refresh cookie.
+            await refreshSession();
+            return;
+          }
         }
         await refreshSession();
       } catch {

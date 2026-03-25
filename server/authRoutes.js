@@ -57,7 +57,11 @@ function setRefreshCookie(res, token, expiresAt) {
 router.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ message: 'Неверные данные', issues: parsed.error.issues });
+    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+    return res.status(400).json({
+      message: issueMsg ?? 'Неверные данные',
+      issues: parsed.error.issues,
+    });
   }
   const { email, password, fullName } = parsed.data;
 
@@ -98,7 +102,11 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ message: 'Неверные данные', issues: parsed.error.issues });
+    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+    return res.status(400).json({
+      message: issueMsg ?? 'Неверные данные',
+      issues: parsed.error.issues,
+    });
   }
   const { email, password } = parsed.data;
 
