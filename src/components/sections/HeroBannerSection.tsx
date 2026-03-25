@@ -7,7 +7,7 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
 import { useAuth } from '@/contexts/AuthContext';
-import { CheckboxMultiSelect } from '@/components/ui/CheckboxMultiSelect';
+import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 
 const INITIAL_FKKO = '';
 const INITIAL_VID: string[] = [];
@@ -206,6 +206,16 @@ export function HeroBannerSection(): JSX.Element {
                       noResultsText="Начните вводить код ФККО"
                     />
                   </div>
+                  <div className="w-full min-w-0 flex-1 lg:min-w-[220px]">
+                    <MultiSelectDropdown
+                      options={activityTypeOptions}
+                      selected={filterVid}
+                      onChange={setFilterVid}
+                      placeholder="Вид обращения"
+                      buttonClassName={fieldClass}
+                      maxHeightClassName="max-h-64"
+                    />
+                  </div>
                   <div className="w-full min-w-0 flex-1 lg:min-w-[200px]">
                     <AutocompleteInput
                       value={filterRegion}
@@ -217,19 +227,6 @@ export function HeroBannerSection(): JSX.Element {
                       noResultsText="Начните вводить"
                     />
                   </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-2">
-                    Вид обращения *
-                  </div>
-                  <CheckboxMultiSelect
-                    options={activityTypeOptions}
-                    selected={filterVid}
-                    onChange={setFilterVid}
-                    columns={2}
-                    maxHeightClassName="max-h-44"
-                  />
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#72b77d]/22 pt-4">

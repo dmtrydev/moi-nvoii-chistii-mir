@@ -20,7 +20,7 @@ import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
-import { CheckboxMultiSelect } from '@/components/ui/CheckboxMultiSelect';
+import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 
 const INITIAL_FKKO = '';
 const INITIAL_VID: string[] = [];
@@ -510,12 +510,13 @@ export default function MapPage(): JSX.Element {
               <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
                 Вид обращения *
               </p>
-              <CheckboxMultiSelect
+              <MultiSelectDropdown
                 options={activityTypeOptions}
                 selected={filterVid}
                 onChange={setFilterVid}
-                columns={1}
-                maxHeightClassName="max-h-56"
+                placeholder="Вид обращения"
+                buttonClassName={mapField}
+                maxHeightClassName="max-h-64"
               />
             </div>
             <div>
