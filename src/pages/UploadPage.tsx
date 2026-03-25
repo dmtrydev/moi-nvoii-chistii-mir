@@ -319,11 +319,11 @@ export default function UploadPage(): JSX.Element {
               )}
               <div className="flex items-center gap-2 mb-4 text-[#a7bfb1] text-sm">
                 <CheckCircle className="w-5 h-5 text-[#4caf50]" />
-                <span>Проверьте данные и при необходимости отредактируйте поля. Затем нажмите «Опубликовать».</span>
+                <span>Проверьте данные и при необходимости отредактируйте поля. Затем нажмите «Отправить на проверку».</span>
               </div>
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">Название организации</label>
+                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Название организации</label>
                   <input
                     type="text"
                     value={formData.companyName}
@@ -332,7 +332,7 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">ИНН</label>
+                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">ИНН</label>
                   <input
                     type="text"
                     value={formData.inn}
@@ -341,7 +341,7 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">Адрес</label>
+                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Адрес</label>
                   <input
                     type="text"
                     value={formData.address}
@@ -350,7 +350,7 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">Регион</label>
+                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Регион</label>
                   <input
                     type="text"
                     value={formData.region ?? ''}
@@ -360,7 +360,7 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">
+                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">
                     Коды ФККО * (извлекаются из лицензии, обязательны)
                   </label>
                   <input
@@ -376,7 +376,7 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">
+                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">
                     Виды обращения
                   </label>
                   <input
@@ -411,7 +411,7 @@ export default function UploadPage(): JSX.Element {
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors disabled:opacity-60 shadow-sm"
                 >
                   {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
-                  Опубликовать
+                  Отправить на проверку
                 </button>
                 <button
                   type="button"
@@ -427,7 +427,7 @@ export default function UploadPage(): JSX.Element {
           {(step === 'analyzing') && (
             <div className="rounded-2xl glass-panel p-12 flex flex-col items-center gap-6">
               <Loader2 className="w-12 h-12 text-[#4caf50] animate-spin" />
-              <p className="text-center text-slate-900 font-medium">
+              <p className="text-center text-[#f5fff7] font-medium">
                 Нейросеть анализирует лицензию...
               </p>
               <p className="text-sm text-[#9ab3a5]">Извлечение реквизитов и кодов ФККО</p>
@@ -461,9 +461,9 @@ export default function UploadPage(): JSX.Element {
               <div className="w-14 h-14 rounded-full bg-[#4caf50]/15 flex items-center justify-center mx-auto mb-4">
                 <MapPin className="w-7 h-7 text-[#2e7d32]" />
               </div>
-              <h2 className="text-xl font-semibold text-[#f5fff7] mb-2">Объект опубликован</h2>
+              <h2 className="text-xl font-semibold text-[#f5fff7] mb-2">Заявка отправлена на проверку</h2>
               <p className="text-[#a3bcaf] text-sm mb-6">
-                Он появится на карте после модерации.
+                Мы отправили заявку администраторам. После проверки объект появится на карте.
               </p>
               <div className="flex gap-3 justify-center">
                 <Link

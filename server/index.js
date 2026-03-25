@@ -736,6 +736,7 @@ app.get('/api/licenses', async (req, res) => {
              created_at AS "createdAt"
       FROM licenses
       WHERE deleted_at IS NULL
+        AND status = 'approved'
         AND region = $1
         AND ($2 = ANY(fkko_codes) OR array_to_string(fkko_codes, '') = $3)
         AND (array_length(activity_types, 1) IS NULL OR $4 = ANY(activity_types))
