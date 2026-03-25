@@ -513,7 +513,7 @@ export default function MapPage(): JSX.Element {
                 value={filterVid}
                 onChange={setFilterVid}
                 options={activityTypeHintOptions}
-                placeholder="Выберите вид"
+                placeholder="Вид обращения (можно несколько через запятую)"
                 inputClassName={mapField}
                 maxItems={10}
                 noResultsText="Начните вводить вид обращения"

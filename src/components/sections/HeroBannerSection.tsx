@@ -216,7 +216,7 @@ export function HeroBannerSection(): JSX.Element {
                       value={filterVid}
                       onChange={setFilterVid}
                       options={activityTypeHintOptions}
-                      placeholder="Вид обращения"
+                      placeholder="Вид обращения (можно несколько через запятую)"
                       inputClassName={fieldClass}
                       maxItems={10}
                       noResultsText="Начните вводить вид обращения"

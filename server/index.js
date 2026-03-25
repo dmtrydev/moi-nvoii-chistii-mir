@@ -714,15 +714,21 @@ app.get('/api/licenses', async (req, res) => {
   try {
     const region = String(req.query.region ?? '').trim();
     const fkko = normalizeFkkoCode(String(req.query.fkko ?? '').trim());
-    const vid = String(req.query.vid ?? req.query.activityType ?? '').trim();
+    const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
+    const vids = vidRaw
+      ? vidRaw
+          .split(/[,;]+/)
+          .map((x) => x.trim())
+          .filter(Boolean)
+      : [];
 
-    if (!region || !fkko || !vid) {
+    if (!region || !fkko || vids.length === 0) {
       return res.status(400).json({
         message: 'Все фильтры обязательны: регион, код ФККО и вид обращения. Заполните все поля.',
       });
     }
 
-    const params = [region, fkko, fkko, vid];
+    const params = [region, fkko, fkko, vids];
     const sql = `
       SELECT id,
              company_name AS "companyName",
@@ -739,7 +745,7 @@ app.get('/api/licenses', async (req, res) => {
         AND status = 'approved'
         AND region = $1
         AND ($2 = ANY(fkko_codes) OR array_to_string(fkko_codes, '') = $3)
-        AND (array_length(activity_types, 1) IS NULL OR $4 = ANY(activity_types))
+        AND (array_length(activity_types, 1) IS NULL OR activity_types && $4::text[])
       ORDER BY created_at DESC
       LIMIT 200
     `;
