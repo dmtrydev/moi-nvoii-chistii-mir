@@ -24,6 +24,11 @@ const TYPE_MAP = {
 
 const TILE_SIZE = 512;
 const WMS_ZOOM = 24;
+const UPSTREAM_TIMEOUT_MS = (() => {
+  const raw = process.env.CADASTRE_UPSTREAM_TIMEOUT_MS;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : 15_000;
+})();
 
 function pkkReferer() {
   const fromEnv = String(process.env.CADASTRE_PKK_REFERER ?? '').trim();
@@ -80,6 +85,12 @@ function pkkRequest(targetUrl, { method = 'GET', accept = 'application/json, */*
         });
       },
     );
+
+    // Render иногда возвращает 502, если внешние сервисы подвисают.
+    // Таймаут гарантирует корректный fallback вместо “Bad Gateway”.
+    req.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+      req.destroy(new Error(`upstream timeout (${UPSTREAM_TIMEOUT_MS}ms)`));
+    });
     req.on('error', reject);
     if (body != null) req.write(body);
     req.end();
