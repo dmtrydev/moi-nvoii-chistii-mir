@@ -6,6 +6,7 @@ import { formatFkkoHuman } from '@/utils/fkko';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
+import { useAuth } from '@/contexts/AuthContext';
 
 const INITIAL_FKKO = '';
 const INITIAL_VID = '';
@@ -21,6 +22,8 @@ const fieldClass = 'liquid-field';
 
 export function HeroBannerSection(): JSX.Element {
   const navigate = useNavigate();
+  const { user, isReady } = useAuth();
+  const isLoggedIn = isReady && !!user;
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
@@ -159,6 +162,24 @@ export function HeroBannerSection(): JSX.Element {
               >
                 Открыть справочник
               </Link>
+            </div>
+
+            <div className="hero-reveal">
+              {isLoggedIn ? (
+                <Link
+                  to="/dashboard/profile"
+                  className="glass-btn-soft inline-flex items-center justify-center h-10 sm:h-11 text-sm font-medium px-5 sm:px-6"
+                >
+                  В личный кабинет
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="glass-btn-soft inline-flex items-center justify-center h-10 sm:h-11 text-sm font-medium px-5 sm:px-6"
+                >
+                  Регистрация / Вход
+                </Link>
+              )}
             </div>
 
             <div className="hero-reveal flex flex-col gap-4">
