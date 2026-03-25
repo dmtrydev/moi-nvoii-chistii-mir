@@ -12,6 +12,7 @@ import EnterpriseDetailsPage from '@/pages/EnterpriseDetailsPage';
 import FkkoDirectoryPage from '@/pages/FkkoDirectoryPage';
 import UserDashboardPage from '@/pages/UserDashboardPage';
 import UserUploadPage from '@/pages/UserUploadPage';
+import UserProfilePage from '@/pages/UserProfilePage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
 
@@ -41,6 +42,7 @@ export default function App(): JSX.Element {
             }
           >
             <Route index element={<UserDashboardPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
             <Route path="upload" element={<UserUploadPage />} />
             <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
           </Route>

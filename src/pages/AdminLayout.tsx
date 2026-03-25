@@ -8,6 +8,7 @@ export default function AdminLayout(): JSX.Element {
 
   const mainLinks = [
     { to: '/dashboard', label: 'Панель' },
+    { to: '/dashboard/profile', label: 'Профиль' },
     { to: '/dashboard/upload', label: 'Загрузка лицензии' },
     { to: '/map', label: 'Карта' },
     { to: '/directory', label: 'Справочник ФККО' },
@@ -28,7 +29,10 @@ export default function AdminLayout(): JSX.Element {
         </div>
         <nav className="flex flex-col gap-2">
           {mainLinks.map((l) => {
-            const active = location.pathname.startsWith(l.to);
+            const active =
+              l.to === '/dashboard'
+                ? location.pathname === '/dashboard'
+                : location.pathname.startsWith(l.to);
             return (
               <Link
                 key={l.to}

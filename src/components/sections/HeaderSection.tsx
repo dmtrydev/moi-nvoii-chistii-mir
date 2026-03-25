@@ -1,7 +1,13 @@
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Logo } from '@/components/ui/Logo';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import { NAV_LINKS } from '@/constants/links';
 
 export function HeaderSection(): JSX.Element {
+  const { user, logout, isReady } = useAuth();
+  const isLoggedIn = isReady && !!user;
+
   return (
     <header className="flex flex-col w-full items-start fixed top-0 left-0 z-50">
       <div className="flex flex-col items-center justify-center px-0 py-[15px] relative self-stretch w-full flex-[0_0_auto] bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
@@ -41,22 +47,49 @@ export function HeaderSection(): JSX.Element {
             ))}
           </ul>
 
-          <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
-            <a
-              className="inline-flex flex-col items-center justify-center px-[30px] py-5 relative flex-[0_0_auto] bg-[#4caf50] rounded-[60px] hover:bg-[#43a047] transition-colors shadow-sm"
-              href="https://moinoviichistiimir-template.framer.website/contact-us"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
-                <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
-                  <span className="flex items-center w-fit font-manrope font-medium text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap relative mt-[-1.00px] text-white">
-                    Начать работу
-                  </span>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
+              <a
+                className="inline-flex flex-col items-center justify-center px-[30px] py-5 relative flex-[0_0_auto] bg-[#4caf50] rounded-[60px] hover:bg-[#43a047] transition-colors shadow-sm"
+                href="https://moinoviichistiimir-template.framer.website/contact-us"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
+                  <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
+                    <span className="flex items-center w-fit font-manrope font-medium text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap relative mt-[-1.00px] text-white">
+                      Начать работу
+                    </span>
+                  </div>
                 </div>
+                <div className="absolute w-full h-full top-0 left-0 rounded-[60px] border border-solid border-[#43a047]" />
+              </a>
+            </div>
+
+            {isLoggedIn ? (
+              <div className="flex items-center gap-2">
+                <Link to="/dashboard/profile" className="glass-btn-soft !text-[#f5fff7] gap-2" style={{ height: 40 }}>
+                  <UserAvatar name={user?.fullName ?? null} email={user?.email ?? null} size={28} />
+                  <span className="whitespace-nowrap font-semibold">
+                    {user?.fullName ?? user?.email ?? 'Пользователь'}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout();
+                  }}
+                  className="glass-btn-soft !text-[#f5fff7]"
+                  style={{ height: 40 }}
+                >
+                  Выйти
+                </button>
               </div>
-              <div className="absolute w-full h-full top-0 left-0 rounded-[60px] border border-solid border-[#43a047]" />
-            </a>
+            ) : (
+              <Link to="/login" className="glass-btn-soft !text-[#f5fff7]" style={{ height: 40 }}>
+                Регистрация / Вход
+              </Link>
+            )}
           </div>
         </nav>
       </div>

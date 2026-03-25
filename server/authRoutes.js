@@ -18,6 +18,11 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1).max(256),
+  newPassword: z.string().min(8).max(128),
+});
+
 function generateRefreshToken() {
   return crypto.randomBytes(48).toString('hex');
 }
@@ -267,6 +272,65 @@ router.post('/logout', async (req, res) => {
   });
 
   return res.json({ ok: true });
+});
+
+router.post('/change-password', requireAuth, async (req, res) => {
+  try {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+    }
+
+    const userId = Number(req.user?.id);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return res.status(401).json({ message: 'Требуется аутентификация' });
+    }
+
+    const { oldPassword, newPassword } = parsed.data;
+
+    const result = await query(
+      `SELECT password_hash
+       FROM users
+       WHERE id = $1 AND is_active = TRUE
+       LIMIT 1`,
+      [userId],
+    );
+
+    if (!result.rows.length) {
+      return res.status(401).json({ message: 'Пользователь не найден' });
+    }
+
+    const passwordHash = result.rows[0].password_hash;
+    const ok = await verifyPassword(passwordHash, oldPassword);
+    if (!ok) {
+      return res.status(401).json({ message: 'Неверный пароль' });
+    }
+
+    const newHash = await hashPassword(newPassword);
+    await query(
+      `UPDATE users
+       SET password_hash = $2,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [userId, newHash],
+    );
+
+    await createAuditLog({
+      req,
+      action: 'USER_PASSWORD_CHANGE',
+      entityType: 'USER',
+      entityId: String(userId),
+      severity: 'INFO',
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('change-password error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка смены пароля',
+    });
+  }
 });
 
 router.get('/me', requireAuth, async (req, res) => {
