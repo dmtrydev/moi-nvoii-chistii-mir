@@ -119,12 +119,25 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
       setCollection(null);
       return;
     }
+    // Leaflet иногда возвращает невалидные bounds, если карта ещё не успела
+    // отрендериться/получить размеры (часто проявляется на проде/Render).
+    const size = map.getSize?.();
+    if (!size || size.x <= 0 || size.y <= 0) return;
+
     const b = map.getBounds();
+    const minLon = b.getWest();
+    const minLat = b.getSouth();
+    const maxLon = b.getEast();
+    const maxLat = b.getNorth();
+    if (![minLon, minLat, maxLon, maxLat].every((n) => Number.isFinite(n))) {
+      setCollection(null);
+      return;
+    }
     const params = new URLSearchParams({
-      minLon: String(b.getWest()),
-      minLat: String(b.getSouth()),
-      maxLon: String(b.getEast()),
-      maxLat: String(b.getNorth()),
+      minLon: String(minLon),
+      minLat: String(minLat),
+      maxLon: String(maxLon),
+      maxLat: String(maxLat),
       zoom: String(z),
     });
     fetch(apiBase(`/api/cadastre/parcels?${params.toString()}`))
