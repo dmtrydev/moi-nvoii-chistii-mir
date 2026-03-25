@@ -19,6 +19,7 @@ async function main() {
   const email = String(arg(2, '') ?? '').trim();
   const password = String(arg(3, '') ?? '').trim();
   const fullName = String(arg(4, 'Тестовый Пользователь') ?? '').trim();
+  const role = String(arg(5, 'USER') ?? '').trim().toUpperCase();
 
   if (!email || !/.+@.+\..+/.test(email)) {
     console.error('Нужен корректный email: node scripts/create-test-user.js "email" "password" "fullName"');
@@ -28,18 +29,22 @@ async function main() {
     console.error('Нужен пароль длиной >= 8 символов');
     process.exit(1);
   }
+  if (!['USER', 'MODERATOR', 'SUPERADMIN'].includes(role)) {
+    console.error('Роль должна быть одной из: USER, MODERATOR, SUPERADMIN');
+    process.exit(1);
+  }
 
   const passwordHash = await hashPassword(password);
 
   const rows = await query(
     `INSERT INTO users (email, password_hash, full_name, role)
-     VALUES ($1,$2,$3,'USER')
+     VALUES ($1,$2,$3,$4)
      ON CONFLICT (email) DO UPDATE
        SET password_hash = EXCLUDED.password_hash,
            full_name = EXCLUDED.full_name,
            role = EXCLUDED.role
      RETURNING id, email, full_name AS "fullName", role`,
-    [email, passwordHash, fullName],
+    [email, passwordHash, fullName, role],
   );
 
   const user = rows.rows[0];

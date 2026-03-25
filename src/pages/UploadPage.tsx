@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
 import { formatFkkoHuman, parseFkkoCodesFromText } from '@/utils/fkko';
+import { useAuth } from '@/contexts/AuthContext';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -77,11 +78,13 @@ async function analyzeLicense(file: File): Promise<LicenseData> {
   return data;
 }
 
-async function publishLicense(payload: LicenseData): Promise<LicenseData> {
+async function publishLicense(payload: LicenseData, accessToken: string | null): Promise<LicenseData> {
   const url = getApiUrl('/api/licenses');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -95,6 +98,7 @@ async function publishLicense(payload: LicenseData): Promise<LicenseData> {
 export default function UploadPage(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
+  const { accessToken } = useAuth();
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<LicenseData | null>(null);
@@ -134,7 +138,7 @@ export default function UploadPage(): JSX.Element {
 
   const handleConfirmPublish = useCallback(async (payload: LicenseData) => {
     try {
-      const created = await publishLicense(payload);
+      const created = await publishLicense(payload, accessToken);
       const id = created.id;
       if (typeof id === 'number' && Number.isFinite(id)) {
         if (location.pathname.startsWith('/dashboard/upload')) {
@@ -145,10 +149,12 @@ export default function UploadPage(): JSX.Element {
         return;
       }
       setStep('published');
-    } catch {
-      // ignore
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ошибка отправки на проверку';
+      setErrorMessage(msg);
+      setStep('error');
     }
-  }, [navigate]);
+  }, [navigate, accessToken, location.pathname]);
 
   const processFile = useCallback(
     async (file: File) => {
