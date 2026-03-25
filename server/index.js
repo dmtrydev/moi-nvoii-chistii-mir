@@ -79,6 +79,9 @@ app.use((req, res, next) => {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https:",
     "connect-src 'self' https://agent.timeweb.cloud https://api.openai.com",
+    // Разрешаем загрузку внешней кадастровой подложки в iframe.
+    // Нужна, чтобы VITE_CADASTRE_IFRAME_URL работал в проде.
+    "frame-src 'self' https://ik8map.roscadastres.com",
     "frame-ancestors 'none'",
   ].join('; ');
   res.setHeader('Content-Security-Policy', csp);

@@ -484,8 +484,13 @@ router.get('/parcels', async (req, res) => {
     const fc = json.type === 'FeatureCollection' ? json : { type: 'FeatureCollection', features: [] };
     res.setHeader('Cache-Control', 'public, max-age=300');
     return res.json(normalizeParcelsCollection(fc));
-  } catch {
-    res.setHeader('X-Cadastre-Warning', 'network-error');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Не раскрываем полный текст наружу (может содержать URL/детали TLS),
+    // но даём короткий кусок для понимания причины.
+    const short = msg.length > 90 ? `${msg.slice(0, 90)}…` : msg;
+    console.error('cadastre parcels network error:', err);
+    res.setHeader('X-Cadastre-Warning', `network-error:${short}`);
     return res.json({ type: 'FeatureCollection', features: [] });
   }
 });
