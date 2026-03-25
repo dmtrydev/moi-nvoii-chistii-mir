@@ -234,14 +234,18 @@ export default function MapPage(): JSX.Element {
         setRegions(Array.isArray(regData.regions) ? regData.regions : []);
         setFkkoOptions(Array.isArray(fkkoData.fkko) ? fkkoData.fkko : []);
         const fromApi = Array.isArray(activityData.activityTypes) ? activityData.activityTypes : [];
-        const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение', 'Иное'];
-        setActivityTypeOptions([...new Set([...defaults, ...fromApi])]);
+        const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
+        setActivityTypeOptions(
+          [...new Set([...defaults, ...fromApi])]
+            .map((x) => String(x).trim())
+            .filter((x) => x && x.toLowerCase() !== 'иное'),
+        );
       })
       .catch(() => {
         if (!alive) return;
         setRegions([]);
         setFkkoOptions([]);
-        setActivityTypeOptions(['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение', 'Иное']);
+        setActivityTypeOptions(['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение']);
       });
     return () => {
       alive = false;
@@ -335,7 +339,7 @@ export default function MapPage(): JSX.Element {
       const vid = (overrides?.vid ?? vidQuery).trim();
 
       if (!region || !fkko || !vid) {
-        if (!overrides) setFilterValidationError('Заполните все фильтры: ФККО, вид обращения и регион.');
+        if (!overrides) setFilterValidationError('Заполните обязательные фильтры: ФККО и вид обращения.');
         return;
       }
       setFilterValidationError('');
@@ -520,7 +524,7 @@ export default function MapPage(): JSX.Element {
               />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Регион *</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Регион (необязательно)</p>
               <AutocompleteInput
                 value={filterRegion}
                 onChange={setFilterRegion}
@@ -555,7 +559,7 @@ export default function MapPage(): JSX.Element {
 
           {!hasSearched && (
             <div className="text-xs text-[#9ab3a5]">
-              Заполните все обязательные фильтры (ФККО, вид обращения, регион) и нажмите «Найти объект».
+              Заполните обязательные фильтры (ФККО, вид обращения). Регион — необязателен.
             </div>
           )}
           {hasSearched && isSearching && <div className="text-xs text-[#9ab3a5]">Идёт поиск…</div>}

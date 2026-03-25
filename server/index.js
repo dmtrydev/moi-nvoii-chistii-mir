@@ -722,9 +722,9 @@ app.get('/api/licenses', async (req, res) => {
           .filter(Boolean)
       : [];
 
-    if (!region || !fkko || vids.length === 0) {
+    if (!fkko || vids.length === 0) {
       return res.status(400).json({
-        message: 'Все фильтры обязательны: регион, код ФККО и вид обращения. Заполните все поля.',
+        message: 'Фильтры обязательны: код ФККО и вид обращения.',
       });
     }
 
@@ -743,7 +743,7 @@ app.get('/api/licenses', async (req, res) => {
       FROM licenses
       WHERE deleted_at IS NULL
         AND status = 'approved'
-        AND region = $1
+        AND ($1 = '' OR region = $1)
         AND ($2 = ANY(fkko_codes) OR array_to_string(fkko_codes, '') = $3)
         AND (array_length(activity_types, 1) IS NULL OR activity_types && $4::text[])
       ORDER BY created_at DESC

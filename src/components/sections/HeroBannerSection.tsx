@@ -49,14 +49,18 @@ export function HeroBannerSection(): JSX.Element {
         setRegions(Array.isArray(regData.regions) ? regData.regions : []);
         setFkkoOptions(Array.isArray(fkkoData.fkko) ? fkkoData.fkko : []);
         const fromApi = Array.isArray(activityData.activityTypes) ? activityData.activityTypes : [];
-        const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение', 'Иное'];
-        setActivityTypeOptions([...new Set([...defaults, ...fromApi])]);
+        const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
+        setActivityTypeOptions(
+          [...new Set([...defaults, ...fromApi])]
+            .map((x) => String(x).trim())
+            .filter((x) => x && x.toLowerCase() !== 'иное'),
+        );
       })
       .catch(() => {
         if (!alive) return;
         setRegions([]);
         setFkkoOptions([]);
-        setActivityTypeOptions(['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение', 'Иное']);
+        setActivityTypeOptions(['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение']);
       });
     return () => {
       alive = false;
@@ -103,8 +107,8 @@ export function HeroBannerSection(): JSX.Element {
     const r = filterRegion.trim();
     const f = filterFkko.trim();
     const v = vidQuery.trim();
-    if (!r || !f || !v) {
-      setValidationError('Заполните все поля: ФККО, вид обращения и регион.');
+    if (!f || !v) {
+      setValidationError('Заполните обязательные поля: ФККО и вид обращения.');
       return;
     }
     setValidationError('');
@@ -128,10 +132,11 @@ export function HeroBannerSection(): JSX.Element {
 
   const toMapPath = useCallback((id?: number): string => {
     const params = new URLSearchParams({
-      region: filterRegion.trim(),
       fkko: filterFkko.trim(),
       vid: vidQuery.trim(),
     });
+    const r = filterRegion.trim();
+    if (r) params.set('region', r);
     if (typeof id === 'number') params.set('focus', String(id));
     return `/map?${params.toString()}`;
   }, [filterRegion, filterFkko, vidQuery]);
@@ -221,7 +226,7 @@ export function HeroBannerSection(): JSX.Element {
                       value={filterRegion}
                       onChange={setFilterRegion}
                       options={regionOptions}
-                      placeholder="Регион"
+                      placeholder="Регион (необязательно)"
                       inputClassName={fieldClass}
                       maxItems={10}
                       noResultsText="Начните вводить"
