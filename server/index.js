@@ -26,6 +26,35 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const port = Number(process.env.PORT) || 3001;
 
+async function ensureDatabaseSchema() {
+  // Важно для Render: там Postgres обычно отдельный сервис, и таблицы создаются
+  // либо автоматически, либо руками в SQL editor. Чтобы не зависеть от ручных шагов,
+  // безопасно применяем наши init/migrations при старте (в SQL есть IF NOT EXISTS).
+  if (!process.env.DATABASE_URL) {
+    console.warn('DATABASE_URL не задан — пропускаю инициализацию БД');
+    return;
+  }
+
+  const initSqlPath = path.join(__dirname, 'db', 'init.sql');
+  const dashboardMigrationPath = path.join(__dirname, 'db', 'migrations', 'eco-auth-dashboard.sql');
+
+  try {
+    // sessions.id использует gen_random_uuid() — для этого нужна pgcrypto.
+    await query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+
+    const initSql = await fsPromises.readFile(initSqlPath, 'utf8');
+    await query(initSql);
+
+    const dashboardSql = await fsPromises.readFile(dashboardMigrationPath, 'utf8');
+    await query(dashboardSql);
+
+    console.log('DB schema initialized/ensured');
+  } catch (err) {
+    console.error('DB schema initialization failed:', err instanceof Error ? err.message : err);
+    throw err;
+  }
+}
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3001',
@@ -955,4 +984,6 @@ function startServer(tryPort) {
   });
 }
 
-startServer(port);
+ensureDatabaseSchema()
+  .then(() => startServer(port))
+  .catch(() => process.exit(1));
