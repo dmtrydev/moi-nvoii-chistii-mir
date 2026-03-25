@@ -60,12 +60,27 @@ export interface LicenseDataFoundTexts {
 
 /** Данные, извлечённые из лицензии (ответ ИИ + геокодинг) */
 export interface LicenseData {
+  id?: number;
   companyName: string;
   inn: string;
+  region?: string;
   address: string;
   fkkoCodes: string[];
+  activityTypes?: string[];
   lat?: number;
   lng?: number;
+  createdAt?: string;
+  // Поля moderation / оплаты
+  status?: 'pending' | 'approved' | 'rejected' | string;
+  reward?: number;
+  rejectionNote?: string | null;
+  moderatedComment?: string | null;
+  moderatedAt?: string | null;
+  ownerUserId?: number | null;
+
+  // Оригинальный PDF пользователя (для скачивания администратором)
+  fileOriginalName?: string | null;
+  fileStoredName?: string | null;
   /** Точные цитаты из документа для подсветки при фокусе на поле */
   foundTexts?: LicenseDataFoundTexts;
 }

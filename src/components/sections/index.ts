@@ -2,7 +2,6 @@ export { HeaderSection } from '@/components/sections/HeaderSection';
 export { HeroBannerSection } from '@/components/sections/HeroBannerSection';
 export { PlanetSection } from '@/components/sections/PlanetSection';
 export { MissionStatementSection } from '@/components/sections/MissionStatementSection';
-export { BlogPreviewSection } from '@/components/sections/BlogPreviewSection';
 export { EcoSolutionsSection } from '@/components/sections/EcoSolutionsSection';
 export { HowWeHelpSection } from '@/components/sections/HowWeHelpSection';
 export { TeamMembersSection } from '@/components/sections/TeamMembersSection';

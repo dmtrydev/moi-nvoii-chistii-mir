@@ -35,7 +35,7 @@ export function PlanetSection(): JSX.Element {
           <button
             type="button"
             onClick={() => navigate('/map')}
-            className="group relative flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4caf50] focus-visible:ring-offset-4 focus-visible:ring-offset-[#1e1e1e] rounded-full w-full h-full"
+            className="group relative flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4caf50] focus-visible:ring-offset-4 focus-visible:ring-offset-white rounded-full w-full h-full"
             aria-label="Нажмите на планету — открыть рабочую площадку на карте"
           >
             <span className="relative cursor-pointer select-none block w-full h-full rounded-full overflow-hidden">
@@ -89,7 +89,7 @@ export function PlanetSection(): JSX.Element {
             />
           </button>
         </div>
-        <span className="text-sm text-white/50 tracking-widest uppercase group-hover:text-white/80 transition-colors">
+        <span className="text-sm text-slate-500 tracking-widest uppercase group-hover:text-slate-800 transition-colors">
           Нажмите на планету — открыть карту
         </span>
       </div>

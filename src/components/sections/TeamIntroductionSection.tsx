@@ -4,12 +4,12 @@ import { TEAM_FEATURES } from '@/constants/team';
 
 export function TeamIntroductionSection(): JSX.Element {
   return (
-    <section className="flex items-center justify-center relative self-stretch w-full flex-[0_0_auto] bg-[#f2f8f5]">
-      <RevealOnScroll variant="reveal-blur" className="flex flex-col max-w-[1410px] w-full items-center justify-center gap-[60px] pt-10 pb-[60px] px-0 relative bg-[#4f7363] rounded-[20px]">
+    <section className="flex items-center justify-center relative self-stretch w-full flex-[0_0_auto] bg-[#F9FAFB]">
+      <RevealOnScroll variant="reveal-blur" className="flex flex-col max-w-[1410px] w-full items-center justify-center gap-[60px] pt-10 pb-[60px] px-0 relative bg-[#4caf50] rounded-[20px] shadow-md">
         <div className="flex items-start gap-10 relative self-stretch w-full flex-[0_0_auto]">
           <div className="flex-col w-[705px] items-start gap-[60px] pl-[50px] pr-0 py-0 flex relative">
             <div className="flex self-stretch w-full flex-[0_0_auto] flex-col items-start relative">
-              <h2 className="relative self-stretch mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-white text-[70px] tracking-[-0.70px] leading-[84px]">
+              <h2 className="relative self-stretch mt-[-1.00px] font-manrope font-medium text-white text-[70px] tracking-[-0.70px] leading-[84px]">
                 Join us in building a <br />
                 greener future.
               </h2>
@@ -17,14 +17,14 @@ export function TeamIntroductionSection(): JSX.Element {
 
             <a
               className="inline-flex flex-col px-[30px] py-5 flex-[0_0_auto] bg-white rounded-[60px] items-center justify-center relative"
-              href="https://greenx-template.framer.website/contact-us"
+              href="https://moinoviichistiimir-template.framer.website/contact-us"
               rel="noopener noreferrer"
               target="_blank"
               aria-label="Let's Save The World - Contact us"
             >
               <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
                 <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
-                  <span className="relative flex items-center w-fit mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <span className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
                     Let&apos;s Save The World
                   </span>
                 </div>
@@ -53,7 +53,7 @@ export function TeamIntroductionSection(): JSX.Element {
 
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <p className="relative flex items-center w-fit mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-white text-xl tracking-[-0.20px] leading-6 whitespace-nowrap">
+                  <p className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-white text-xl tracking-[-0.20px] leading-6 whitespace-nowrap">
                     {feature.text}
                   </p>
                 </div>

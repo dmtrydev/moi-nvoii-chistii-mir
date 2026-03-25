@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Скрипт сборки и загрузки сайта на сервер через rsync.
 # Использование:
-#   ./scripts/deploy-rsync.sh user@server:/var/www/greenx
+#   ./scripts/deploy-rsync.sh user@server:/var/www/moinoviichistiimir
 # Или задайте переменную DEPLOY_TARGET:
-#   export DEPLOY_TARGET=user@server:/var/www/greenx
+#   export DEPLOY_TARGET=user@server:/var/www/moinoviichistiimir
 #   ./scripts/deploy-rsync.sh
 
 set -e
@@ -14,7 +14,7 @@ npm run build
 
 TARGET="${1:-$DEPLOY_TARGET}"
 if [ -z "$TARGET" ]; then
-  echo "Укажите цель деплоя: ./scripts/deploy-rsync.sh user@server:/var/www/greenx"
+  echo "Укажите цель деплоя: ./scripts/deploy-rsync.sh user@server:/var/www/moinoviichistiimir"
   exit 1
 fi
 

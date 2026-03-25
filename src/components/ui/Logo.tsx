@@ -19,7 +19,7 @@ export function Logo({ href, ariaLabel = 'Мой новый чистый мир 
       <div className="flex flex-col min-h-[37px] items-center justify-center relative">
         <span
           className={`font-medium text-xl sm:text-2xl tracking-tight whitespace-nowrap ${
-            light ? 'text-white' : 'text-[#4f7363]'
+            light ? 'text-white' : 'text-slate-900'
           }`}
         >
           Мой новый чистый мир

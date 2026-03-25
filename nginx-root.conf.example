@@ -1,4 +1,4 @@
-# greenx site in /root — replace ВАШ_ДОМЕН_ИЛИ_IP then: sudo nginx -t && sudo systemctl reload nginx
+# moinoviichistiimir site in /root — replace ВАШ_ДОМЕН_ИЛИ_IP then: sudo nginx -t && sudo systemctl reload nginx
 server {
     listen 80;
     listen [::]:80;
@@ -7,8 +7,8 @@ server {
     root /root;
     index index.html;
 
-    access_log /var/log/nginx/greenx_access.log;
-    error_log  /var/log/nginx/greenx_error.log;
+    access_log /var/log/nginx/moinoviichistiimir_access.log;
+    error_log  /var/log/nginx/moinoviichistiimir_error.log;
 
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;

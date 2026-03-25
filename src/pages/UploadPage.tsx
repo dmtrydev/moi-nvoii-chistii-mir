@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
+import { formatFkkoHuman, parseFkkoCodesFromText } from '@/utils/fkko';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -12,20 +13,17 @@ const API_HEALTH_URL = (() => {
 
 type Step = 'idle' | 'dragging' | 'analyzing' | 'form' | 'error' | 'published';
 
-function getGeocode(address: string): Promise<{ lat: number; lng: number } | null> {
-  const q = encodeURIComponent(address);
-  return fetch(
-    `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
-    { headers: { Accept: 'application/json' } }
-  )
-    .then((r) => r.json())
-    .then((arr: { lat: string; lon: string }[]) => {
-      if (arr?.length && arr[0].lat && arr[0].lon) {
-        return { lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon) };
-      }
-      return null;
-    })
-    .catch(() => null);
+async function getGeocode(address: string): Promise<{ lat: number; lng: number } | null> {
+  const url = getApiUrl(`/api/geocode?address=${encodeURIComponent(address)}`);
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const data = (await r.json()) as { lat?: number; lng?: number };
+    if (typeof data.lat === 'number' && typeof data.lng === 'number') return { lat: data.lat, lng: data.lng };
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 function getApiUrl(path: string): string {
@@ -79,7 +77,24 @@ async function analyzeLicense(file: File): Promise<LicenseData> {
   return data;
 }
 
+async function publishLicense(payload: LicenseData): Promise<LicenseData> {
+  const url = getApiUrl('/api/licenses');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = (err as { message?: string }).message;
+    throw new Error(msg ?? `Ошибка публикации (${res.status})`);
+  }
+  return (await res.json()) as LicenseData;
+}
+
 export default function UploadPage(): JSX.Element {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<LicenseData | null>(null);
@@ -117,15 +132,23 @@ export default function UploadPage(): JSX.Element {
     return okType && okExt;
   }, []);
 
-  const handleConfirmPublish = useCallback(async (_payload: LicenseData) => {
+  const handleConfirmPublish = useCallback(async (payload: LicenseData) => {
     try {
-      // TODO: отправить _payload на бэкенд для публикации на карте
-      await new Promise((r) => setTimeout(r, 800));
+      const created = await publishLicense(payload);
+      const id = created.id;
+      if (typeof id === 'number' && Number.isFinite(id)) {
+        if (location.pathname.startsWith('/dashboard/upload')) {
+          navigate(`/dashboard/licenses/${id}`);
+        } else {
+          navigate(`/map?focus=${id}`);
+        }
+        return;
+      }
       setStep('published');
     } catch {
       // ignore
     }
-  }, []);
+  }, [navigate]);
 
   const processFile = useCallback(
     async (file: File) => {
@@ -180,8 +203,15 @@ export default function UploadPage(): JSX.Element {
   }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formValidationError, setFormValidationError] = useState('');
   const handlePublishClick = useCallback(async () => {
     if (!formData) return;
+    const fkko = Array.isArray(formData.fkkoCodes) ? formData.fkkoCodes : [];
+    if (fkko.length === 0) {
+      setFormValidationError('Укажите хотя бы один код ФККО. Коды извлекаются из лицензии и обязательно прикрепляются к организации.');
+      return;
+    }
+    setFormValidationError('');
     setIsSubmitting(true);
     try {
       await handleConfirmPublish(formData);
@@ -193,49 +223,49 @@ export default function UploadPage(): JSX.Element {
   const highlight = isDragging || step === 'dragging';
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans flex flex-col">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,_#4caf5020,_transparent_50%)] pointer-events-none" />
+    <div className="min-h-screen glass-bg text-[#f5fff7] font-sans flex flex-col">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,_rgba(76,175,80,0.08),_transparent_50%)] pointer-events-none" />
 
-      <header className="relative flex items-center justify-between px-6 py-4 border-b border-white/10">
+      <header className="relative flex items-center justify-between px-6 py-4 border-b border-[#72b77d]/25 bg-[#0f1e17]/65 backdrop-blur-xl">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-[#a5bcae] hover:text-[#f5fff7] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           На главную
         </Link>
         <Link
           to="/map"
-          className="text-sm text-white/70 hover:text-white transition-colors"
+          className="text-sm text-[#a5bcae] hover:text-[#f5fff7] transition-colors"
         >
           Карта объектов
         </Link>
       </header>
 
       {apiReachable === false && (
-        <div className="relative mx-4 mt-4 p-4 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200">
+        <div className="relative mx-4 mt-4 p-4 rounded-xl bg-[#291f10]/80 border border-amber-300/30 text-amber-100">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-amber-100">
+              <p className="font-medium text-amber-900">
                 {import.meta.env.PROD
                   ? 'Сервер временно недоступен. Попробуйте обновить страницу через минуту.'
                   : 'Сервер API недоступен (ERR_CONNECTION_REFUSED)'}
               </p>
               {!import.meta.env.PROD && (
                 <>
-                  <p className="text-sm mt-1 text-amber-200/90">
-                    Запрос идёт по адресу: <code className="bg-black/30 px-1 rounded text-xs break-all">{API_HEALTH_URL}</code>
+                  <p className="text-sm mt-1 text-amber-100/85">
+                    Запрос идёт по адресу: <code className="bg-black/20 px-1 rounded text-xs break-all border border-amber-300/30">{API_HEALTH_URL}</code>
                   </p>
-                  <p className="text-sm mt-2">
-                    1) Откройте новый терминал. 2) Выполните: <code className="bg-black/30 px-1 rounded">cd server</code>, затем <code className="bg-black/30 px-1 rounded">npm start</code>. 3) В .env укажите <code className="bg-black/30 px-1 rounded">VITE_API_URL=http://localhost:3001</code> или уберите переменную для прокси.
+                  <p className="text-sm mt-2 text-amber-100/85">
+                    1) Откройте новый терминал. 2) Выполните: <code className="bg-black/20 px-1 rounded border border-amber-300/30">cd server</code>, затем <code className="bg-black/20 px-1 rounded border border-amber-300/30">npm start</code>. 3) В .env укажите <code className="bg-black/20 px-1 rounded border border-amber-300/30">VITE_API_URL=http://localhost:3001</code> или уберите переменную для прокси.
                   </p>
                 </>
               )}
               <button
                 type="button"
                 onClick={checkApiReachable}
-                className="mt-3 px-3 py-1.5 rounded-lg bg-amber-500/30 text-amber-100 text-sm font-medium hover:bg-amber-500/50 transition-colors"
+                className="mt-3 px-3 py-1.5 rounded-lg bg-amber-300/25 text-amber-50 text-sm font-medium hover:bg-amber-300/35 transition-colors border border-amber-300/30"
               >
                 Проверить снова
               </button>
@@ -252,10 +282,10 @@ export default function UploadPage(): JSX.Element {
               onDragLeave={onDragLeave}
               onDrop={onDrop}
               className={`
-                rounded-2xl border-2 border-dashed transition-all duration-200
+                rounded-2xl border-2 border-dashed transition-all duration-200 glass-panel
                 ${highlight
-                  ? 'border-[#4caf50] bg-[#4caf50]/10'
-                  : 'border-white/20 bg-[#161616] hover:border-white/30 hover:bg-[#1a1a1a]'}
+                  ? 'border-[#87de94] bg-[#4caf50]/14'
+                  : 'border-[#72b77d]/30 hover:border-[#7fd98d] hover:bg-white/10'}
               `}
             >
               <label className="flex flex-col items-center justify-center gap-4 py-16 px-8 cursor-pointer">
@@ -266,70 +296,111 @@ export default function UploadPage(): JSX.Element {
                   className="sr-only"
                 />
                 <span
-                  className={`flex items-center justify-center w-16 h-16 rounded-full transition-colors ${highlight ? 'bg-[#4caf50]/30 text-[#4caf50]' : 'bg-white/5 text-white/60'}`}
+                  className={`flex items-center justify-center w-16 h-16 rounded-full transition-colors ${highlight ? 'bg-[#4caf50]/28 text-[#d8ffde]' : 'bg-white/10 text-[#9ab3a5]'}`}
                 >
                   <Upload className="w-8 h-8" />
                 </span>
                 <div className="text-center space-y-1">
-                  <p className="text-lg font-medium text-white">
+                  <p className="text-lg font-medium text-[#f5fff7]">
                     {highlight ? 'Отпустите файл здесь' : 'Перетащите лицензию в PDF сюда'}
                   </p>
-                  <p className="text-sm text-white/50">или нажмите, чтобы выбрать файл</p>
+                  <p className="text-sm text-[#9ab3a5]">или нажмите, чтобы выбрать файл</p>
                 </div>
               </label>
             </div>
           )}
 
           {step === 'form' && formData && (
-            <div className="rounded-2xl border border-white/10 bg-[#161616] p-6 sm:p-8">
-              <div className="flex items-center gap-2 mb-4 text-white/70 text-sm">
+            <div className="rounded-2xl glass-panel p-6 sm:p-8">
+              {formValidationError && (
+                <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+                  {formValidationError}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mb-4 text-[#a7bfb1] text-sm">
                 <CheckCircle className="w-5 h-5 text-[#4caf50]" />
                 <span>Проверьте данные и при необходимости отредактируйте поля. Затем нажмите «Опубликовать».</span>
               </div>
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">Название организации</label>
+                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">Название организации</label>
                   <input
                     type="text"
                     value={formData.companyName}
                     onChange={(e) => setFormData((prev) => prev ? { ...prev, companyName: e.target.value } : prev)}
-                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60"
+                    className="liquid-field w-full px-4"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">ИНН</label>
+                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">ИНН</label>
                   <input
                     type="text"
                     value={formData.inn}
                     onChange={(e) => setFormData((prev) => prev ? { ...prev, inn: e.target.value } : prev)}
-                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60"
+                    className="liquid-field w-full px-4"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">Адрес</label>
+                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">Адрес</label>
                   <input
                     type="text"
                     value={formData.address}
                     onChange={(e) => setFormData((prev) => prev ? { ...prev, address: e.target.value } : prev)}
-                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60"
+                    className="liquid-field w-full px-4"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">Коды ФККО</label>
+                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">Регион</label>
                   <input
                     type="text"
-                    value={Array.isArray(formData.fkkoCodes) ? formData.fkkoCodes.join(', ') : ''}
+                    value={formData.region ?? ''}
+                    onChange={(e) => setFormData((prev) => prev ? { ...prev, region: e.target.value } : prev)}
+                    placeholder="Например: Московская область"
+                    className="liquid-field w-full px-4 placeholder:text-[#88a799]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">
+                    Коды ФККО * (извлекаются из лицензии, обязательны)
+                  </label>
+                  <input
+                    type="text"
+                    value={Array.isArray(formData.fkkoCodes) ? formData.fkkoCodes.map(formatFkkoHuman).join(', ') : ''}
                     onChange={(e) =>
                       setFormData((prev) =>
-                        prev ? { ...prev, fkkoCodes: e.target.value.split(/[,;\s]+/).map((c) => c.trim()).filter(Boolean) } : prev
+                        prev ? { ...prev, fkkoCodes: parseFkkoCodesFromText(e.target.value) } : prev
                       )
                     }
                     placeholder="Через запятую или пробел"
-                    className="w-full rounded-xl border border-white/15 px-4 py-3 text-sm text-white bg-white/5 focus:outline-none focus:ring-2 focus:ring-[#4caf50]/60 placeholder-white/40"
+                    className="liquid-field w-full px-4 placeholder:text-[#88a799]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1.5">
+                    Виды обращения
+                  </label>
+                  <input
+                    type="text"
+                    value={Array.isArray(formData.activityTypes) ? formData.activityTypes.join(', ') : ''}
+                    onChange={(e) =>
+                      setFormData((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              activityTypes: e.target.value
+                                .split(/[,;]+/)
+                                .map((x) => x.trim())
+                                .filter(Boolean),
+                            }
+                          : prev
+                      )
+                    }
+                    placeholder="Сбор, Транспортирование, Обезвреживание и т.д."
+                    className="liquid-field w-full px-4 placeholder:text-[#88a799]"
                   />
                 </div>
                 {formData.lat != null && formData.lng != null && (
-                  <p className="text-xs text-white/50">Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}</p>
+                  <p className="text-xs text-[#9ab3a5]">Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-3">
@@ -337,7 +408,7 @@ export default function UploadPage(): JSX.Element {
                   type="button"
                   onClick={handlePublishClick}
                   disabled={isSubmitting}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors disabled:opacity-60 shadow-sm"
                 >
                   {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
                   Опубликовать
@@ -345,7 +416,7 @@ export default function UploadPage(): JSX.Element {
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-4 py-2 rounded-full border border-white/20 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                  className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Загрузить другой файл
                 </button>
@@ -354,30 +425,30 @@ export default function UploadPage(): JSX.Element {
           )}
 
           {(step === 'analyzing') && (
-            <div className="rounded-2xl border border-white/10 bg-[#161616] p-12 flex flex-col items-center gap-6">
+            <div className="rounded-2xl glass-panel p-12 flex flex-col items-center gap-6">
               <Loader2 className="w-12 h-12 text-[#4caf50] animate-spin" />
-              <p className="text-center text-white font-medium">
+              <p className="text-center text-slate-900 font-medium">
                 Нейросеть анализирует лицензию...
               </p>
-              <p className="text-sm text-white/50">Извлечение реквизитов и кодов ФККО</p>
+              <p className="text-sm text-[#9ab3a5]">Извлечение реквизитов и кодов ФККО</p>
             </div>
           )}
 
           {step === 'error' && (
-            <div className="rounded-2xl border border-red-500/30 bg-[#161616] p-8">
-              <p className="text-red-400 font-medium mb-2">Ошибка</p>
-              <p className="text-white/80 text-sm mb-6">{errorMessage}</p>
+            <div className="rounded-2xl border border-red-400/35 bg-[#281515]/80 p-8">
+              <p className="glass-danger font-medium mb-2">Ошибка</p>
+              <p className="text-[#e0ccc9] text-sm mb-6">{errorMessage}</p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-4 py-2 rounded-full bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors"
+                  className="px-4 py-2 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm"
                 >
                   Загрузить снова
                 </button>
                 <Link
                   to="/"
-                  className="px-4 py-2 rounded-full border border-white/20 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                  className="glass-btn-soft px-4 py-2 !h-auto !text-sm"
                 >
                   На главную
                 </Link>
@@ -386,25 +457,25 @@ export default function UploadPage(): JSX.Element {
           )}
 
           {step === 'published' && (
-            <div className="rounded-2xl border border-[#4caf50]/30 bg-[#161616] p-8 text-center">
-              <div className="w-14 h-14 rounded-full bg-[#4caf50]/20 flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-7 h-7 text-[#4caf50]" />
+            <div className="rounded-2xl border border-[#84da91]/35 bg-[#0f1f17]/80 p-8 text-center">
+              <div className="w-14 h-14 rounded-full bg-[#4caf50]/15 flex items-center justify-center mx-auto mb-4">
+                <MapPin className="w-7 h-7 text-[#2e7d32]" />
               </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Объект опубликован</h2>
-              <p className="text-white/70 text-sm mb-6">
+              <h2 className="text-xl font-semibold text-[#f5fff7] mb-2">Объект опубликован</h2>
+              <p className="text-[#a3bcaf] text-sm mb-6">
                 Он появится на карте после модерации.
               </p>
               <div className="flex gap-3 justify-center">
                 <Link
                   to="/map"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm"
                 >
                   Перейти к карте
                 </Link>
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-5 py-2.5 rounded-full border border-white/20 text-sm text-white/70 hover:bg-white/10 transition-colors"
+                  className="glass-btn-soft px-5 py-2.5 !h-auto !text-sm"
                 >
                   Разместить ещё объект
                 </button>

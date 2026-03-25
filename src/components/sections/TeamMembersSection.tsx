@@ -3,17 +3,17 @@ import { RevealOnScroll } from '@/components/ui/RevealOnScroll';
 
 export function TeamMembersSection(): JSX.Element {
   return (
-    <section className="flex items-center justify-center pt-0 pb-[130px] px-0 relative self-stretch w-full flex-[0_0_auto] bg-[#f2f8f5]">
+    <section className="flex items-center justify-center pt-0 pb-[130px] px-0 relative self-stretch w-full flex-[0_0_auto] bg-[#F9FAFB]">
       <div className="flex flex-col max-w-[1510px] w-full items-center justify-center gap-[60px] px-[50px] py-0 relative">
         <RevealOnScroll variant="reveal" className="flex max-w-[940px] w-full flex-[0_0_auto] flex-col items-start relative">
         <header className="flex max-w-[940px] w-full flex-[0_0_auto] flex-col items-start relative">
           <div className="h-[252px] relative self-stretch w-full">
-            <h2 className="absolute top-0 left-[calc(50.00%_-_466px)] w-[950px] h-[168px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#151e1b] text-[70px] text-center tracking-[-0.70px] leading-[84px]">
+            <h2 className="absolute top-0 left-[calc(50.00%_-_466px)] w-[950px] h-[168px] font-manrope font-medium text-[#151e1b] text-[70px] text-center tracking-[-0.70px] leading-[84px]">
               Our team is the driving force <br />
               behind our mission to create
             </h2>
 
-            <div className="absolute top-[168px] left-[calc(50.00%_-_421px)] w-[842px] h-[84px] flex items-center justify-center [font-family:'Inter-Medium',Helvetica] font-medium text-[#151e1b] text-[70px] text-center tracking-[-0.70px] leading-[84px] whitespace-nowrap">
+            <div className="absolute top-[168px] left-[calc(50.00%_-_421px)] w-[842px] h-[84px] flex items-center justify-center font-manrope font-medium text-[#151e1b] text-[70px] text-center tracking-[-0.70px] leading-[84px] whitespace-nowrap">
               a more sustainable world.
             </div>
           </div>
@@ -37,7 +37,7 @@ export function TeamMembersSection(): JSX.Element {
                 >
                   <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
                     <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                      <h3 className="relative flex items-center w-fit mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#151e1b] text-xl tracking-[-0.20px] leading-6 whitespace-nowrap">
+                      <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-xl tracking-[-0.20px] leading-6 whitespace-nowrap">
                         {member.name}
                       </h3>
                     </div>

@@ -23,8 +23,8 @@ class RootErrorBoundary extends Component<
         <div
           style={{
             minHeight: '100vh',
-            background: '#1e1e1e',
-            color: '#fff',
+            background: '#f9fafb',
+            color: '#0f172a',
             padding: 24,
             fontFamily: 'Manrope, sans-serif',
             display: 'flex',
@@ -35,7 +35,7 @@ class RootErrorBoundary extends Component<
           }}
         >
           <h1 style={{ fontSize: 20, margin: 0 }}>Что-то пошло не так</h1>
-          <p style={{ color: '#999', fontSize: 14, margin: 0 }}>
+          <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
             Обновите страницу. Если проблема сохранится — откройте консоль (F12) и сообщите об ошибке.
           </p>
         </div>

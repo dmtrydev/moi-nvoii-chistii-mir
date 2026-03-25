@@ -28,7 +28,7 @@ export function FooterSection(): JSX.Element {
   };
 
   return (
-    <footer className="pt-[130px] pb-10 px-0 flex items-center justify-center relative self-stretch w-full flex-[0_0_auto] bg-[#f2f8f5]">
+    <footer className="pt-[130px] pb-10 px-0 flex items-center justify-center relative self-stretch w-full flex-[0_0_auto] bg-[#F9FAFB] border-t border-slate-200">
       <div className="flex-col max-w-[1510px] w-full justify-center gap-[50px] px-[50px] py-0 flex items-center relative">
         <div className="items-start justify-between flex relative self-stretch w-full flex-[0_0_auto]">
           <div className="flex flex-col w-[225.59px] items-start gap-[30px] relative">
@@ -36,7 +36,7 @@ export function FooterSection(): JSX.Element {
               <Logo ariaLabel="Мой новый чистый мир — на главную" />
             </div>
             <div className="flex self-stretch w-full flex-[0_0_auto] flex-col items-start relative">
-              <p className="relative self-stretch mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px]">
+              <p className="relative self-stretch mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px]">
                 Eco and recycling <br />
                 solutions for a better <br />
                 world.
@@ -51,7 +51,7 @@ export function FooterSection(): JSX.Element {
             <div className="inline-flex flex-col items-start justify-center gap-7 relative flex-[0_0_auto]">
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <h3 className="relative flex items-center w-fit mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#4f7363] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#2e7d32] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
                     Company
                   </h3>
                 </div>
@@ -66,12 +66,12 @@ export function FooterSection(): JSX.Element {
                     <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
                       <div className="inline-flex items-start relative flex-[0_0_auto]">
                         {index === 0 ? (
-                          <div className="relative flex items-center w-fit mt-[-1.00px] font-greenx-template-framer-website-inter-medium font-[number:var(--greenx-template-framer-website-inter-medium-font-weight)] text-[#6b7b76] text-[length:var(--greenx-template-framer-website-inter-medium-font-size)] tracking-[var(--greenx-template-framer-website-inter-medium-letter-spacing)] leading-[var(--greenx-template-framer-website-inter-medium-line-height)] whitespace-nowrap [font-style:var(--greenx-template-framer-website-inter-medium-font-style)]">
+                          <div className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#6b7b76] text-[length:var(--moinoviichistiimir-template-framer-website-inter-medium-font-size)] tracking-[var(--moinoviichistiimir-template-framer-website-inter-medium-letter-spacing)] leading-[var(--moinoviichistiimir-template-framer-website-inter-medium-line-height)] whitespace-nowrap">
                             {link.label}
                           </div>
                         ) : (
                           <a
-                            className="relative flex items-center w-fit mt-[-1.00px] font-greenx-template-framer-website-inter-medium font-[number:var(--greenx-template-framer-website-inter-medium-font-weight)] text-[#6b7b76] text-[length:var(--greenx-template-framer-website-inter-medium-font-size)] tracking-[var(--greenx-template-framer-website-inter-medium-letter-spacing)] leading-[var(--greenx-template-framer-website-inter-medium-line-height)] whitespace-nowrap [font-style:var(--greenx-template-framer-website-inter-medium-font-style)]"
+                            className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#6b7b76] text-[length:var(--moinoviichistiimir-template-framer-website-inter-medium-font-size)] tracking-[var(--moinoviichistiimir-template-framer-website-inter-medium-letter-spacing)] leading-[var(--moinoviichistiimir-template-framer-website-inter-medium-line-height)] whitespace-nowrap"
                             href={link.href}
                             rel="noopener noreferrer"
                             target="_blank"
@@ -89,7 +89,7 @@ export function FooterSection(): JSX.Element {
             <div className="inline-flex flex-col items-start justify-center gap-7 relative flex-[0_0_auto]">
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <h3 className="relative flex items-center w-fit mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#4f7363] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#2e7d32] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
                     Useful Info
                   </h3>
                 </div>
@@ -104,7 +104,7 @@ export function FooterSection(): JSX.Element {
                     <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
                       <div className="inline-flex items-start relative flex-[0_0_auto]">
                         <a
-                          className="relative flex items-center w-fit mt-[-1.00px] font-greenx-template-framer-website-inter-medium font-[number:var(--greenx-template-framer-website-inter-medium-font-weight)] text-[#6b7b76] text-[length:var(--greenx-template-framer-website-inter-medium-font-size)] tracking-[var(--greenx-template-framer-website-inter-medium-letter-spacing)] leading-[var(--greenx-template-framer-website-inter-medium-line-height)] whitespace-nowrap [font-style:var(--greenx-template-framer-website-inter-medium-font-style)]"
+                          className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#6b7b76] text-[length:var(--moinoviichistiimir-template-framer-website-inter-medium-font-size)] tracking-[var(--moinoviichistiimir-template-framer-website-inter-medium-letter-spacing)] leading-[var(--moinoviichistiimir-template-framer-website-inter-medium-line-height)] whitespace-nowrap"
                           href={link.href}
                           rel="noopener noreferrer"
                           target="_blank"
@@ -121,7 +121,7 @@ export function FooterSection(): JSX.Element {
             <div className="inline-flex flex-col min-w-[151.27px] items-start justify-center gap-[27px] relative flex-[0_0_auto]">
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <h3 className="relative flex items-center w-fit mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#4f7363] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#2e7d32] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
                     Services
                   </h3>
                 </div>
@@ -136,7 +136,7 @@ export function FooterSection(): JSX.Element {
                       <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
                         <div className="inline-flex items-start relative flex-[0_0_auto]">
                           <a
-                            className="relative flex items-center w-fit mt-[-1.00px] font-greenx-template-framer-website-inter-medium font-[number:var(--greenx-template-framer-website-inter-medium-font-weight)] text-[#6b7b76] text-[length:var(--greenx-template-framer-website-inter-medium-font-size)] tracking-[var(--greenx-template-framer-website-inter-medium-letter-spacing)] leading-[var(--greenx-template-framer-website-inter-medium-line-height)] whitespace-nowrap [font-style:var(--greenx-template-framer-website-inter-medium-font-style)]"
+                            className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#6b7b76] text-[length:var(--moinoviichistiimir-template-framer-website-inter-medium-font-size)] tracking-[var(--moinoviichistiimir-template-framer-website-inter-medium-letter-spacing)] leading-[var(--moinoviichistiimir-template-framer-website-inter-medium-line-height)] whitespace-nowrap"
                             href={link.href}
                             rel="noopener noreferrer"
                             target="_blank"
@@ -154,12 +154,12 @@ export function FooterSection(): JSX.Element {
 
           <div className="flex flex-col w-[465.3px] items-start gap-5 relative">
             <div className="flex self-stretch w-full flex-[0_0_auto] flex-col items-start relative">
-              <h3 className="relative flex items-center self-stretch mt-[-1.00px] [font-family:'Inter-Medium',Helvetica] font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px]">
+              <h3 className="relative flex items-center self-stretch mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px]">
                 Subscribe to our newsletter.
               </h3>
             </div>
             <div className="self-stretch w-full flex flex-col items-start relative flex-[0_0_auto]">
-              <p className="relative self-stretch mt-[-1.00px] [font-family:'Inter-Regular',Helvetica] font-normal text-[#6b7b76] text-lg tracking-[-0.36px] leading-[27px]">
+              <p className="relative self-stretch mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg tracking-[-0.36px] leading-[27px]">
                 Want to stay up to date with news and updates about our <br />
                 services? Subscribe.
               </p>
@@ -180,7 +180,7 @@ export function FooterSection(): JSX.Element {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Email"
-                      className="relative flex items-center self-stretch mt-[-1.00px] font-greenx-template-framer-website-DM-sans-medium font-[number:var(--greenx-template-framer-website-DM-sans-medium-font-weight)] text-[#6b7b7633] text-[length:var(--greenx-template-framer-website-DM-sans-medium-font-size)] tracking-[var(--greenx-template-framer-website-DM-sans-medium-letter-spacing)] leading-[var(--greenx-template-framer-website-DM-sans-medium-line-height)] [font-style:var(--greenx-template-framer-website-DM-sans-medium-font-style)] bg-transparent border-none outline-none w-full placeholder:text-[#6b7b76b2]"
+                      className="relative flex items-center self-stretch mt-[-1.00px] font-manrope font-medium text-[#6b7b7633] text-[length:var(--moinoviichistiimir-template-framer-website-DM-sans-medium-font-size)] tracking-[var(--moinoviichistiimir-template-framer-website-DM-sans-medium-letter-spacing)] leading-[var(--moinoviichistiimir-template-framer-website-DM-sans-medium-line-height)] bg-transparent border-none outline-none w-full placeholder:text-[#6b7b76b2]"
                       required
                       aria-required="true"
                     />
@@ -249,19 +249,19 @@ export function FooterSection(): JSX.Element {
           <div className="flex-col max-w-[250px] items-end justify-center gap-1 flex-1 grow flex relative">
             <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
               <div className="flex flex-col items-end flex-[0_0_auto] relative self-stretch w-full">
-                <p className="items-center justify-end w-fit mt-[-1.00px] [font-family:'Inter-Regular',Helvetica] font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap flex relative">
+                <p className="items-center justify-end w-fit mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap flex relative">
                   © Мой новый чистый мир. Все права защищены.
                 </p>
               </div>
             </div>
             <div className="flex-col items-start self-stretch w-full flex-[0_0_auto] flex relative">
               <div className="flex items-start justify-end flex-[0_0_auto] relative self-stretch w-full">
-                <div className="relative flex items-center justify-end w-fit mt-[-1.00px] [font-family:'Inter-Regular',Helvetica] font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap">
+                <div className="relative flex items-center justify-end w-fit mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap">
                   Designed by
                 </div>
                 <div className="inline-flex items-start justify-end relative flex-[0_0_auto]">
                   <a
-                    className="relative flex items-center justify-end w-fit mt-[-1.00px] [font-family:'Inter-Regular',Helvetica] font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap"
+                    className="relative flex items-center justify-end w-fit mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap"
                     href="https://fourtwelve.co/"
                     rel="noopener noreferrer"
                     target="_blank"
@@ -269,7 +269,7 @@ export function FooterSection(): JSX.Element {
                     fourtwelve
                   </a>
                 </div>
-                <div className="relative flex items-center justify-end w-fit mt-[-1.00px] [font-family:'Inter-Regular',Helvetica] font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap">
+                <div className="relative flex items-center justify-end w-fit mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap">
                   .
                 </div>
               </div>
