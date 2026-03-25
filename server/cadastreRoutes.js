@@ -27,9 +27,17 @@ const WMS_ZOOM = 24;
 const UPSTREAM_TIMEOUT_MS = (() => {
   const raw = process.env.CADASTRE_UPSTREAM_TIMEOUT_MS;
   const n = raw ? Number(raw) : NaN;
-  // НСПД/ПКК иногда отвечает медленно на проде/бесплатных инстансах,
-  // поэтому таймаут по умолчанию увеличиваем.
-  return Number.isFinite(n) ? n : 60_000;
+  // Важно: Render/прокси может возвращать 502, если запрос затянулся.
+  // Поэтому дефолт оставляем консервативным, как работало ранее локально/на 200.
+  return Number.isFinite(n) ? n : 15_000;
+})();
+
+const MAPSERVER_TIMEOUT_MS = (() => {
+  const raw = process.env.CADASTRE_MAPSERVER_TIMEOUT_MS;
+  const n = raw ? Number(raw) : NaN;
+  // ArcGIS часто самый "тормозной" участок. Делаем быстрый таймаут,
+  // чтобы гарантированно успеть сделать fallback на intersects.
+  return Number.isFinite(n) ? n : 7_000;
 })();
 
 function pkkReferer() {
@@ -57,7 +65,10 @@ function pkkHeaders(accept) {
   };
 }
 
-function pkkRequest(targetUrl, { method = 'GET', accept = 'application/json, */*', body = null } = {}) {
+function pkkRequest(
+  targetUrl,
+  { method = 'GET', accept = 'application/json, */*', body = null, timeoutMs = UPSTREAM_TIMEOUT_MS } = {},
+) {
   return new Promise((resolve, reject) => {
     const u = new NodeURL(targetUrl);
     const headers = { ...pkkHeaders(accept) };
@@ -90,10 +101,10 @@ function pkkRequest(targetUrl, { method = 'GET', accept = 'application/json, */*
 
     // Render иногда возвращает 502, если внешние сервисы подвисают.
     // Таймаут гарантирует корректный fallback вместо “Bad Gateway”.
-    req.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+    req.setTimeout(timeoutMs, () => {
       req.destroy(
         new Error(
-          `upstream timeout (${UPSTREAM_TIMEOUT_MS}ms) ${u.hostname}${u.pathname}${u.search}`,
+          `upstream timeout (${timeoutMs}ms) ${u.hostname}${u.pathname}${u.search}`,
         ),
       );
     });
@@ -435,7 +446,10 @@ router.get('/parcels', async (req, res) => {
     });
     const targetUrl = `${MAPSERVER_BASE.replace(/\/$/, '')}/${PARCEL_LAYER_ID}/query?${qs.toString()}`;
     try {
-      const upstream = await pkkRequest(targetUrl, { accept: 'application/geo+json, application/json, */*' });
+      const upstream = await pkkRequest(targetUrl, {
+        accept: 'application/geo+json, application/json, */*',
+        timeoutMs: MAPSERVER_TIMEOUT_MS,
+      });
       const raw = upstream.body.toString('utf8');
       if (upstream.statusCode < 400 && !isProbablyHtml(upstream.body)) {
         try {
@@ -485,6 +499,7 @@ router.get('/parcels', async (req, res) => {
       method: 'POST',
       accept: 'application/json, */*',
       body: JSON.stringify(payload),
+      timeoutMs: UPSTREAM_TIMEOUT_MS,
     });
     const raw = upstream.body.toString('utf8');
     if (upstream.statusCode >= 400 || isProbablyHtml(upstream.body)) {
