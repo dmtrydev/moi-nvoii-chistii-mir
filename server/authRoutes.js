@@ -55,175 +55,196 @@ function setRefreshCookie(res, token, expiresAt) {
 }
 
 router.post('/register', async (req, res) => {
-  const parsed = registerSchema.safeParse(req.body);
-  if (!parsed.success) {
-    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
-    return res.status(400).json({
-      message: issueMsg ?? 'Неверные данные',
-      issues: parsed.error.issues,
+  try {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({
+        message: issueMsg ?? 'Неверные данные',
+        issues: parsed.error.issues,
+      });
+    }
+    const { email, password, fullName } = parsed.data;
+
+    const existing = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
+    if (existing.rows.length) {
+      return res.status(409).json({ message: 'Пользователь с таким email уже существует' });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const inserted = await query(
+      `INSERT INTO users (email, password_hash, full_name, role)
+       VALUES ($1,$2,$3,$4)
+       RETURNING id, email, full_name AS "fullName", role`,
+      [email, passwordHash, fullName, 'USER'],
+    );
+
+    const user = inserted.rows[0];
+
+    await createAuditLog({
+      req,
+      action: 'USER_REGISTER',
+      entityType: 'USER',
+      entityId: String(user.id),
+      severity: 'INFO',
+      changes: { after: { id: user.id, email: user.email, role: user.role } },
+    });
+
+    const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
+    const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
+    setRefreshCookie(res, refreshToken, expiresAt);
+
+    return res.status(201).json({
+      user,
+      accessToken,
+    });
+  } catch (err) {
+    console.error('register error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка регистрации',
     });
   }
-  const { email, password, fullName } = parsed.data;
-
-  const existing = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
-  if (existing.rows.length) {
-    return res.status(409).json({ message: 'Пользователь с таким email уже существует' });
-  }
-
-  const passwordHash = await hashPassword(password);
-  const inserted = await query(
-    `INSERT INTO users (email, password_hash, full_name, role)
-     VALUES ($1,$2,$3,$4)
-     RETURNING id, email, full_name AS "fullName", role`,
-    [email, passwordHash, fullName, 'USER'],
-  );
-
-  const user = inserted.rows[0];
-
-  await createAuditLog({
-    req,
-    action: 'USER_REGISTER',
-    entityType: 'USER',
-    entityId: String(user.id),
-    severity: 'INFO',
-    changes: { after: { id: user.id, email: user.email, role: user.role } },
-  });
-
-  const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
-  const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
-  setRefreshCookie(res, refreshToken, expiresAt);
-
-  return res.status(201).json({
-    user,
-    accessToken,
-  });
 });
 
 router.post('/login', async (req, res) => {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
-    return res.status(400).json({
-      message: issueMsg ?? 'Неверные данные',
-      issues: parsed.error.issues,
-    });
-  }
-  const { email, password } = parsed.data;
+  try {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({
+        message: issueMsg ?? 'Неверные данные',
+        issues: parsed.error.issues,
+      });
+    }
+    const { email, password } = parsed.data;
 
-  const result = await query(
-    `SELECT id, email, password_hash, full_name AS "fullName", role, is_active
-     FROM users WHERE email = $1 LIMIT 1`,
-    [email],
-  );
-  if (!result.rows.length) {
+    const result = await query(
+      `SELECT id, email, password_hash, full_name AS "fullName", role, is_active
+       FROM users WHERE email = $1 LIMIT 1`,
+      [email],
+    );
+    if (!result.rows.length) {
+      await createAuditLog({
+        req,
+        action: 'USER_LOGIN_FAILED',
+        entityType: 'USER',
+        severity: 'WARNING',
+        metadata: { reason: 'user_not_found', email },
+      });
+      return res.status(401).json({ message: 'Неверный email или пароль' });
+    }
+
+    const user = result.rows[0];
+    if (!user.is_active) {
+      return res.status(403).json({ message: 'Пользователь заблокирован' });
+    }
+
+    const ok = await verifyPassword(user.password_hash, password);
+    if (!ok) {
+      await createAuditLog({
+        req,
+        action: 'USER_LOGIN_FAILED',
+        entityType: 'USER',
+        entityId: String(user.id),
+        severity: 'WARNING',
+        metadata: { reason: 'bad_password' },
+      });
+      return res.status(401).json({ message: 'Неверный email или пароль' });
+    }
+
+    const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
+    const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
+    setRefreshCookie(res, refreshToken, expiresAt);
+
     await createAuditLog({
       req,
-      action: 'USER_LOGIN_FAILED',
-      entityType: 'USER',
-      severity: 'WARNING',
-      metadata: { reason: 'user_not_found', email },
-    });
-    return res.status(401).json({ message: 'Неверный email или пароль' });
-  }
-
-  const user = result.rows[0];
-  if (!user.is_active) {
-    return res.status(403).json({ message: 'Пользователь заблокирован' });
-  }
-
-  const ok = await verifyPassword(user.password_hash, password);
-  if (!ok) {
-    await createAuditLog({
-      req,
-      action: 'USER_LOGIN_FAILED',
+      action: 'USER_LOGIN',
       entityType: 'USER',
       entityId: String(user.id),
-      severity: 'WARNING',
-      metadata: { reason: 'bad_password' },
+      severity: 'INFO',
+      metadata: { sessionId },
     });
-    return res.status(401).json({ message: 'Неверный email или пароль' });
+
+    return res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+      accessToken,
+    });
+  } catch (err) {
+    console.error('login error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка входа',
+    });
   }
-
-  const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
-  const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
-  setRefreshCookie(res, refreshToken, expiresAt);
-
-  await createAuditLog({
-    req,
-    action: 'USER_LOGIN',
-    entityType: 'USER',
-    entityId: String(user.id),
-    severity: 'INFO',
-    metadata: { sessionId },
-  });
-
-  return res.json({
-    user: {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-    },
-    accessToken,
-  });
 });
 
 router.post('/refresh', async (req, res) => {
-  const token = req.cookies?.refresh_token;
-  if (!token) {
-    return res.status(401).json({ message: 'Нет refresh токена' });
+  try {
+    const token = req.cookies?.refresh_token;
+    if (!token) {
+      return res.status(401).json({ message: 'Нет refresh токена' });
+    }
+
+    const now = new Date();
+    const result = await query(
+      `SELECT s.id, s.user_id AS "userId", s.expires_at AS "expiresAt", s.revoked_at AS "revokedAt",
+              u.email, u.full_name AS "fullName", u.role, u.is_active
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.refresh_token = $1
+       LIMIT 1`,
+      [token],
+    );
+
+    if (!result.rows.length) {
+      return res.status(401).json({ message: 'Сессия не найдена' });
+    }
+
+    const row = result.rows[0];
+    if (row.revokedAt || new Date(row.expiresAt) < now || !row.is_active) {
+      return res.status(401).json({ message: 'Сессия истекла или отозвана' });
+    }
+
+    // ротация refresh токена
+    const newToken = generateRefreshToken();
+    const newExpires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    await query(
+      `UPDATE sessions
+       SET refresh_token = $2, expires_at = $3
+       WHERE id = $1`,
+      [row.id, newToken, newExpires.toISOString()],
+    );
+
+    const accessToken = signAccessToken({ userId: row.userId, role: row.role, sessionId: row.id });
+    setRefreshCookie(res, newToken, newExpires);
+
+    await createAuditLog({
+      req,
+      action: 'SESSION_REFRESH',
+      entityType: 'SESSION',
+      entityId: String(row.id),
+      severity: 'INFO',
+    });
+
+    return res.json({
+      user: {
+        id: row.userId,
+        email: row.email,
+        fullName: row.fullName,
+        role: row.role,
+      },
+      accessToken,
+    });
+  } catch (err) {
+    console.error('refresh error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка refresh',
+    });
   }
-
-  const now = new Date();
-  const result = await query(
-    `SELECT s.id, s.user_id AS "userId", s.expires_at AS "expiresAt", s.revoked_at AS "revokedAt",
-            u.email, u.full_name AS "fullName", u.role, u.is_active
-     FROM sessions s
-     JOIN users u ON u.id = s.user_id
-     WHERE s.refresh_token = $1
-     LIMIT 1`,
-    [token],
-  );
-
-  if (!result.rows.length) {
-    return res.status(401).json({ message: 'Сессия не найдена' });
-  }
-
-  const row = result.rows[0];
-  if (row.revokedAt || new Date(row.expiresAt) < now || !row.is_active) {
-    return res.status(401).json({ message: 'Сессия истекла или отозвана' });
-  }
-
-  // ротация refresh токена
-  const newToken = generateRefreshToken();
-  const newExpires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  await query(
-    `UPDATE sessions
-     SET refresh_token = $2, expires_at = $3
-     WHERE id = $1`,
-    [row.id, newToken, newExpires.toISOString()],
-  );
-
-  const accessToken = signAccessToken({ userId: row.userId, role: row.role, sessionId: row.id });
-  setRefreshCookie(res, newToken, newExpires);
-
-  await createAuditLog({
-    req,
-    action: 'SESSION_REFRESH',
-    entityType: 'SESSION',
-    entityId: String(row.id),
-    severity: 'INFO',
-  });
-
-  return res.json({
-    user: {
-      id: row.userId,
-      email: row.email,
-      fullName: row.fullName,
-      role: row.role,
-    },
-    accessToken,
-  });
 });
 
 router.post('/logout', async (req, res) => {

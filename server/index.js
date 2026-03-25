@@ -972,6 +972,9 @@ function startServer(tryPort) {
     if (!TIMEWEB_ACCESS_ID) {
       console.warn('TIMEWEB_ACCESS_ID не задан — анализ лицензий через Timeweb недоступен.');
     }
+    if (!process.env.JWT_ACCESS_SECRET) {
+      console.warn('JWT_ACCESS_SECRET не задан — регистрация/логин может падать.');
+    }
     if (!VIRUSTOTAL_API_KEY) {
       console.warn('VIRUSTOTAL_API_KEY не задан — проверка файлов на вирусы отключена.');
     }
