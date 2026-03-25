@@ -27,7 +27,9 @@ const WMS_ZOOM = 24;
 const UPSTREAM_TIMEOUT_MS = (() => {
   const raw = process.env.CADASTRE_UPSTREAM_TIMEOUT_MS;
   const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : 15_000;
+  // НСПД/ПКК иногда отвечает медленно на проде/бесплатных инстансах,
+  // поэтому таймаут по умолчанию увеличиваем.
+  return Number.isFinite(n) ? n : 60_000;
 })();
 
 function pkkReferer() {
@@ -89,7 +91,11 @@ function pkkRequest(targetUrl, { method = 'GET', accept = 'application/json, */*
     // Render иногда возвращает 502, если внешние сервисы подвисают.
     // Таймаут гарантирует корректный fallback вместо “Bad Gateway”.
     req.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
-      req.destroy(new Error(`upstream timeout (${UPSTREAM_TIMEOUT_MS}ms)`));
+      req.destroy(
+        new Error(
+          `upstream timeout (${UPSTREAM_TIMEOUT_MS}ms) ${u.hostname}${u.pathname}${u.search}`,
+        ),
+      );
     });
     req.on('error', reject);
     if (body != null) req.write(body);
