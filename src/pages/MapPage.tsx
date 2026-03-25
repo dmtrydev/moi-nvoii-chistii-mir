@@ -20,9 +20,10 @@ import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
+import { CheckboxMultiSelect } from '@/components/ui/CheckboxMultiSelect';
 
 const INITIAL_FKKO = '';
-const INITIAL_VID = '';
+const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -205,7 +206,7 @@ function ClusterMarkers({
 export default function MapPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
-  const [filterVid, setFilterVid] = useState(INITIAL_VID);
+  const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
   const [menuVisible, setMenuVisible] = useState(true);
   const [regions, setRegions] = useState<string[]>([]);
@@ -271,15 +272,7 @@ export default function MapPage(): JSX.Element {
     });
     return items;
   }, [fkkoOptions]);
-  const activityTypeHintOptions = useMemo<AutocompleteOption[]>(
-    () =>
-      activityTypeOptions.map((v) => ({
-        value: v,
-        label: v,
-        searchText: v.toLowerCase(),
-      })),
-    [activityTypeOptions],
-  );
+  // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
 
   useEffect(() => {
     const r = searchParams.get('region');
@@ -287,7 +280,13 @@ export default function MapPage(): JSX.Element {
     const v = searchParams.get('vid');
     if (r != null) setFilterRegion(r);
     if (f != null) setFilterFkko(f);
-    if (v != null) setFilterVid(v);
+    if (v != null) {
+      const parsed = String(v)
+        .split(/[,;]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+      setFilterVid(parsed);
+    }
   }, [searchParams]);
 
   const focusId = useMemo(() => {
@@ -327,11 +326,13 @@ export default function MapPage(): JSX.Element {
     setSearchError('');
   }, [filterFkko, filterRegion, filterVid]);
 
+  const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
+
   const runSearch = useCallback(
     async (overrides?: { region?: string; fkko?: string; vid?: string }): Promise<void> => {
       const region = (overrides?.region ?? filterRegion).trim();
       const fkko = (overrides?.fkko ?? filterFkko).trim();
-      const vid = (overrides?.vid ?? filterVid).trim();
+      const vid = (overrides?.vid ?? vidQuery).trim();
 
       if (!region || !fkko || !vid) {
         if (!overrides) setFilterValidationError('Заполните все фильтры: ФККО, вид обращения и регион.');
@@ -363,7 +364,7 @@ export default function MapPage(): JSX.Element {
       setIsSearching(false);
     }
   },
-    [filterRegion, filterFkko, filterVid]
+    [filterRegion, filterFkko, vidQuery]
   );
 
   const lastAutoSearchKey = useRef<string | null>(null);
@@ -509,14 +510,12 @@ export default function MapPage(): JSX.Element {
               <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
                 Вид обращения *
               </p>
-              <AutocompleteInput
-                value={filterVid}
+              <CheckboxMultiSelect
+                options={activityTypeOptions}
+                selected={filterVid}
                 onChange={setFilterVid}
-                options={activityTypeHintOptions}
-                placeholder="Вид обращения (можно несколько через запятую)"
-                inputClassName={mapField}
-                maxItems={10}
-                noResultsText="Начните вводить вид обращения"
+                columns={1}
+                maxHeightClassName="max-h-56"
               />
             </div>
             <div>
@@ -580,7 +579,7 @@ export default function MapPage(): JSX.Element {
                   const mapParams = new URLSearchParams({
                     region: filterRegion.trim(),
                     fkko: filterFkko.trim(),
-                    vid: filterVid.trim(),
+                    vid: vidQuery.trim(),
                   });
                   if (id != null) mapParams.set('focus', String(id));
                   return (

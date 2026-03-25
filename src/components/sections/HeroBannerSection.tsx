@@ -7,9 +7,10 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
 import { useAuth } from '@/contexts/AuthContext';
+import { CheckboxMultiSelect } from '@/components/ui/CheckboxMultiSelect';
 
 const INITIAL_FKKO = '';
-const INITIAL_VID = '';
+const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -25,7 +26,7 @@ export function HeroBannerSection(): JSX.Element {
   const { user, isReady } = useAuth();
   const isLoggedIn = isReady && !!user;
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
-  const [filterVid, setFilterVid] = useState(INITIAL_VID);
+  const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
   const [regions, setRegions] = useState<string[]>([]);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
@@ -87,15 +88,7 @@ export function HeroBannerSection(): JSX.Element {
     });
     return items;
   }, [fkkoOptions]);
-  const activityTypeHintOptions = useMemo<AutocompleteOption[]>(
-    () =>
-      activityTypeOptions.map((v) => ({
-        value: v,
-        label: v,
-        searchText: v.toLowerCase(),
-      })),
-    [activityTypeOptions],
-  );
+  // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
 
   const handleResetFilters = (): void => {
     setFilterFkko(INITIAL_FKKO);
@@ -104,10 +97,12 @@ export function HeroBannerSection(): JSX.Element {
     setValidationError('');
   };
 
+  const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
+
   const runSearch = useCallback(async (): Promise<void> => {
     const r = filterRegion.trim();
     const f = filterFkko.trim();
-    const v = filterVid.trim();
+    const v = vidQuery.trim();
     if (!r || !f || !v) {
       setValidationError('Заполните все поля: ФККО, вид обращения и регион.');
       return;
@@ -129,17 +124,17 @@ export function HeroBannerSection(): JSX.Element {
     } finally {
       setIsSearching(false);
     }
-  }, [filterRegion, filterFkko, filterVid]);
+  }, [filterRegion, filterFkko, vidQuery]);
 
   const toMapPath = useCallback((id?: number): string => {
     const params = new URLSearchParams({
       region: filterRegion.trim(),
       fkko: filterFkko.trim(),
-      vid: filterVid.trim(),
+      vid: vidQuery.trim(),
     });
     if (typeof id === 'number') params.set('focus', String(id));
     return `/map?${params.toString()}`;
-  }, [filterRegion, filterFkko, filterVid]);
+  }, [filterRegion, filterFkko, vidQuery]);
 
   return (
     <section className="relative w-full self-stretch glass-bg min-h-screen flex flex-col">
@@ -213,17 +208,6 @@ export function HeroBannerSection(): JSX.Element {
                   </div>
                   <div className="w-full min-w-0 flex-1 lg:min-w-[200px]">
                     <AutocompleteInput
-                      value={filterVid}
-                      onChange={setFilterVid}
-                      options={activityTypeHintOptions}
-                      placeholder="Вид обращения (можно несколько через запятую)"
-                      inputClassName={fieldClass}
-                      maxItems={10}
-                      noResultsText="Начните вводить вид обращения"
-                    />
-                  </div>
-                  <div className="w-full min-w-0 flex-1 lg:min-w-[200px]">
-                    <AutocompleteInput
                       value={filterRegion}
                       onChange={setFilterRegion}
                       options={regionOptions}
@@ -233,6 +217,19 @@ export function HeroBannerSection(): JSX.Element {
                       noResultsText="Начните вводить"
                     />
                   </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-2">
+                    Вид обращения *
+                  </div>
+                  <CheckboxMultiSelect
+                    options={activityTypeOptions}
+                    selected={filterVid}
+                    onChange={setFilterVid}
+                    columns={2}
+                    maxHeightClassName="max-h-44"
+                  />
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#72b77d]/22 pt-4">
