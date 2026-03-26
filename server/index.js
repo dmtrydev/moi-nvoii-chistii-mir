@@ -486,7 +486,7 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
           },
           {
             role: 'user',
-            content: `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text.slice(0, 12000)}`,
+            content: `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text.slice(0, 30000)}`,
           },
         ],
         temperature: 0.1,
