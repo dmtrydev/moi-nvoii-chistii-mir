@@ -71,7 +71,8 @@ function markerHtml(it: LicenseData): string {
   const addr = it.address || '';
   const fkko = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
   const fkkoCount = fkko.length;
-  const addressesCount = addr.trim() ? 1 : 0;
+  const siteLabel = it.siteLabel ? String(it.siteLabel) : '';
+  const siteInfo = siteLabel || 'Площадка';
   const contactsPlaceholder = 'Скоро по подписке';
   const activityTypes = Array.isArray(it.activityTypes) ? it.activityTypes : [];
 
@@ -106,8 +107,8 @@ function markerHtml(it: LicenseData): string {
             <div className="moinoviichistiimir-popup-v">{fkkoCount}</div>
           </div>
           <div className="moinoviichistiimir-popup-item">
-            <div className="moinoviichistiimir-popup-k">Количество адресов</div>
-            <div className="moinoviichistiimir-popup-v">{addressesCount}</div>
+            <div className="moinoviichistiimir-popup-k">Площадка</div>
+            <div className="moinoviichistiimir-popup-v">{siteInfo}</div>
           </div>
         </div>
 
@@ -174,7 +175,7 @@ function ClusterMarkers({
     items
       .filter((it) => typeof it.lat === 'number' && typeof it.lng === 'number')
       .forEach((it) => {
-        const id = typeof it.id === 'number' ? it.id : null;
+        const siteId = typeof it.siteId === 'number' ? it.siteId : null;
         const icon = createPointIcon(markerVariant(it));
         const m = L.marker([it.lat as number, it.lng as number], { icon });
         const html = markerHtml(it);
@@ -184,9 +185,9 @@ function ClusterMarkers({
           closeButton: true,
           maxWidth: 320,
         });
-        m.on('click', () => onSelectId(id));
+        m.on('click', () => onSelectId(siteId));
         group.addLayer(m);
-        if (id != null) markersById.set(id, m);
+        if (siteId != null) markersById.set(siteId, m);
       });
 
     map.addLayer(group);
@@ -299,8 +300,8 @@ export default function MapPage(): JSX.Element {
     }
   }, [searchParams]);
 
-  const focusId = useMemo(() => {
-    const raw = searchParams.get('focus');
+  const focusSiteId = useMemo(() => {
+    const raw = searchParams.get('focusSite');
     if (!raw) return null;
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -308,13 +309,13 @@ export default function MapPage(): JSX.Element {
 
   useEffect(() => {
     // 1) Если есть focus=id — подгрузим объект и откроем его
-    if (!focusId) return;
+    if (!focusSiteId) return;
     let alive = true;
-    fetch(getApiUrl(`/api/licenses/${focusId}`))
+    fetch(getApiUrl(`/api/license-sites/${focusSiteId}`))
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((data: LicenseData) => {
         if (!alive) return;
-        if (typeof data.id === 'number') setSelectedId(data.id);
+        if (typeof data.siteId === 'number') setSelectedId(data.siteId);
         if (typeof data.lat === 'number' && typeof data.lng === 'number') {
           setFocusCenter([data.lat, data.lng]);
         }
@@ -326,7 +327,7 @@ export default function MapPage(): JSX.Element {
     return () => {
       alive = false;
     };
-  }, [focusId]);
+  }, [focusSiteId]);
 
   // При изменении фильтров скрываем результаты до следующего клика "Найти объект"
   useEffect(() => {
@@ -360,7 +361,7 @@ export default function MapPage(): JSX.Element {
       setIsSearching(true);
       setSearchError('');
       try {
-        const r = await fetch(getApiUrl(`/api/licenses?${qs.toString()}`));
+      const r = await fetch(getApiUrl(`/api/license-sites?${qs.toString()}`));
       const data = await (r.ok ? r.json() : r.json().catch(() => ({})));
       if (!r.ok) {
         const msg = (data as { message?: string }).message;
@@ -394,30 +395,18 @@ export default function MapPage(): JSX.Element {
     await runSearch();
   }, [runSearch]);
 
-  const geocodeMissing = useCallback(async (id: number) => {
+  const geocodeMissing = useCallback(async (siteId: number) => {
     try {
-      const item = searchItems.find((x) => x.id === id) ?? (focusedItem?.id === id ? focusedItem : null);
+      const item =
+        searchItems.find((x) => typeof x.siteId === 'number' && x.siteId === siteId) ??
+        (focusedItem && typeof focusedItem.siteId === 'number' && focusedItem.siteId === siteId ? focusedItem : null);
       const addr = String(item?.address ?? '').trim();
       if (!addr) throw new Error('У объекта нет адреса');
 
-      // Геокодируем через наш API (Яндекс с fallback)
-      const g = await fetch(getApiUrl(`/api/geocode?address=${encodeURIComponent(addr)}`), {
-        headers: { Accept: 'application/json' },
-      });
-      const gData = await (g.ok ? g.json() : g.json().catch(() => ({})));
-      if (!g.ok) {
-        const msg = (gData as { message?: string }).message;
-        throw new Error(msg ?? `Геокодер недоступен (${g.status})`);
-      }
-      const lat = Number((gData as { lat?: number }).lat);
-      const lng = Number((gData as { lng?: number }).lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Геокодер вернул некорректные координаты');
-
-      // Сохраняем координаты в БД
-      const r = await fetch(getApiUrl(`/api/licenses/${id}/coords`), {
+      const r = await fetch(getApiUrl(`/api/license-sites/${siteId}/geocode`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat, lng }),
+        body: JSON.stringify({}),
       });
       const data = await (r.ok ? r.json() : r.json().catch(() => ({})));
       if (!r.ok) {
@@ -426,10 +415,12 @@ export default function MapPage(): JSX.Element {
       }
 
       const updated = data as LicenseData;
-      setSearchItems((prev) => prev.map((x) => (x.id === id ? updated : x)));
-      if (focusedItem?.id === id) setFocusedItem(updated);
-      setSelectedId(id);
-      setFocusCenter([lat, lng]);
+      setSearchItems((prev) => prev.map((x) => (typeof x.siteId === 'number' && x.siteId === siteId ? updated : x)));
+      if (focusedItem && typeof focusedItem.siteId === 'number' && focusedItem.siteId === siteId) setFocusedItem(updated);
+      setSelectedId(siteId);
+      if (typeof updated.lat === 'number' && typeof updated.lng === 'number') {
+        setFocusCenter([updated.lat, updated.lng]);
+      }
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Ошибка геокодирования');
     }
@@ -457,7 +448,7 @@ export default function MapPage(): JSX.Element {
   const markersItems = useMemo(() => {
     const all = [...searchItems];
     if (focusedItem && typeof focusedItem.id === 'number') {
-      const exists = all.some((x) => x.id === focusedItem.id);
+      const exists = all.some((x) => typeof x.siteId === 'number' && typeof focusedItem.siteId === 'number' && x.siteId === focusedItem.siteId);
       if (!exists) all.unshift(focusedItem);
     }
     return all;
@@ -594,7 +585,7 @@ export default function MapPage(): JSX.Element {
                     vid: vidQuery.trim(),
                   });
                   if (r) mapParams.set('region', r);
-                  if (id != null) mapParams.set('focus', String(id));
+                  if (typeof it.siteId === 'number') mapParams.set('focusSite', String(it.siteId));
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>
                       <LicenseResultCard
@@ -603,10 +594,10 @@ export default function MapPage(): JSX.Element {
                         detailsPath={id != null ? `/enterprise/${id}` : '/map'}
                         compact
                       />
-                      {!hasCoords && id != null && (
+                      {!hasCoords && typeof it.siteId === 'number' && (
                         <button
                           type="button"
-                          onClick={() => void geocodeMissing(id)}
+                          onClick={() => void geocodeMissing(it.siteId as number)}
                           className="mt-2 h-8 px-3 rounded-lg bg-white/8 border border-[#7ccd89]/25 text-[11px] text-[#c9ddd1] hover:bg-white/12 transition-colors"
                         >
                           Определить координаты по адресу

@@ -83,6 +83,12 @@ export interface LicenseData {
   lat?: number;
   lng?: number;
   createdAt?: string;
+  /**
+   * При загрузке с /api/license-sites:
+   * `id` — это id лицензии, а `siteId` — id записи license_sites.
+   */
+  siteId?: number;
+  siteLabel?: string | null;
   sites?: LicenseSiteData[];
   addressAliases?: Record<string, string>;
   // Поля moderation / оплаты

@@ -798,6 +798,26 @@ app.post('/api/licenses', requireRole('USER'), async (req, res) => {
       }
 
       await client.query('COMMIT');
+
+      // Заполняем координаты для ВСЕХ площадок, чтобы на карте были отдельные маркеры.
+      // Координаты ставим только если Yandex ключ задан и в license_sites ещё нет lat/lng.
+      if (YANDEX_GEOCODER_API_KEY) {
+        for (const s of insertedSites) {
+          const siteId = Number(s?.siteId ?? s?.id ?? null);
+          // client.query RETURNING отдаёт id под ключом "id", а TypeScript/фронт ожидает siteId.
+          const lat = s?.lat;
+          const lng = s?.lng;
+          const address = String(s?.address ?? '').trim();
+          if (!siteId || address.length < 6) continue;
+          if (typeof lat === 'number' && typeof lng === 'number') continue;
+
+          const coords = await geocodeAddressBestEffort(address);
+          if (!coords) continue;
+          await client.query(`UPDATE license_sites SET lat = $2, lng = $3 WHERE id = $1`, [siteId, coords.lat, coords.lng]);
+          s.lat = coords.lat;
+          s.lng = coords.lng;
+        }
+      }
       return res.status(201).json({ ...created, sites: insertedSites });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -915,6 +935,163 @@ app.post('/api/licenses/:id/coords', async (req, res) => {
   } catch (err) {
     console.error('update coords error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка сохранения координат' });
+  }
+});
+
+// Маркеры на карте должны существовать по каждой площадке (address) отдельно,
+// поэтому делаем отдельный endpoint по license_sites.
+app.get('/api/license-sites', async (req, res) => {
+  try {
+    const region = String(req.query.region ?? '').trim();
+    const fkko = normalizeFkkoCode(String(req.query.fkko ?? '').trim());
+    const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
+    const vids = vidRaw ? vidRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
+
+    if (!fkko || vids.length === 0) {
+      return res.status(400).json({ message: 'Фильтры обязательны: код ФККО и вид обращения.' });
+    }
+
+    const params = [region, fkko, fkko, vids];
+    const sql = `
+      SELECT
+        s.id AS "siteId",
+        l.id,
+        l.company_name AS "companyName",
+        l.inn,
+        s.address,
+        COALESCE(s.region, l.region) AS region,
+        s.lat,
+        s.lng,
+        s.fkko_codes AS "fkkoCodes",
+        s.activity_types AS "activityTypes",
+        s.site_label AS "siteLabel"
+      FROM license_sites s
+      JOIN licenses l ON l.id = s.license_id
+      WHERE l.deleted_at IS NULL
+        AND l.status = 'approved'
+        AND ($1 = '' OR COALESCE(s.region, l.region) = $1)
+        AND ($2 = ANY(s.fkko_codes) OR array_to_string(s.fkko_codes, '') = $3)
+        AND (array_length(s.activity_types, 1) IS NULL OR s.activity_types && $4::text[])
+      ORDER BY s.created_at DESC
+      LIMIT 200
+    `;
+
+    const rows = await query(sql, params);
+    return res.json({ items: rows.rows });
+  } catch (err) {
+    console.error('list license sites error:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка получения площадок' });
+  }
+});
+
+app.get('/api/license-sites/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ message: 'Некорректный id' });
+    }
+
+    const rows = await query(
+      `SELECT
+         s.id AS "siteId",
+         l.id,
+         l.company_name AS "companyName",
+         l.inn,
+         s.address,
+         COALESCE(s.region, l.region) AS region,
+         s.lat,
+         s.lng,
+         s.fkko_codes AS "fkkoCodes",
+         s.activity_types AS "activityTypes",
+         s.site_label AS "siteLabel"
+       FROM license_sites s
+       JOIN licenses l ON l.id = s.license_id
+       WHERE s.id = $1
+       LIMIT 1`,
+      [id],
+    );
+
+    if (!rows.rows.length) return res.status(404).json({ message: 'Площадка не найдена' });
+    return res.json(rows.rows[0]);
+  } catch (err) {
+    console.error('get license site error:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка получения площадки' });
+  }
+});
+
+app.post('/api/license-sites/:id/geocode', async (req, res) => {
+  try {
+    if (!YANDEX_GEOCODER_API_KEY) {
+      return res.status(503).json({ message: 'YANDEX_GEOCODER_API_KEY не задан' });
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ message: 'Некорректный id' });
+    }
+
+    const rows = await query(
+      `SELECT id, address, lat, lng, license_id
+       FROM license_sites
+       WHERE id = $1
+       LIMIT 1`,
+      [id],
+    );
+    if (!rows.rows.length) return res.status(404).json({ message: 'Площадка не найдена' });
+
+    const it = rows.rows[0];
+    if (typeof it.lat === 'number' && typeof it.lng === 'number') {
+      return res.json(await query(
+        `SELECT
+           s.id AS "siteId",
+           l.id,
+           l.company_name AS "companyName",
+           l.inn,
+           s.address,
+           COALESCE(s.region, l.region) AS region,
+           s.lat,
+           s.lng,
+           s.fkko_codes AS "fkkoCodes",
+           s.activity_types AS "activityTypes",
+           s.site_label AS "siteLabel"
+         FROM license_sites s
+         JOIN licenses l ON l.id = s.license_id
+         WHERE s.id = $1
+         LIMIT 1`,
+        [id],
+      ).then((r) => r.rows[0]));
+    }
+
+    const addressStr = String(it.address ?? '').trim();
+    if (!addressStr) return res.status(400).json({ message: 'У площадки нет адреса' });
+
+    const coords = await geocodeAddressBestEffort(addressStr);
+    if (!coords) return res.status(422).json({ message: 'Не удалось определить координаты по адресу' });
+
+    await query(`UPDATE license_sites SET lat = $2, lng = $3 WHERE id = $1`, [id, coords.lat, coords.lng]);
+
+    const updated = await query(
+      `SELECT
+         s.id AS "siteId",
+         l.id,
+         l.company_name AS "companyName",
+         l.inn,
+         s.address,
+         COALESCE(s.region, l.region) AS region,
+         s.lat,
+         s.lng,
+         s.fkko_codes AS "fkkoCodes",
+         s.activity_types AS "activityTypes",
+         s.site_label AS "siteLabel"
+       FROM license_sites s
+       JOIN licenses l ON l.id = s.license_id
+       WHERE s.id = $1
+       LIMIT 1`,
+      [id],
+    );
+    return res.json(updated.rows[0]);
+  } catch (err) {
+    console.error('geocode license site error:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка геокодирования' });
   }
 });
 
