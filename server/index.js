@@ -11,7 +11,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
 import { PDFParse } from 'pdf-parse';
-import { query } from './db.js';
+import { query, getPool } from './db.js';
 import { authMiddleware, requireRole, requireAuth } from './auth.js';
 import { createAuditLog } from './audit.js';
 import { rateLimit } from './rateLimit.js';
