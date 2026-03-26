@@ -427,6 +427,73 @@ async function extractTextFromPdf(buffer) {
   }
 }
 
+function compactLicenseText(fullText) {
+  const lines = fullText.split('\n');
+
+  const headerLines = [];
+  const tableLines = [];
+  let inHeader = true;
+
+  const fkkoLineRe = /\d\s+\d{2}\s+\d{3}\s+\d{2}\s+\d{2}\s+\d|\d{11}/;
+  const activityRe = /\b(Сбор|Транспортирова|Обезвреживание|Утилизация|Размещение|Обработка|Захоронение)\b/i;
+  const addressAliasRe = /^Адрес\s+\d+\s*:/i;
+  const pageBreakRe = /^--\s*\d+\s+of\s+\d+\s*--$/;
+  const tableHeaderRe = /Наименование вида|Код отхода|Класс\s*опасно|Виды работ|Место осуществления/i;
+  const boilerplateRe = /федеральному\s*классификацион|лицензируемого вида дея|филиалы и обособлен|окружа|ющей\s*среды|ному каталогу|выполняемые в\s*составе/i;
+  const sectionRe = /^Сокращенные адреса/i;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed || pageBreakRe.test(trimmed)) continue;
+
+    if (inHeader) {
+      headerLines.push(trimmed);
+      if (/^(9|10)\.\s/.test(trimmed) || /лицензируемый вид деятельности/i.test(trimmed)) {
+        for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
+          const next = lines[j].trim();
+          if (!next || pageBreakRe.test(next)) continue;
+          if (fkkoLineRe.test(next) || tableHeaderRe.test(next)) break;
+          headerLines.push(next);
+        }
+        inHeader = false;
+      }
+      continue;
+    }
+
+    if (tableHeaderRe.test(trimmed) || boilerplateRe.test(trimmed)) continue;
+    if (/^\d+$/.test(trimmed) && trimmed.length <= 3) continue;
+
+    if (fkkoLineRe.test(trimmed) || activityRe.test(trimmed) || addressAliasRe.test(trimmed) || sectionRe.test(trimmed)) {
+      tableLines.push(trimmed);
+      continue;
+    }
+
+    if (tableLines.length > 0) {
+      const lastTable = tableLines[tableLines.length - 1];
+      if (fkkoLineRe.test(lastTable) || activityRe.test(lastTable)) {
+        tableLines.push(trimmed);
+        continue;
+      }
+    }
+
+    if (/Адрес\s+\d+|^\d{6}/.test(trimmed)) {
+      tableLines.push(trimmed);
+    }
+  }
+
+  const header = headerLines.join('\n');
+  const table = tableLines.join('\n');
+  const combined = `${header}\n\n--- ТАБЛИЦА ФККО ---\n\n${table}`;
+
+  if (combined.length < 500) {
+    return fullText.slice(0, 28000);
+  }
+
+  return combined.slice(0, 28000);
+}
+
 app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
   let rawContent = '';
   try {
@@ -482,11 +549,11 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
           {
             role: 'system',
             content:
-              'Ты извлекаешь данные из текста лицензии. Отвечай только в формате строк с метками НАЗВАНИЕ_ОРГАНИЗАЦИИ:, ИНН:, РЕГИОН:, АДРЕС:, КОДЫ_ФККО:, ВИД_ОБРАЩЕНИЯ: — без JSON и без лишнего текста.',
+              'Ты извлекаешь структурированные данные из текста лицензии на обращение с отходами. Отвечай СТРОГО валидным JSON без markdown-обрамления.',
           },
           {
             role: 'user',
-            content: `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text.slice(0, 30000)}`,
+            content: `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${compactLicenseText(text)}`,
           },
         ],
         temperature: 0.1,
