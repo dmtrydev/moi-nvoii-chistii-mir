@@ -576,9 +576,17 @@ function parseFkkoTableFromText(fullText) {
       .replace(/\s+/g, ' ')
       .trim();
     if (/^\d{6}/.test(wasteName) || addrWordRe.test(wasteName)) {
-      wasteName = wasteName
-        .replace(/^.*?\b(?:д|дом)\.?\s*\d+\s*[а-яёА-ЯЁa-zA-Z]?\s+/i, '')
+      let cleaned = wasteName
+        .replace(/^.*?(?:,\s*|\s+)(?:д|дом)\.?,?\s+(?:\d+\s*[а-яёА-ЯЁa-zA-Z]?\s+)?/i, '')
         .trim();
+      if (!cleaned || cleaned === wasteName) {
+        cleaned = wasteName
+          .replace(/^.*?(?:,\s*|\s+)(?:ул\.?|улица|пер\.?|переулок)\s+\S+[,\s]+/i, '')
+          .trim();
+      }
+      if (cleaned && cleaned !== wasteName) {
+        wasteName = cleaned;
+      }
     }
 
     rawEntries.push({ fkkoCode, wasteName, hazardClass, activityType, addressRef });
