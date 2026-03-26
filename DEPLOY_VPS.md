@@ -18,7 +18,12 @@
 
 2. Поставить утилиты:
    ```bash
-   sudo apt install -y git curl build-essential nginx certbot python3-certbot-nginx openssl
+   sudo apt install -y git curl build-essential nginx certbot python3-certbot-nginx openssl python3-pip
+   ```
+
+3. Поставить pdfplumber (извлечение таблиц из PDF-лицензий):
+   ```bash
+   pip3 install pdfplumber --break-system-packages
    ```
 
 ## 2) Node.js 20
@@ -386,3 +391,21 @@ curl -sS http://127.0.0.1:3001/api/health
 curl -sS http://127.0.0.1:3002/api/health || true
 tail -n 40 /tmp/moinoviichistiimir-server.log
 
+
+sudo -u postgres psql -d moinoviichistiimir -v ON_ERROR_STOP=1 <<'SQL'
+BEGIN;
+
+-- Удаляем в правильном порядке (от зависимых к родительским)
+TRUNCATE site_fkko_activities CASCADE;
+TRUNCATE license_sites CASCADE;
+TRUNCATE transactions CASCADE;
+TRUNCATE licenses CASCADE;
+
+-- Сбрасываем счётчики id, чтобы новые записи шли с 1
+ALTER SEQUENCE licenses_id_seq RESTART WITH 1;
+ALTER SEQUENCE license_sites_id_seq RESTART WITH 1;
+ALTER SEQUENCE site_fkko_activities_id_seq RESTART WITH 1;
+ALTER SEQUENCE transactions_id_seq RESTART WITH 1;
+
+COMMIT;
+SQL

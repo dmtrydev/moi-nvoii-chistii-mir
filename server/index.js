@@ -5,6 +5,7 @@ import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import { URL as NodeURL } from 'node:url';
 import crypto from 'node:crypto';
+import { execFile } from 'node:child_process';
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
@@ -427,6 +428,25 @@ async function extractTextFromPdf(buffer) {
   }
 }
 
+const PYTHON_SCRIPT = path.join(__dirname, 'scripts', 'extract_tables.py');
+
+function extractTablesFromPdf(filePath) {
+  return new Promise((resolve, reject) => {
+    execFile('python3', [PYTHON_SCRIPT, filePath], { maxBuffer: 50 * 1024 * 1024, timeout: 120_000 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('pdfplumber stderr:', stderr);
+        return reject(new Error(`pdfplumber failed: ${err.message}`));
+      }
+      try {
+        const data = JSON.parse(stdout);
+        resolve(data);
+      } catch (parseErr) {
+        reject(new Error(`pdfplumber JSON parse error: ${parseErr.message}`));
+      }
+    });
+  });
+}
+
 function extractHeaderText(fullText) {
   const lines = fullText.split('\n');
   const headerLines = [];
@@ -801,34 +821,114 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
     //   });
     // }
 
-    const text = await extractTextFromPdf(file.buffer);
-    if (!text || text.trim().length < 50) {
-      return res.status(400).json({
-        message: 'Не удалось извлечь текст из PDF или документ слишком короткий',
-      });
-    }
-
-    // Сохраняем PDF на диск, чтобы администратор мог скачать оригинал.
     const storedFileName = `${crypto.randomUUID()}.pdf`;
     const uploadsDir = path.join(__dirname, '..', 'uploads', 'licenses');
     mkdirSync(uploadsDir, { recursive: true });
-    await fsPromises.writeFile(path.join(uploadsDir, storedFileName), file.buffer);
+    const pdfFilePath = path.join(uploadsDir, storedFileName);
+    await fsPromises.writeFile(pdfFilePath, file.buffer);
 
     let companyName = '';
     let inn = '';
     let regionFromAi = '';
     let finalSites = [];
     let finalAliases = {};
+    let headerTextForAi = '';
 
-    const isSmall = text.length < 12000;
+    let pdfplumberOk = false;
+    try {
+      console.log('Extracting tables with pdfplumber...');
+      const tableData = await extractTablesFromPdf(pdfFilePath);
+      headerTextForAi = tableData.headerText || '';
+      const rows = Array.isArray(tableData.rows) ? tableData.rows : [];
+      console.log(`pdfplumber: ${rows.length} rows, header ${headerTextForAi.length} chars`);
 
-    if (TIMEWEB_BASE) {
-      if (isSmall) {
-        console.log(`Small license (${text.length} chars) — single AI call`);
+      if (rows.length > 0) {
+        pdfplumberOk = true;
+
+        const siteMap = {};
+        for (const r of rows) {
+          const fkkoRaw = String(r.fkkoCode ?? '').replace(/\s+/g, '');
+          const fkkoCode = normalizeFkkoCode(fkkoRaw);
+          if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
+          const activityType = String(r.activityType ?? '').trim();
+          if (!activityType) continue;
+
+          const addrKey = String(r.address ?? 'unknown').trim() || 'unknown';
+          if (!siteMap[addrKey]) siteMap[addrKey] = {};
+          if (!siteMap[addrKey][fkkoCode]) {
+            siteMap[addrKey][fkkoCode] = {
+              fkkoCode,
+              wasteName: String(r.wasteName ?? '').trim(),
+              hazardClass: String(r.hazardClass ?? '').trim(),
+              activityTypes: [],
+            };
+          }
+          const entry = siteMap[addrKey][fkkoCode];
+          if (!entry.activityTypes.includes(activityType)) {
+            entry.activityTypes.push(activityType);
+          }
+          if (!entry.wasteName && r.wasteName) entry.wasteName = String(r.wasteName).trim();
+          if (!entry.hazardClass && r.hazardClass) entry.hazardClass = String(r.hazardClass).trim();
+        }
+
+        for (const [addrKey, codes] of Object.entries(siteMap)) {
+          const entries = Object.values(codes);
+          finalSites.push({
+            address: addrKey === 'unknown' ? '' : addrKey,
+            addressRef: addrKey,
+            entries,
+            fkkoCodes: [...new Set(entries.map((e) => e.fkkoCode))],
+            activityTypes: [...new Set(entries.flatMap((e) => e.activityTypes))],
+          });
+        }
+        console.log(`pdfplumber: built ${finalSites.length} site(s)`);
+      }
+    } catch (plumberErr) {
+      console.error('pdfplumber failed, will use fallback:', plumberErr.message);
+    }
+
+    if (pdfplumberOk && TIMEWEB_BASE) {
+      const hText = headerTextForAi || '';
+      if (hText.length > 50) {
+        try {
+          const headerAi = await callTimewebAi(
+            'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
+            `Извлеки из текста лицензии ТОЛЬКО реквизиты.\n\nОтветь JSON:\n{"companyName":"полное наименование","inn":"ИНН цифрами","region":"регион РФ","addressAliases":{"Адрес 1":"полный адрес",...}}\n\nТекст:\n\n${hText.slice(0, 4000)}`,
+            1000,
+          );
+          companyName = String(headerAi.companyName ?? '').replace(/\bне указано\b/gi, '').trim();
+          inn = String(headerAi.inn ?? '').replace(/\bне указано\b/gi, '').trim();
+          regionFromAi = String(headerAi.region ?? '').replace(/\bне указано\b/gi, '').trim();
+          const aliases = normalizeAddressAliases(headerAi.addressAliases);
+          if (Object.keys(aliases).length > 0) {
+            finalAliases = aliases;
+            for (const s of finalSites) {
+              if (aliases[s.addressRef]) {
+                s.address = aliases[s.addressRef];
+              }
+            }
+          }
+          console.log(`Header AI OK: ${companyName}, ИНН ${inn}`);
+        } catch (err) {
+          console.error('Header AI failed:', err.message);
+        }
+      }
+    }
+
+    if (!pdfplumberOk) {
+      console.log('pdfplumber did not extract rows — falling back to pdf-parse + AI');
+      const text = await extractTextFromPdf(file.buffer);
+      if (!text || text.trim().length < 50) {
+        return res.status(400).json({
+          message: 'Не удалось извлечь текст из PDF или документ слишком короткий',
+        });
+      }
+
+      if (TIMEWEB_BASE) {
         try {
           const ai = await callTimewebAi(
             'Ты извлекаешь структурированные данные из текста лицензии на обращение с отходами. Отвечай СТРОГО валидным JSON без markdown-обрамления.',
-            `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text}`,
+            `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text.slice(0, 15000)}`,
             8000,
           );
           rawContent = JSON.stringify(ai);
@@ -838,126 +938,38 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
           finalAliases = normalizeAddressAliases(ai.addressAliases);
           finalSites = normalizeAiSites(ai.sites, finalAliases);
         } catch (err) {
-          console.error('Single AI call failed:', err.message);
-          return res.status(502).json({
-            message: `Ошибка ИИ. Попробуйте загрузить файл повторно.`,
-          });
-        }
-      } else {
-        console.log(`Large license (${text.length} chars) — chunked AI`);
-
-        try {
-          const headerAi = await callTimewebAi(
-            'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
-            `Извлеки из текста лицензии ТОЛЬКО реквизиты.\n\nОтветь JSON:\n{"companyName":"...","inn":"...","region":"...","addressAliases":{"Адрес 1":"полный адрес",...}}\n\nТекст:\n\n${extractHeaderText(text)}`,
-            1000,
-          );
-          companyName = String(headerAi.companyName ?? '').replace(/\bне указано\b/gi, '').trim();
-          inn = String(headerAi.inn ?? '').replace(/\bне указано\b/gi, '').trim();
-          regionFromAi = String(headerAi.region ?? '').replace(/\bне указано\b/gi, '').trim();
-          finalAliases = normalizeAddressAliases(headerAi.addressAliases);
-          console.log(`Header AI OK: ${companyName}, ИНН ${inn}`);
-        } catch (err) {
-          console.error('Header AI failed:', err.message);
-        }
-
-        const chunks = splitIntoTableChunks(text);
-        console.log(`Table split into ${chunks.length} chunks`);
-        const allEntries = [];
-        const BATCH_SIZE = 2;
-
-        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-          const batch = chunks.slice(i, i + BATCH_SIZE);
-          const results = await Promise.allSettled(
-            batch.map((chunk, idx) => {
-              console.log(`  Chunk ${i + idx + 1}/${chunks.length} (${chunk.length} chars)...`);
-              return callTimewebAi(
-                'Ты извлекаешь данные ФККО из фрагмента таблицы лицензии. Отвечай СТРОГО валидным JSON.',
-                `${CHUNK_ENTRIES_PROMPT}\n\nФрагмент таблицы:\n\n${chunk}`,
-                4000,
-              );
-            }),
-          );
-          for (const r of results) {
-            if (r.status === 'fulfilled' && Array.isArray(r.value?.entries)) {
-              allEntries.push(...r.value.entries);
-            } else if (r.status === 'rejected') {
-              console.error('  Chunk AI error:', r.reason?.message ?? r.reason);
-            }
-          }
-        }
-
-        console.log(`AI returned ${allEntries.length} raw entries from chunks`);
-
-        const siteMap = {};
-        for (const e of allEntries) {
-          const fkkoRaw = String(e.fkkoCode ?? '').replace(/\s+/g, '');
-          const fkkoCode = normalizeFkkoCode(fkkoRaw);
-          if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
-          const acts = Array.isArray(e.activityTypes)
-            ? e.activityTypes.map((a) => String(a).trim()).filter(Boolean)
-            : [];
-          if (acts.length === 0) continue;
-
-          const addrKey = String(e.addressRef ?? e.address ?? 'unknown').trim();
-          if (!siteMap[addrKey]) siteMap[addrKey] = {};
-          if (!siteMap[addrKey][fkkoCode]) {
-            siteMap[addrKey][fkkoCode] = {
-              fkkoCode,
-              wasteName: String(e.wasteName ?? '').trim(),
-              hazardClass: String(e.hazardClass ?? '').trim(),
-              activityTypes: [],
-            };
-          }
-          const entry = siteMap[addrKey][fkkoCode];
-          for (const a of acts) {
-            if (!entry.activityTypes.includes(a)) entry.activityTypes.push(a);
-          }
-          if (!entry.wasteName && e.wasteName) entry.wasteName = String(e.wasteName).trim();
-          if (!entry.hazardClass && e.hazardClass) entry.hazardClass = String(e.hazardClass).trim();
-        }
-
-        for (const [addrKey, codes] of Object.entries(siteMap)) {
-          const resolved = finalAliases[addrKey] || addrKey;
-          const entries = Object.values(codes);
-          finalSites.push({
-            address: resolved === 'unknown' ? '' : resolved,
-            addressRef: addrKey,
-            entries,
-            fkkoCodes: [...new Set(entries.map((e) => e.fkkoCode))],
-            activityTypes: [...new Set(entries.flatMap((e) => e.activityTypes))],
-          });
-        }
-
-        if (finalSites.length === 0) {
-          console.log('AI chunks returned no entries, falling back to programmatic parser');
+          console.error('Fallback AI failed:', err.message);
           const parsed = parseFkkoTableFromText(text);
           if (parsed.sites.length > 0) {
             finalSites = parsed.sites;
-            finalAliases = { ...finalAliases, ...parsed.addressAliases };
+            finalAliases = parsed.addressAliases || {};
+          } else {
+            return res.status(502).json({
+              message: 'Не удалось извлечь данные из лицензии. Попробуйте ещё раз.',
+            });
           }
         }
-      }
-    } else {
-      const parsed = parseFkkoTableFromText(text);
-      if (parsed.sites.length > 0 && parsed.sites.some((s) => s.entries.length > 0)) {
-        console.log(`AI unavailable, using programmatic parse: ${parsed.sites.length} sites`);
-        finalSites = parsed.sites;
-        finalAliases = parsed.addressAliases || {};
       } else {
-        return res.status(503).json({
-          message: 'Сервис анализа не настроен. Укажите TIMEWEB_ACCESS_ID.',
-        });
+        const parsed = parseFkkoTableFromText(text);
+        if (parsed.sites.length > 0 && parsed.sites.some((s) => s.entries.length > 0)) {
+          finalSites = parsed.sites;
+          finalAliases = parsed.addressAliases || {};
+        } else {
+          return res.status(503).json({
+            message: 'Сервис анализа не настроен. Укажите TIMEWEB_ACCESS_ID.',
+          });
+        }
       }
     }
 
     if (!companyName || !inn) {
-      const nameMatch = text.match(/(?:полное\s+наименование|лицензиат)\s*[:\-—]?\s*([^\n]{5,120})/i);
+      const hText = headerTextForAi || '';
+      const nameMatch = hText.match(/(?:полное\s+наименование|лицензиат)\s*[:\-—]?\s*([^\n]{5,120})/i);
       if (nameMatch && !companyName) companyName = nameMatch[1].trim();
-      const innMatch = text.match(/ИНН\s*[:\-—]?\s*(\d{10,12})/);
+      const innMatch = hText.match(/ИНН\s*[:\-—]?\s*(\d{10,12})/);
       if (innMatch && !inn) inn = innMatch[1];
       if (!regionFromAi) {
-        const regMatch = text.match(/(\S+\s+область|\S+\s+край|\S+\s+республика)/i);
+        const regMatch = hText.match(/(\S+\s+область|\S+\s+край|\S+\s+республика)/i);
         if (regMatch) regionFromAi = regMatch[1];
       }
     }
