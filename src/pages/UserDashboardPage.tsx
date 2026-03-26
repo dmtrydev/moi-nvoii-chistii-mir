@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { useAuth } from '@/contexts/useAuth';
+import type { LicenseData } from '@/types';
+import { formatFkkoHuman } from '@/utils/fkko';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -35,6 +38,36 @@ export default function UserDashboardPage(): JSX.Element {
   const [transactions, setTransactions] = useState<UserTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [entQuery, setEntQuery] = useState('');
+  const [entResults, setEntResults] = useState<LicenseData[]>([]);
+  const [entSearching, setEntSearching] = useState(false);
+  const [entError, setEntError] = useState('');
+  const [entSearched, setEntSearched] = useState(false);
+
+  const runEnterpriseSearch = useCallback(async () => {
+    const q = entQuery.trim();
+    if (!q) return;
+    setEntSearched(true);
+    setEntSearching(true);
+    setEntError('');
+    try {
+      const isInn = /^\d{3,12}$/.test(q);
+      const qs = new URLSearchParams();
+      if (isInn) qs.set('inn', q);
+      else qs.set('companyName', q);
+      const r = await fetch(getApiUrl(`/api/search/enterprises?${qs.toString()}`));
+      const data = await (r.ok ? r.json() : r.json().catch(() => ({})));
+      if (!r.ok) throw new Error((data as { message?: string }).message ?? String(r.status));
+      const items = (data as { items?: LicenseData[] }).items;
+      setEntResults(Array.isArray(items) ? items : []);
+    } catch (err) {
+      setEntResults([]);
+      setEntError(err instanceof Error ? err.message : 'Ошибка поиска');
+    } finally {
+      setEntSearching(false);
+    }
+  }, [entQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +144,106 @@ export default function UserDashboardPage(): JSX.Element {
           <p className="glass-kicker">Balance</p>
           <p className="text-3xl font-bold text-[#f5fff7] mt-1">{balance} Экокоинов</p>
         </div>
+
+        <section className="glass-panel p-5 space-y-4">
+          <div>
+            <p className="glass-kicker">Enterprise Search</p>
+            <h2 className="text-base font-semibold text-[#f5fff7] mt-1">Поиск организации</h2>
+            <p className="text-xs glass-muted mt-1">Введите название компании или ИНН — достаточно одного</p>
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8faea0] pointer-events-none" />
+              <input
+                type="text"
+                value={entQuery}
+                onChange={(e) => { setEntQuery(e.target.value); setEntSearched(false); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void runEnterpriseSearch(); }}
+                placeholder="ООО Экология или 7712345678"
+                className="w-full h-10 rounded-lg border border-[#7ccd89]/25 bg-white/5 pl-9 pr-3 text-sm text-[#f5fff7] placeholder:text-[#8faea0] focus:outline-none focus:ring-1 focus:ring-[#4caf50]/50 transition-colors"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => void runEnterpriseSearch()}
+              disabled={!entQuery.trim() || entSearching}
+              className="glass-btn-dark h-10 px-5 text-sm font-medium disabled:opacity-40"
+            >
+              {entSearching ? 'Поиск...' : 'Найти'}
+            </button>
+          </div>
+
+          {entSearched && !entSearching && entError && (
+            <div className="text-sm glass-danger">{entError}</div>
+          )}
+
+          {entSearched && !entSearching && !entError && entResults.length === 0 && (
+            <div className="text-sm text-[#9ab3a5]">Ничего не найдено по запросу «{entQuery.trim()}»</div>
+          )}
+
+          {entResults.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-[#8faea0]">
+                Найдено: {entResults.length}{entResults.length >= 200 ? '+' : ''}
+              </p>
+              <div className="glass-table-wrap">
+                <table className="glass-table">
+                  <thead>
+                    <tr>
+                      <th className="text-left px-4 py-2">Организация</th>
+                      <th className="text-left px-4 py-2">ИНН</th>
+                      <th className="text-left px-4 py-2">Адрес площадки</th>
+                      <th className="text-left px-4 py-2">ФККО</th>
+                      <th className="text-left px-4 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entResults.slice(0, 30).map((it) => {
+                      const id = typeof it.id === 'number' ? it.id : null;
+                      const fkkoCodes = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
+                      return (
+                        <tr key={it.siteId ?? `${it.companyName}-${it.address}`} className="border-t border-[#7ccd89]/10">
+                          <td className="px-4 py-2.5 font-medium text-[#f5fff7] max-w-[220px]">
+                            <span className="line-clamp-2">{it.companyName || '—'}</span>
+                          </td>
+                          <td className="px-4 py-2.5 font-mono text-xs text-[#d9ebe0] whitespace-nowrap">
+                            {it.inn || '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-[#b4cabe] max-w-[260px]">
+                            <span className="line-clamp-2">{it.address || '—'}</span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              {fkkoCodes.slice(0, 3).map((c) => (
+                                <span key={c} className="rounded bg-white/5 border border-[#7ccd89]/20 px-1.5 py-0.5 text-[11px] font-mono text-[#d3e6da]">
+                                  {formatFkkoHuman(c)}
+                                </span>
+                              ))}
+                              {fkkoCodes.length > 3 && (
+                                <span className="text-[11px] text-[#8faea0]">+{fkkoCodes.length - 3}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {id != null && (
+                              <Link to={`/enterprise/${id}`} className="glass-link text-xs whitespace-nowrap">
+                                Подробнее
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {entResults.length > 30 && (
+                <p className="text-xs text-[#8faea0]">Показаны первые 30 результатов</p>
+              )}
+            </div>
+          )}
+        </section>
 
         {loading && <div className="glass-panel p-4 text-sm text-[#9ab3a5]">Загрузка данных...</div>}
         {error && <div className="glass-panel p-4 text-sm glass-danger">{error}</div>}

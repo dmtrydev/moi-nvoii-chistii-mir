@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, PanelLeftClose, PanelLeft, Search, Building2 } from 'lucide-react';
+import { ArrowLeft, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
@@ -21,8 +21,6 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
-
-type SearchMode = 'fkko' | 'enterprise';
 
 const INITIAL_FKKO = '';
 const INITIAL_VID: string[] = [];
@@ -213,12 +211,9 @@ function ClusterMarkers({
 
 export default function MapPage(): JSX.Element {
   const [searchParams] = useSearchParams();
-  const [searchMode, setSearchMode] = useState<SearchMode>('fkko');
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
-  const [entCompanyName, setEntCompanyName] = useState('');
-  const [entInn, setEntInn] = useState('');
   const [menuVisible, setMenuVisible] = useState(true);
   const [regions, setRegions] = useState<string[]>([]);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
@@ -361,7 +356,7 @@ export default function MapPage(): JSX.Element {
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
-  }, [filterFkko, filterRegion, filterVid, entCompanyName, entInn, hasSearched]);
+  }, [filterFkko, filterRegion, filterVid, hasSearched]);
 
   const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
 
@@ -416,44 +411,9 @@ export default function MapPage(): JSX.Element {
     runSearch({ region: r, fkko: f, vid: v });
   }, [searchParams, runSearch]);
 
-  const runEnterpriseSearch = useCallback(async (): Promise<void> => {
-    const name = entCompanyName.trim();
-    const inn = entInn.trim();
-    if (!name && !inn) {
-      setFilterValidationError('Укажите название компании или ИНН.');
-      return;
-    }
-    setFilterValidationError('');
-    setHasSearched(true);
-    setIsSearching(true);
-    setSearchError('');
-    try {
-      const qs = new URLSearchParams();
-      if (name) qs.set('companyName', name);
-      if (inn) qs.set('inn', inn);
-      const r = await fetch(getApiUrl(`/api/search/enterprises?${qs.toString()}`));
-      const data = await (r.ok ? r.json() : r.json().catch(() => ({})));
-      if (!r.ok) {
-        const msg = (data as { message?: string }).message;
-        throw new Error(msg ?? String(r.status));
-      }
-      const itemsArr = (data as { items?: LicenseData[] }).items;
-      setSearchItems(Array.isArray(itemsArr) ? itemsArr : []);
-    } catch (err) {
-      setSearchItems([]);
-      setSearchError(err instanceof Error ? err.message : 'Ошибка поиска');
-    } finally {
-      setIsSearching(false);
-    }
-  }, [entCompanyName, entInn]);
-
   const handleFindClick = useCallback(async () => {
-    if (searchMode === 'enterprise') {
-      await runEnterpriseSearch();
-    } else {
-      await runSearch();
-    }
-  }, [searchMode, runSearch, runEnterpriseSearch]);
+    await runSearch();
+  }, [runSearch]);
 
   const geocodeMissing = useCallback(async (siteId: number) => {
     try {
@@ -490,8 +450,6 @@ export default function MapPage(): JSX.Element {
     setFilterFkko(INITIAL_FKKO);
     setFilterVid(INITIAL_VID);
     setFilterRegion(INITIAL_REGION);
-    setEntCompanyName('');
-    setEntInn('');
     setSearchItems([]);
     setSelectedId(null);
     setFocusCenter(null);
@@ -550,120 +508,51 @@ export default function MapPage(): JSX.Element {
 
         <section className="mb-6">
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8faea0] mb-3">
-            Поиск
+            Фильтры
           </h3>
-
-          <div className="flex rounded-lg bg-white/8 border border-[#7ccd89]/25 p-1 gap-1 mb-4">
-            <button
-              type="button"
-              onClick={() => setSearchMode('fkko')}
-              className={`flex-1 min-h-[36px] rounded-lg px-2 text-[11px] font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5 ${
-                searchMode === 'fkko'
-                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-lg !px-2'
-                  : 'text-[#9ab3a5] hover:text-[#f5fff7] hover:bg-white/10'
-              }`}
-            >
-              <Search className="w-3.5 h-3.5" />
-              По ФККО
-            </button>
-            <button
-              type="button"
-              onClick={() => setSearchMode('enterprise')}
-              className={`flex-1 min-h-[36px] rounded-lg px-2 text-[11px] font-medium transition-colors whitespace-nowrap flex items-center justify-center gap-1.5 ${
-                searchMode === 'enterprise'
-                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-lg !px-2'
-                  : 'text-[#9ab3a5] hover:text-[#f5fff7] hover:bg-white/10'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              По организации
-            </button>
-          </div>
-
           <div className="space-y-3">
             {filterValidationError && (
               <div className="text-xs text-amber-100 bg-[#2d2313]/80 border border-amber-300/25 rounded-lg px-3 py-2">
                 {filterValidationError}
               </div>
             )}
-
-            {searchMode === 'fkko' && (
-              <>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">ФККО *</p>
-                  <AutocompleteInput
-                    value={filterFkko}
-                    onChange={setFilterFkko}
-                    options={fkkoHintOptions}
-                    placeholder="7 31 100 01 40 4 или выберите из списка"
-                    inputClassName={mapField}
-                    maxItems={10}
-                    noResultsText="Начните вводить код ФККО"
-                  />
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
-                    Вид обращения *
-                  </p>
-                  <MultiSelectDropdown
-                    options={activityTypeOptions}
-                    selected={filterVid}
-                    onChange={setFilterVid}
-                    placeholder="Вид обращения"
-                    buttonClassName={mapField}
-                    maxHeightClassName="max-h-64"
-                  />
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Регион (необязательно)</p>
-                  <AutocompleteInput
-                    value={filterRegion}
-                    onChange={setFilterRegion}
-                    options={regionOptions}
-                    placeholder="Начните вводить регион"
-                    inputClassName={mapField}
-                    maxItems={10}
-                    noResultsText="Начните вводить"
-                  />
-                </div>
-              </>
-            )}
-
-            {searchMode === 'enterprise' && (
-              <>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
-                    Название компании
-                  </p>
-                  <input
-                    type="text"
-                    value={entCompanyName}
-                    onChange={(e) => setEntCompanyName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void handleFindClick(); }}
-                    placeholder="Например: ООО Экология"
-                    className={mapField}
-                  />
-                </div>
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
-                    ИНН
-                  </p>
-                  <input
-                    type="text"
-                    value={entInn}
-                    onChange={(e) => setEntInn(e.target.value.replace(/\D/g, '').slice(0, 12))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void handleFindClick(); }}
-                    placeholder="10 или 12 цифр"
-                    className={mapField}
-                    inputMode="numeric"
-                  />
-                </div>
-                <p className="text-[11px] text-[#8faea0] leading-relaxed">
-                  Достаточно заполнить одно из полей. Поиск выполняется по утверждённым лицензиям.
-                </p>
-              </>
-            )}
-
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">ФККО *</p>
+              <AutocompleteInput
+                value={filterFkko}
+                onChange={setFilterFkko}
+                options={fkkoHintOptions}
+                placeholder="7 31 100 01 40 4 или выберите из списка"
+                inputClassName={mapField}
+                maxItems={10}
+                noResultsText="Начните вводить код ФККО"
+              />
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
+                Вид обращения *
+              </p>
+              <MultiSelectDropdown
+                options={activityTypeOptions}
+                selected={filterVid}
+                onChange={setFilterVid}
+                placeholder="Вид обращения"
+                buttonClassName={mapField}
+                maxHeightClassName="max-h-64"
+              />
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Регион (необязательно)</p>
+              <AutocompleteInput
+                value={filterRegion}
+                onChange={setFilterRegion}
+                options={regionOptions}
+                placeholder="Начните вводить регион"
+                inputClassName={mapField}
+                maxItems={10}
+                noResultsText="Начните вводить"
+              />
+            </div>
             <button
               type="button"
               onClick={handleResetFilters}
@@ -676,7 +565,7 @@ export default function MapPage(): JSX.Element {
               onClick={handleFindClick}
               className="w-full glass-btn-dark !h-10 !rounded-lg text-[11px] font-medium"
             >
-              {searchMode === 'enterprise' ? 'Найти организацию' : 'Найти объект'}
+              Найти объект
             </button>
           </div>
         </section>
@@ -688,9 +577,7 @@ export default function MapPage(): JSX.Element {
 
           {!hasSearched && (
             <div className="text-xs text-[#9ab3a5]">
-              {searchMode === 'enterprise'
-                ? 'Введите название компании или ИНН для поиска.'
-                : 'Заполните обязательные фильтры (ФККО, вид обращения). Регион — необязателен.'}
+              Заполните обязательные фильтры (ФККО, вид обращения). Регион — необязателен.
             </div>
           )}
           {hasSearched && isSearching && <div className="text-xs text-[#9ab3a5]">Идёт поиск…</div>}
@@ -712,13 +599,12 @@ export default function MapPage(): JSX.Element {
                 {searchItems.slice(0, 20).map((it) => {
                   const id = typeof it.id === 'number' ? it.id : null;
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
-                  const mapParams = new URLSearchParams();
-                  if (searchMode === 'fkko') {
-                    mapParams.set('fkko', filterFkko.trim());
-                    mapParams.set('vid', vidQuery.trim());
-                    const r = filterRegion.trim();
-                    if (r) mapParams.set('region', r);
-                  }
+                  const r = filterRegion.trim();
+                  const mapParams = new URLSearchParams({
+                    fkko: filterFkko.trim(),
+                    vid: vidQuery.trim(),
+                  });
+                  if (r) mapParams.set('region', r);
                   if (typeof it.siteId === 'number') mapParams.set('focusSite', String(it.siteId));
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>
