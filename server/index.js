@@ -840,7 +840,12 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       const tableData = await extractTablesFromPdf(pdfFilePath);
       headerTextForAi = tableData.headerText || '';
       const rows = Array.isArray(tableData.rows) ? tableData.rows : [];
-      console.log(`pdfplumber: ${rows.length} rows, header ${headerTextForAi.length} chars`);
+      const plumberAliases = tableData.addressAliases || {};
+      console.log(`pdfplumber: ${rows.length} rows, header ${headerTextForAi.length} chars, ${Object.keys(plumberAliases).length} address aliases`);
+
+      if (Object.keys(plumberAliases).length > 0) {
+        finalAliases = { ...finalAliases, ...plumberAliases };
+      }
 
       if (rows.length > 0) {
         pdfplumberOk = true;
@@ -853,17 +858,18 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
           const activityType = String(r.activityType ?? '').trim();
           if (!activityType) continue;
 
-          const addrKey = String(r.address ?? 'unknown').trim() || 'unknown';
-          if (!siteMap[addrKey]) siteMap[addrKey] = {};
-          if (!siteMap[addrKey][fkkoCode]) {
-            siteMap[addrKey][fkkoCode] = {
+          let addrKey = String(r.address ?? 'unknown').trim() || 'unknown';
+          const addrNorm = addrKey.replace(/\s+/g, ' ');
+          if (!siteMap[addrNorm]) siteMap[addrNorm] = {};
+          if (!siteMap[addrNorm][fkkoCode]) {
+            siteMap[addrNorm][fkkoCode] = {
               fkkoCode,
               wasteName: String(r.wasteName ?? '').trim(),
               hazardClass: String(r.hazardClass ?? '').trim(),
               activityTypes: [],
             };
           }
-          const entry = siteMap[addrKey][fkkoCode];
+          const entry = siteMap[addrNorm][fkkoCode];
           if (!entry.activityTypes.includes(activityType)) {
             entry.activityTypes.push(activityType);
           }
@@ -872,9 +878,10 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
         }
 
         for (const [addrKey, codes] of Object.entries(siteMap)) {
+          const resolved = finalAliases[addrKey] || addrKey;
           const entries = Object.values(codes);
           finalSites.push({
-            address: addrKey === 'unknown' ? '' : addrKey,
+            address: resolved === 'unknown' ? '' : resolved,
             addressRef: addrKey,
             entries,
             fkkoCodes: [...new Set(entries.map((e) => e.fkkoCode))],
@@ -893,21 +900,24 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
         try {
           const headerAi = await callTimewebAi(
             'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
-            `Извлеки из текста лицензии ТОЛЬКО реквизиты.\n\nОтветь JSON:\n{"companyName":"полное наименование","inn":"ИНН цифрами","region":"регион РФ","addressAliases":{"Адрес 1":"полный адрес",...}}\n\nТекст:\n\n${hText.slice(0, 4000)}`,
-            1000,
+            `Извлеки из текста лицензии реквизиты ЛИЦЕНЗИАТА (организации, которой выдана лицензия).
+
+ВАЖНО:
+- companyName — это название ОРГАНИЗАЦИИ-ЛИЦЕНЗИАТА (например ООО "Котельная №3"), а НЕ название органа (Росприроднадзор и т.п.)
+- ИНН — это ИНН организации-лицензиата
+- Ищи строки вроде "Лицензиат:", "Полное наименование:", пункт 2 или 3 лицензии
+
+Ответь JSON:
+{"companyName":"...","inn":"...","region":"..."}
+
+Текст:
+
+${hText.slice(0, 5000)}`,
+            500,
           );
           companyName = String(headerAi.companyName ?? '').replace(/\bне указано\b/gi, '').trim();
           inn = String(headerAi.inn ?? '').replace(/\bне указано\b/gi, '').trim();
           regionFromAi = String(headerAi.region ?? '').replace(/\bне указано\b/gi, '').trim();
-          const aliases = normalizeAddressAliases(headerAi.addressAliases);
-          if (Object.keys(aliases).length > 0) {
-            finalAliases = aliases;
-            for (const s of finalSites) {
-              if (aliases[s.addressRef]) {
-                s.address = aliases[s.addressRef];
-              }
-            }
-          }
           console.log(`Header AI OK: ${companyName}, ИНН ${inn}`);
         } catch (err) {
           console.error('Header AI failed:', err.message);

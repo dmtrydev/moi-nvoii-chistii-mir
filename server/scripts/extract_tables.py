@@ -102,14 +102,38 @@ def process_table_row(cells: list[str | None]) -> dict | None:
     }
 
 
+ADDR_ALIAS_RE = re.compile(
+    r'Адрес\s+(\d+)\s*:\s*(.+?)(?=\s*Адрес\s+\d+\s*:|ДОКУМЕНТ|подпись|должность|Сертификат|\(ЭП\)|\n\s*\n|$)',
+    re.DOTALL | re.IGNORECASE,
+)
+
+TRAILING_NOISE_RE = re.compile(
+    r'\s*(?:ДОКУМЕНТ|подпись|должность|Сертификат|Владелец|Действителен|\(ЭП\)|электронн).*$',
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def extract_address_aliases(full_text: str) -> dict[str, str]:
+    aliases = {}
+    for m in ADDR_ALIAS_RE.finditer(full_text):
+        key = f'Адрес {m.group(1)}'
+        value = re.sub(r'\s+', ' ', m.group(2)).strip()
+        value = TRAILING_NOISE_RE.sub('', value).strip().rstrip(',').strip()
+        if value and len(value) > 5:
+            aliases[key] = value
+    return aliases
+
+
 def extract(pdf_path: str) -> dict:
     rows = []
     header_text = ''
+    full_text = ''
 
     with pdfplumber.open(pdf_path) as pdf:
         for i, page in enumerate(pdf.pages):
-            if i < 2:
-                text = page.extract_text() or ''
+            text = page.extract_text() or ''
+            full_text += text + '\n'
+            if i < 3:
                 header_text += text + '\n'
 
             tables = page.extract_tables()
@@ -121,9 +145,12 @@ def extract(pdf_path: str) -> dict:
                     if parsed:
                         rows.append(parsed)
 
+    address_aliases = extract_address_aliases(full_text)
+
     return {
         'headerText': header_text.strip(),
         'rows': rows,
+        'addressAliases': address_aliases,
     }
 
 
