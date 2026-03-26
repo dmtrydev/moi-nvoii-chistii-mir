@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
 import { formatFkkoHuman, parseFkkoCodesFromText } from '@/utils/fkko';
@@ -97,7 +97,6 @@ async function publishLicense(payload: LicenseData, accessToken: string | null):
 
 export default function UploadPage(): JSX.Element {
   const navigate = useNavigate();
-  const location = useLocation();
   const { accessToken } = useAuth();
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -141,20 +140,16 @@ export default function UploadPage(): JSX.Element {
       const created = await publishLicense(payload, accessToken);
       const id = created.id;
       if (typeof id === 'number' && Number.isFinite(id)) {
-        if (location.pathname.startsWith('/dashboard/upload')) {
-          navigate(`/dashboard/licenses/${id}`);
-        } else {
-          navigate(`/map?focus=${id}`);
-        }
+        navigate(`/dashboard/licenses/${id}`);
         return;
       }
-      setStep('published');
+      navigate('/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ошибка отправки на проверку';
       setErrorMessage(msg);
       setStep('error');
     }
-  }, [navigate, accessToken, location.pathname]);
+  }, [navigate, accessToken]);
 
   const processFile = useCallback(
     async (file: File) => {
