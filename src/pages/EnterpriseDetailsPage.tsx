@@ -84,9 +84,15 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   const mapPath = useMemo(() => {
     if (!item?.id) return '/map';
     const params = new URLSearchParams();
-    params.set('focus', String(item.id));
+    const firstFkko = Array.isArray(item.fkkoCodes) && item.fkkoCodes.length > 0 ? item.fkkoCodes[0] : '';
+    const activities = Array.isArray(item.activityTypes) ? item.activityTypes.join(', ') : '';
+    if (firstFkko) params.set('fkko', firstFkko);
+    if (activities) params.set('vid', activities);
+    const sites = Array.isArray(item.sites) ? item.sites : [];
+    const firstSiteId = sites.length > 0 && typeof sites[0].id === 'number' ? sites[0].id : null;
+    if (firstSiteId != null) params.set('focusSite', String(firstSiteId));
     return `/map?${params.toString()}`;
-  }, [item?.id]);
+  }, [item]);
 
   const fkkoCodes = useMemo(() => (Array.isArray(item?.fkkoCodes) ? item.fkkoCodes : []), [item?.fkkoCodes]);
   const hazardClasses = useMemo(() => hazardClassesFromFkko(fkkoCodes), [fkkoCodes]);

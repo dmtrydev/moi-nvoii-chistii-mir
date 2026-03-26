@@ -152,14 +152,13 @@ export function HeroBannerSection(): JSX.Element {
     }
   }, [filterRegion, filterFkko, vidQuery]);
 
-  const toMapPath = useCallback((id?: number): string => {
+  const toMapPath = useCallback((): string => {
     const params = new URLSearchParams({
       fkko: filterFkko.trim(),
       vid: vidQuery.trim(),
     });
     const r = filterRegion.trim();
     if (r) params.set('region', r);
-    if (typeof id === 'number') params.set('focus', String(id));
     return `/map?${params.toString()}`;
   }, [filterRegion, filterFkko, vidQuery]);
 
@@ -309,7 +308,7 @@ export function HeroBannerSection(): JSX.Element {
                       <LicenseResultCard
                         key={item.id ?? `${item.companyName}-${item.inn}-${item.address}`}
                         item={item}
-                        mapPath={toMapPath(item.id)}
+                        mapPath={toMapPath()}
                         detailsPath={typeof item.id === 'number' ? `/enterprise/${item.id}` : '/map'}
                       />
                     ))}

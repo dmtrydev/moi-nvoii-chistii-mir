@@ -1428,7 +1428,7 @@ app.get('/api/license-sites', async (req, res) => {
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1)
         AND sfa.fkko_code = $2
         AND sfa.activity_type = ANY($3::text[])
-      ORDER BY s."siteId" DESC
+      ORDER BY s.id DESC
       LIMIT 200
     `;
 
