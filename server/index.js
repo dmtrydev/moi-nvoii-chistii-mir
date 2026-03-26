@@ -490,7 +490,7 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
           },
         ],
         temperature: 0.1,
-        max_tokens: 2000,
+        max_tokens: 8000,
       }),
     });
 
