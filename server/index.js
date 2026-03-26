@@ -1551,6 +1551,61 @@ app.post('/api/license-sites/:id/geocode', async (req, res) => {
   }
 });
 
+app.get('/api/search/enterprises', async (req, res) => {
+  try {
+    const companyName = String(req.query.companyName ?? '').trim();
+    const inn = String(req.query.inn ?? '').trim();
+
+    if (!companyName && !inn) {
+      return res.status(400).json({ message: 'Укажите название компании или ИНН.' });
+    }
+
+    const conditions = [
+      "l.deleted_at IS NULL",
+      "l.status = 'approved'",
+    ];
+    const params = [];
+    let idx = 1;
+
+    if (companyName) {
+      params.push(`%${companyName}%`);
+      conditions.push(`l.company_name ILIKE $${idx}`);
+      idx++;
+    }
+    if (inn) {
+      params.push(`${inn}%`);
+      conditions.push(`l.inn LIKE $${idx}`);
+      idx++;
+    }
+
+    const sql = `
+      SELECT DISTINCT
+        s.id   AS "siteId",
+        l.id,
+        l.company_name AS "companyName",
+        l.inn,
+        s.address,
+        COALESCE(s.region, l.region) AS region,
+        s.lat,
+        s.lng,
+        s.fkko_codes     AS "fkkoCodes",
+        s.activity_types  AS "activityTypes",
+        s.site_label      AS "siteLabel"
+      FROM licenses l
+      JOIN license_sites s ON s.license_id = l.id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY l.company_name ASC, s.id ASC
+      LIMIT 200
+    `;
+
+    const rows = await query(sql, params);
+    return res.json({ items: rows.rows });
+  } catch (err) {
+    console.error('search enterprises error:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка поиска предприятий' });
+  }
+});
+
 app.get('/api/licenses', async (req, res) => {
   try {
     const region = String(req.query.region ?? '').trim();
