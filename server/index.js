@@ -451,6 +451,94 @@ function extractHeaderText(fullText) {
   return headerLines.join('\n').slice(0, 4000);
 }
 
+async function callTimewebAi(systemPrompt, userContent, maxTokens = 4000) {
+  const chatRes = await fetch(`${TIMEWEB_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${TIMEWEB_BEARER_TOKEN}`,
+      'x-proxy-source': process.env.TIMEWEB_PROXY_SOURCE || '',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      temperature: 0.1,
+      max_tokens: maxTokens,
+    }),
+  });
+  if (!chatRes.ok) {
+    const errText = await chatRes.text();
+    throw new Error(`AI ${chatRes.status}: ${errText.slice(0, 200)}`);
+  }
+  const completion = await chatRes.json();
+  const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
+  return JSON.parse(raw);
+}
+
+const CHUNK_ENTRIES_PROMPT = `Извлеки из фрагмента таблицы лицензии записи ФККО.
+
+Ответь СТРОГО валидным JSON (без markdown, без комментариев):
+{
+  "entries": [
+    {
+      "fkkoCode": "код ФККО (11 цифр без пробелов, например 47110101521)",
+      "wasteName": "наименование вида отхода (БЕЗ адреса, БЕЗ заголовков таблицы)",
+      "hazardClass": "I, II, III, IV или V",
+      "activityTypes": ["Сбор", "Транспортирование"],
+      "addressRef": "Адрес 1"
+    }
+  ]
+}
+
+ПРАВИЛА:
+- Код ФККО — 11 цифр подряд (убери пробелы, если есть: "4 71 101 01 52 1" → "47110101521").
+- wasteName — ТОЛЬКО название отхода. НЕ включай адреса, заголовки таблицы, названия колонок.
+- activityTypes — допустимые: Сбор, Транспортирование, Обезвреживание, Утилизация, Размещение, Обработка, Захоронение.
+- Группируй: если один ФККО-код имеет несколько видов работ на одном адресе — объединяй в один элемент.
+- addressRef — если есть "Адрес 1", "Адрес 2" и т.п., укажи как есть. Если указан полный адрес — укажи его.
+- Пропускай заголовки таблицы, шапку, пустые строки.`;
+
+function splitIntoTableChunks(text, maxChars = 8000) {
+  const fkkoRe = /\d\s+\d{2}\s+\d{3}\s+\d{2}\s+\d{2}\s+\d|\d{11}/;
+  const pageBreakRe = /^--\s*\d+\s+of\s+\d+\s*--$/;
+  const lines = text.split('\n');
+
+  let tableStart = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (fkkoRe.test(lines[i])) {
+      tableStart = Math.max(0, i - 5);
+      break;
+    }
+  }
+
+  const tableLines = lines.slice(tableStart)
+    .map((l) => l.trim())
+    .filter((l) => l && !pageBreakRe.test(l));
+
+  if (tableLines.length === 0) return [];
+
+  const chunks = [];
+  let current = [];
+  let size = 0;
+
+  for (const line of tableLines) {
+    if (size + line.length + 1 > maxChars && current.length > 10) {
+      chunks.push(current.join('\n'));
+      current = [];
+      size = 0;
+    }
+    current.push(line);
+    size += line.length + 1;
+  }
+  if (current.length > 0) {
+    chunks.push(current.join('\n'));
+  }
+  return chunks;
+}
+
 const KNOWN_ACTIVITIES = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
 
 function parseFkkoTableFromText(fullText) {
@@ -726,95 +814,140 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
     mkdirSync(uploadsDir, { recursive: true });
     await fsPromises.writeFile(path.join(uploadsDir, storedFileName), file.buffer);
 
-    const parsed = parseFkkoTableFromText(text);
-    const hasParsedEntries = parsed.sites.length > 0 &&
-      parsed.sites.some((s) => s.entries.length > 0);
+    let companyName = '';
+    let inn = '';
+    let regionFromAi = '';
+    let finalSites = [];
+    let finalAliases = {};
 
-    if (!TIMEWEB_BASE) {
-      if (hasParsedEntries) {
-        console.log(`AI unavailable, using programmatic parse: ${parsed.sites.length} sites, ${parsed.sites.reduce((n, s) => n + s.entries.length, 0)} entries`);
+    const isSmall = text.length < 12000;
+
+    if (TIMEWEB_BASE) {
+      if (isSmall) {
+        console.log(`Small license (${text.length} chars) — single AI call`);
+        try {
+          const ai = await callTimewebAi(
+            'Ты извлекаешь структурированные данные из текста лицензии на обращение с отходами. Отвечай СТРОГО валидным JSON без markdown-обрамления.',
+            `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text}`,
+            8000,
+          );
+          rawContent = JSON.stringify(ai);
+          companyName = String(ai.companyName ?? ai.company_name ?? '').replace(/\bне указано\b/gi, '').trim();
+          inn = String(ai.inn ?? '').replace(/\bне указано\b/gi, '').trim();
+          regionFromAi = String(ai.region ?? '').replace(/\bне указано\b/gi, '').trim();
+          finalAliases = normalizeAddressAliases(ai.addressAliases);
+          finalSites = normalizeAiSites(ai.sites, finalAliases);
+        } catch (err) {
+          console.error('Single AI call failed:', err.message);
+          return res.status(502).json({
+            message: `Ошибка ИИ. Попробуйте загрузить файл повторно.`,
+          });
+        }
+      } else {
+        console.log(`Large license (${text.length} chars) — chunked AI`);
+
+        try {
+          const headerAi = await callTimewebAi(
+            'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
+            `Извлеки из текста лицензии ТОЛЬКО реквизиты.\n\nОтветь JSON:\n{"companyName":"...","inn":"...","region":"...","addressAliases":{"Адрес 1":"полный адрес",...}}\n\nТекст:\n\n${extractHeaderText(text)}`,
+            1000,
+          );
+          companyName = String(headerAi.companyName ?? '').replace(/\bне указано\b/gi, '').trim();
+          inn = String(headerAi.inn ?? '').replace(/\bне указано\b/gi, '').trim();
+          regionFromAi = String(headerAi.region ?? '').replace(/\bне указано\b/gi, '').trim();
+          finalAliases = normalizeAddressAliases(headerAi.addressAliases);
+          console.log(`Header AI OK: ${companyName}, ИНН ${inn}`);
+        } catch (err) {
+          console.error('Header AI failed:', err.message);
+        }
+
+        const chunks = splitIntoTableChunks(text);
+        console.log(`Table split into ${chunks.length} chunks`);
+        const allEntries = [];
+        const BATCH_SIZE = 2;
+
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          const batch = chunks.slice(i, i + BATCH_SIZE);
+          const results = await Promise.allSettled(
+            batch.map((chunk, idx) => {
+              console.log(`  Chunk ${i + idx + 1}/${chunks.length} (${chunk.length} chars)...`);
+              return callTimewebAi(
+                'Ты извлекаешь данные ФККО из фрагмента таблицы лицензии. Отвечай СТРОГО валидным JSON.',
+                `${CHUNK_ENTRIES_PROMPT}\n\nФрагмент таблицы:\n\n${chunk}`,
+                4000,
+              );
+            }),
+          );
+          for (const r of results) {
+            if (r.status === 'fulfilled' && Array.isArray(r.value?.entries)) {
+              allEntries.push(...r.value.entries);
+            } else if (r.status === 'rejected') {
+              console.error('  Chunk AI error:', r.reason?.message ?? r.reason);
+            }
+          }
+        }
+
+        console.log(`AI returned ${allEntries.length} raw entries from chunks`);
+
+        const siteMap = {};
+        for (const e of allEntries) {
+          const fkkoRaw = String(e.fkkoCode ?? '').replace(/\s+/g, '');
+          const fkkoCode = normalizeFkkoCode(fkkoRaw);
+          if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
+          const acts = Array.isArray(e.activityTypes)
+            ? e.activityTypes.map((a) => String(a).trim()).filter(Boolean)
+            : [];
+          if (acts.length === 0) continue;
+
+          const addrKey = String(e.addressRef ?? e.address ?? 'unknown').trim();
+          if (!siteMap[addrKey]) siteMap[addrKey] = {};
+          if (!siteMap[addrKey][fkkoCode]) {
+            siteMap[addrKey][fkkoCode] = {
+              fkkoCode,
+              wasteName: String(e.wasteName ?? '').trim(),
+              hazardClass: String(e.hazardClass ?? '').trim(),
+              activityTypes: [],
+            };
+          }
+          const entry = siteMap[addrKey][fkkoCode];
+          for (const a of acts) {
+            if (!entry.activityTypes.includes(a)) entry.activityTypes.push(a);
+          }
+          if (!entry.wasteName && e.wasteName) entry.wasteName = String(e.wasteName).trim();
+          if (!entry.hazardClass && e.hazardClass) entry.hazardClass = String(e.hazardClass).trim();
+        }
+
+        for (const [addrKey, codes] of Object.entries(siteMap)) {
+          const resolved = finalAliases[addrKey] || addrKey;
+          const entries = Object.values(codes);
+          finalSites.push({
+            address: resolved === 'unknown' ? '' : resolved,
+            addressRef: addrKey,
+            entries,
+            fkkoCodes: [...new Set(entries.map((e) => e.fkkoCode))],
+            activityTypes: [...new Set(entries.flatMap((e) => e.activityTypes))],
+          });
+        }
+
+        if (finalSites.length === 0) {
+          console.log('AI chunks returned no entries, falling back to programmatic parser');
+          const parsed = parseFkkoTableFromText(text);
+          if (parsed.sites.length > 0) {
+            finalSites = parsed.sites;
+            finalAliases = { ...finalAliases, ...parsed.addressAliases };
+          }
+        }
+      }
+    } else {
+      const parsed = parseFkkoTableFromText(text);
+      if (parsed.sites.length > 0 && parsed.sites.some((s) => s.entries.length > 0)) {
+        console.log(`AI unavailable, using programmatic parse: ${parsed.sites.length} sites`);
+        finalSites = parsed.sites;
+        finalAliases = parsed.addressAliases || {};
       } else {
         return res.status(503).json({
           message: 'Сервис анализа не настроен. Укажите TIMEWEB_ACCESS_ID.',
         });
-      }
-    }
-
-    const HEADER_PROMPT = `Извлеки из текста лицензии ТОЛЬКО реквизиты организации.
-
-Ответь СТРОГО валидным JSON (без markdown, без комментариев):
-{
-  "companyName": "полное наименование организации",
-  "inn": "ИНН (только цифры)",
-  "region": "регион РФ (например: Челябинская область)"
-}
-
-Если поля нет — верни пустую строку.`;
-
-    let companyName = '';
-    let inn = '';
-    let regionFromAi = '';
-
-    if (TIMEWEB_BASE) {
-      const headerText = extractHeaderText(text);
-      const chatRes = await fetch(`${TIMEWEB_BASE}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${TIMEWEB_BEARER_TOKEN}`,
-          'x-proxy-source': process.env.TIMEWEB_PROXY_SOURCE || '',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: 'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
-            },
-            {
-              role: 'user',
-              content: `${hasParsedEntries ? HEADER_PROMPT : EXTRACT_PROMPT}\n\nТекст документа:\n\n${hasParsedEntries ? headerText : text.slice(0, 15000)}`,
-            },
-          ],
-          temperature: 0.1,
-          max_tokens: hasParsedEntries ? 500 : 8000,
-        }),
-      });
-
-      if (!chatRes.ok) {
-        const errText = await chatRes.text();
-        console.error('Timeweb API error:', chatRes.status, errText);
-        if (!hasParsedEntries) {
-          return res.status(502).json({
-            message: `Ошибка ИИ (${chatRes.status}). Попробуйте загрузить файл повторно.`,
-          });
-        }
-        console.log('AI failed but programmatic parse succeeded — using fallback');
-      } else {
-        const completion = await chatRes.json();
-        const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
-        rawContent = raw;
-        try {
-          const ai = JSON.parse(raw);
-          companyName = String(ai.companyName ?? ai.company_name ?? '').replace(/\bне указано\b/gi, '').trim();
-          inn = String(ai.inn ?? '').replace(/\bне указано\b/gi, '').trim();
-          regionFromAi = String(ai.region ?? '').replace(/\bне указано\b/gi, '').trim();
-
-          if (!hasParsedEntries) {
-            const aiSites = normalizeAiSites(ai.sites, normalizeAddressAliases(ai.addressAliases));
-            if (aiSites.length > 0) {
-              parsed.sites = aiSites;
-              parsed.addressAliases = normalizeAddressAliases(ai.addressAliases);
-            }
-          }
-        } catch (parseErr) {
-          console.error('Failed to parse AI JSON:', parseErr.message, raw.slice(0, 500));
-          if (!hasParsedEntries) {
-            return res.status(502).json({
-              message: 'Не удалось разобрать ответ ИИ. Попробуйте ещё раз.',
-            });
-          }
-        }
       }
     }
 
@@ -829,13 +962,11 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       }
     }
 
-    const sites = parsed.sites;
-    const mergedAliases = parsed.addressAliases || {};
-    const primaryAddress = String(sites?.[0]?.address ?? '').trim();
-    const fkkoCodes = [...new Set(sites.flatMap((x) => x.fkkoCodes || []))];
-    const activityTypes = [...new Set(sites.flatMap((x) => x.activityTypes || []))];
+    const primaryAddress = String(finalSites?.[0]?.address ?? '').trim();
+    const fkkoCodes = [...new Set(finalSites.flatMap((x) => x.fkkoCodes || []))];
+    const activityTypes = [...new Set(finalSites.flatMap((x) => x.activityTypes || []))];
 
-    console.log(`License parsed: ${companyName}, ${sites.length} site(s), ${fkkoCodes.length} FKKO codes, ${activityTypes.length} activity types`);
+    console.log(`License result: ${companyName}, ${finalSites.length} site(s), ${fkkoCodes.length} FKKO, ${activityTypes.length} activities`);
 
     const result = {
       companyName,
@@ -844,14 +975,14 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       address: primaryAddress,
       fkkoCodes,
       activityTypes,
-      sites: sites.map((s) => ({
+      sites: finalSites.map((s) => ({
         address: s.address,
         addressRef: s.addressRef,
         fkkoCodes: s.fkkoCodes,
         activityTypes: s.activityTypes,
         entries: s.entries ?? [],
       })),
-      addressAliases: mergedAliases,
+      addressAliases: finalAliases,
       fileOriginalName: file.originalname || 'license.pdf',
       fileStoredName: storedFileName,
     };
