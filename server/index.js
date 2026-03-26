@@ -427,71 +427,250 @@ async function extractTextFromPdf(buffer) {
   }
 }
 
-function compactLicenseText(fullText) {
+function extractHeaderText(fullText) {
   const lines = fullText.split('\n');
-
   const headerLines = [];
-  const tableLines = [];
-  let inHeader = true;
-
-  const fkkoLineRe = /\d\s+\d{2}\s+\d{3}\s+\d{2}\s+\d{2}\s+\d|\d{11}/;
-  const activityRe = /\b(Сбор|Транспортирова|Обезвреживание|Утилизация|Размещение|Обработка|Захоронение)\b/i;
-  const addressAliasRe = /^Адрес\s+\d+\s*:/i;
   const pageBreakRe = /^--\s*\d+\s+of\s+\d+\s*--$/;
-  const tableHeaderRe = /Наименование вида|Код отхода|Класс\s*опасно|Виды работ|Место осуществления/i;
-  const boilerplateRe = /федеральному\s*классификацион|лицензируемого вида дея|филиалы и обособлен|окружа|ющей\s*среды|ному каталогу|выполняемые в\s*составе/i;
-  const sectionRe = /^Сокращенные адреса/i;
+  const fkkoLineRe = /\d\s+\d{2}\s+\d{3}\s+\d{2}\s+\d{2}\s+\d|\d{11}/;
+  const tableHeaderRe = /Наименование вида|Код отхода/i;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
+    const trimmed = lines[i].trim();
     if (!trimmed || pageBreakRe.test(trimmed)) continue;
+    headerLines.push(trimmed);
+    if (/^(9|10)\.\s/.test(trimmed) || /лицензируемый вид деятельности/i.test(trimmed)) {
+      for (let j = i + 1; j < Math.min(i + 15, lines.length); j++) {
+        const next = lines[j].trim();
+        if (!next || pageBreakRe.test(next)) continue;
+        if (fkkoLineRe.test(next) || tableHeaderRe.test(next)) break;
+        headerLines.push(next);
+      }
+      break;
+    }
+  }
+  return headerLines.join('\n').slice(0, 4000);
+}
 
-    if (inHeader) {
-      headerLines.push(trimmed);
-      if (/^(9|10)\.\s/.test(trimmed) || /лицензируемый вид деятельности/i.test(trimmed)) {
-        for (let j = i + 1; j < Math.min(i + 12, lines.length); j++) {
-          const next = lines[j].trim();
-          if (!next || pageBreakRe.test(next)) continue;
-          if (fkkoLineRe.test(next) || tableHeaderRe.test(next)) break;
-          headerLines.push(next);
+const KNOWN_ACTIVITIES = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
+
+function parseFkkoTableFromText(fullText) {
+  const lines = fullText.split('\n');
+  const rawEntries = [];
+  const fkkoSpacedRe = /(\d)\s+(\d{2})\s+(\d{3})\s+(\d{2})\s+(\d{2})\s+(\d)/;
+  const fkkoCompactRe = /(\d{11})/;
+  const pageBreakRe = /^--\s*\d+\s+of\s+\d+\s*--$/;
+  const addressAliases = {};
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const aliasMatch = line.match(/^Адрес\s+(\d+)\s*:\s*(.+)/i);
+    if (aliasMatch) {
+      let addr = aliasMatch[2].trim();
+      for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+        const nl = lines[j].trim();
+        if (!nl || pageBreakRe.test(nl) || /^Адрес\s+\d+\s*:/i.test(nl)) break;
+        if (fkkoSpacedRe.test(nl) || fkkoCompactRe.test(nl)) break;
+        addr += ' ' + nl;
+      }
+      addressAliases[`Адрес ${aliasMatch[1]}`] = addr.replace(/\s+/g, ' ').trim();
+    }
+
+    let fkkoMatch = line.match(fkkoSpacedRe);
+    let fkkoCode = '';
+    let fkkoEnd = 0;
+
+    if (fkkoMatch) {
+      fkkoCode = fkkoMatch.slice(1, 7).join('');
+      fkkoEnd = fkkoMatch.index + fkkoMatch[0].length;
+    } else {
+      fkkoMatch = line.match(fkkoCompactRe);
+      if (fkkoMatch) {
+        fkkoCode = fkkoMatch[1];
+        fkkoEnd = fkkoMatch.index + fkkoMatch[0].length;
+      }
+    }
+
+    if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
+    if (/ОГРН|регистрационный|реестр|лицензи/i.test(line)) continue;
+
+    const afterFkko = line.substring(fkkoEnd).trim();
+    const beforeFkko = line.substring(0, fkkoMatch.index).trim();
+
+    const hazardMatch = afterFkko.match(/\b(I{1,3}V?|IV|V)\b/);
+    const hazardClass = hazardMatch ? hazardMatch[1] : '';
+
+    let activityType = '';
+    for (const act of KNOWN_ACTIVITIES) {
+      if (afterFkko.includes(act)) { activityType = act; break; }
+    }
+    if (!activityType && /Транспортирова/.test(afterFkko)) {
+      activityType = 'Транспортирование';
+    }
+    if (!activityType) {
+      for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+        const nl = lines[j].trim();
+        if (/^ние\b/.test(nl)) { activityType = 'Транспортирование'; break; }
+        for (const act of KNOWN_ACTIVITIES) {
+          if (nl === act || nl.startsWith(act)) { activityType = act; break; }
         }
-        inHeader = false;
-      }
-      continue;
-    }
-
-    if (tableHeaderRe.test(trimmed) || boilerplateRe.test(trimmed)) continue;
-    if (/^\d+$/.test(trimmed) && trimmed.length <= 3) continue;
-
-    if (fkkoLineRe.test(trimmed) || activityRe.test(trimmed) || addressAliasRe.test(trimmed) || sectionRe.test(trimmed)) {
-      tableLines.push(trimmed);
-      continue;
-    }
-
-    if (tableLines.length > 0) {
-      const lastTable = tableLines[tableLines.length - 1];
-      if (fkkoLineRe.test(lastTable) || activityRe.test(lastTable)) {
-        tableLines.push(trimmed);
-        continue;
+        if (activityType) break;
       }
     }
 
-    if (/Адрес\s+\d+|^\d{6}/.test(trimmed)) {
-      tableLines.push(trimmed);
+    const addrInLine = afterFkko.match(/Адрес\s+\d+/);
+    let addressRef = addrInLine ? addrInLine[0] : '';
+    if (!addressRef) {
+      for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+        const nl = lines[j].trim();
+        const am = nl.match(/^Адрес\s+\d+/);
+        if (am) { addressRef = am[0]; break; }
+      }
     }
+    if (!addressRef) {
+      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+        const nl = lines[j].trim();
+        if (!nl || pageBreakRe.test(nl) || /^ние$/.test(nl)) continue;
+        if (fkkoSpacedRe.test(nl) || fkkoCompactRe.test(nl)) break;
+        if (/^\d{6}/.test(nl) || /обл[,.\s]|область|край|р-н|район/i.test(nl)) {
+          const addrParts = [nl];
+          for (let k = j + 1; k < Math.min(j + 5, lines.length); k++) {
+            const al = lines[k].trim();
+            if (!al || fkkoSpacedRe.test(al) || fkkoCompactRe.test(al)) break;
+            if (/Наименование вида/i.test(al)) break;
+            addrParts.push(al);
+          }
+          addressRef = addrParts.join(', ').replace(/,\s*,/g, ',').trim();
+          break;
+        }
+      }
+    }
+
+    let wasteName = beforeFkko;
+    if (wasteName.length < 5) {
+      const wasteLines = [];
+      for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
+        const pl = lines[j].trim();
+        if (!pl || pageBreakRe.test(pl)) continue;
+        if (fkkoSpacedRe.test(pl) || fkkoCompactRe.test(pl)) break;
+        if (/Наименование вида|Код отхода|Класс\s*опасно|Виды работ|Место осуществления/i.test(pl)) break;
+        if (/^\d+$/.test(pl) && pl.length <= 3) continue;
+        if (/Адрес\s+\d+$/.test(pl)) break;
+        if (/^\d{6}/.test(pl)) break;
+        let isAddr = false;
+        for (const act of KNOWN_ACTIVITIES) { if (pl === act || pl.startsWith(act)) { isAddr = true; break; } }
+        if (isAddr) break;
+        wasteLines.unshift(pl);
+      }
+      if (wasteLines.length > 0) {
+        wasteName = (wasteLines.join(' ') + (wasteName ? ' ' + wasteName : '')).trim();
+      }
+    }
+    wasteName = wasteName
+      .replace(/\s*(I{1,3}V?|IV|V)\s*(класс)?.*$/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    rawEntries.push({ fkkoCode, wasteName, hazardClass, activityType, addressRef });
   }
 
-  const header = headerLines.join('\n');
-  const table = tableLines.join('\n');
-  const combined = `${header}\n\n--- ТАБЛИЦА ФККО ---\n\n${table}`;
-
-  if (combined.length < 500) {
-    return fullText.slice(0, 28000);
+  const siteMap = {};
+  for (const e of rawEntries) {
+    if (!e.activityType) continue;
+    const addr = e.addressRef || 'unknown';
+    if (!siteMap[addr]) siteMap[addr] = {};
+    if (!siteMap[addr][e.fkkoCode]) {
+      siteMap[addr][e.fkkoCode] = {
+        fkkoCode: e.fkkoCode,
+        wasteName: e.wasteName,
+        hazardClass: e.hazardClass,
+        activityTypes: [],
+      };
+    }
+    const entry = siteMap[addr][e.fkkoCode];
+    if (!entry.activityTypes.includes(e.activityType)) {
+      entry.activityTypes.push(e.activityType);
+    }
+    if (!entry.wasteName && e.wasteName) entry.wasteName = e.wasteName;
+    if (!entry.hazardClass && e.hazardClass) entry.hazardClass = e.hazardClass;
   }
 
-  return combined.slice(0, 28000);
+  const sites = [];
+  for (const [addr, codes] of Object.entries(siteMap)) {
+    const resolved = addressAliases[addr] || addr;
+    sites.push({
+      address: resolved === 'unknown' ? '' : resolved,
+      addressRef: addr,
+      entries: Object.values(codes),
+      fkkoCodes: [...new Set(Object.keys(codes))],
+      activityTypes: [...new Set(Object.values(codes).flatMap((c) => c.activityTypes))],
+    });
+  }
+
+  return { sites, addressAliases };
+}
+
+function normalizeAddressAliases(v) {
+  if (!v || typeof v !== 'object') return {};
+  const out = {};
+  for (const [k, val] of Object.entries(v)) {
+    const kk = String(k ?? '').trim();
+    const vv = String(val ?? '').trim();
+    if (!kk || !vv) continue;
+    out[kk] = vv;
+  }
+  return out;
+}
+
+function normalizeAiSites(sites, addressAliases) {
+  if (!Array.isArray(sites)) return [];
+  const out = [];
+  for (const it of sites) {
+    const addrRaw = String(it?.address ?? '').trim();
+    const resolved = addressAliases?.[addrRaw] || addrRaw;
+    const address = resolved || addrRaw;
+
+    let entries = [];
+    if (Array.isArray(it?.entries)) {
+      for (const e of it.entries) {
+        const fkkoRaw = String(e?.fkkoCode ?? e?.fkko_code ?? '').trim();
+        const fkkoCode = normalizeFkkoCode(fkkoRaw);
+        if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
+        const acts = Array.isArray(e?.activityTypes ?? e?.activity_types)
+          ? (e.activityTypes ?? e.activity_types).map((x) => String(x ?? '').trim()).filter(Boolean)
+          : [];
+        if (acts.length === 0) continue;
+        entries.push({
+          fkkoCode,
+          wasteName: String(e?.wasteName ?? e?.waste_name ?? '').trim(),
+          hazardClass: String(e?.hazardClass ?? e?.hazard_class ?? '').trim(),
+          activityTypes: acts,
+        });
+      }
+    }
+    if (entries.length === 0) {
+      const fkkoRaw = Array.isArray(it?.fkkoCodes)
+        ? it.fkkoCodes.map((x) => String(x ?? '').trim()).filter(Boolean).join(', ')
+        : String(it?.fkkoCodes ?? '');
+      const fkkoCodes = fkkoRaw ? extractFkkoCodesFromText(fkkoRaw) : [];
+      const activityTypes = Array.isArray(it?.activityTypes)
+        ? it.activityTypes.map((x) => String(x ?? '').trim()).filter(Boolean)
+        : [];
+      entries = fkkoCodes.map((code) => ({
+        fkkoCode: code,
+        wasteName: '',
+        hazardClass: '',
+        activityTypes: [...activityTypes],
+      }));
+    }
+
+    const fkkoCodes = [...new Set(entries.map((e) => e.fkkoCode))];
+    const activityTypes = [...new Set(entries.flatMap((e) => e.activityTypes))];
+    if (!address && fkkoCodes.length === 0) continue;
+    out.push({ address, addressRef: addrRaw, fkkoCodes, activityTypes, entries });
+  }
+  return out;
 }
 
 app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
@@ -530,169 +709,116 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
     mkdirSync(uploadsDir, { recursive: true });
     await fsPromises.writeFile(path.join(uploadsDir, storedFileName), file.buffer);
 
+    const parsed = parseFkkoTableFromText(text);
+    const hasParsedEntries = parsed.sites.length > 0 &&
+      parsed.sites.some((s) => s.entries.length > 0);
+
     if (!TIMEWEB_BASE) {
-      return res.status(503).json({
-        message: 'Сервис анализа не настроен. Укажите TIMEWEB_ACCESS_ID.',
+      if (hasParsedEntries) {
+        console.log(`AI unavailable, using programmatic parse: ${parsed.sites.length} sites, ${parsed.sites.reduce((n, s) => n + s.entries.length, 0)} entries`);
+      } else {
+        return res.status(503).json({
+          message: 'Сервис анализа не настроен. Укажите TIMEWEB_ACCESS_ID.',
+        });
+      }
+    }
+
+    const HEADER_PROMPT = `Извлеки из текста лицензии ТОЛЬКО реквизиты организации.
+
+Ответь СТРОГО валидным JSON (без markdown, без комментариев):
+{
+  "companyName": "полное наименование организации",
+  "inn": "ИНН (только цифры)",
+  "region": "регион РФ (например: Челябинская область)"
+}
+
+Если поля нет — верни пустую строку.`;
+
+    let companyName = '';
+    let inn = '';
+    let regionFromAi = '';
+
+    if (TIMEWEB_BASE) {
+      const headerText = extractHeaderText(text);
+      const chatRes = await fetch(`${TIMEWEB_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${TIMEWEB_BEARER_TOKEN}`,
+          'x-proxy-source': process.env.TIMEWEB_PROXY_SOURCE || '',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
+            },
+            {
+              role: 'user',
+              content: `${hasParsedEntries ? HEADER_PROMPT : EXTRACT_PROMPT}\n\nТекст документа:\n\n${hasParsedEntries ? headerText : text.slice(0, 15000)}`,
+            },
+          ],
+          temperature: 0.1,
+          max_tokens: hasParsedEntries ? 500 : 8000,
+        }),
       });
-    }
 
-    const chatRes = await fetch(`${TIMEWEB_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${TIMEWEB_BEARER_TOKEN}`,
-        'x-proxy-source': process.env.TIMEWEB_PROXY_SOURCE || '',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Ты извлекаешь структурированные данные из текста лицензии на обращение с отходами. Отвечай СТРОГО валидным JSON без markdown-обрамления.',
-          },
-          {
-            role: 'user',
-            content: `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${compactLicenseText(text)}`,
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 8000,
-      }),
-    });
-
-    if (!chatRes.ok) {
-      const errText = await chatRes.text();
-      console.error('Timeweb API error:', chatRes.status, errText);
-      return res.status(502).json({
-        message: `Ошибка ИИ (${chatRes.status}). Проверьте TIMEWEB_ACCESS_ID и доступ к Timeweb Cloud AI.`,
-      });
-    }
-
-    const completion = await chatRes.json();
-    const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
-    rawContent = raw;
-
-    function safeTrimText(v) {
-      return String(v ?? '').replace(/\bне указано\b/gi, '').trim();
-    }
-
-    function extractLine(prefix) {
-      const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const re = new RegExp(`^${escaped}\\s*[:：]?\\s*(.*)`, 'im');
-      const m = raw.match(re);
-      return m ? String(m[1] ?? '').trim() : '';
-    }
-
-    function parseAiJsonOrFallback() {
-      // 1) Пытаемся распарсить новый формат (валидный JSON).
-      try {
-        const obj = JSON.parse(raw);
-        return { kind: 'json', obj };
-      } catch {
-        // 2) Фолбэк: старый строковый формат
-        const companyName = safeTrimText(extractLine('НАЗВАНИЕ_ОРГАНИЗАЦИИ'));
-        const inn = safeTrimText(extractLine('ИНН'));
-        const region = safeTrimText(extractLine('РЕГИОН'));
-        const address = safeTrimText(extractLine('АДРЕС'));
-        const fkkoRaw = safeTrimText(extractLine('КОДЫ_ФККО'));
-        const fkkoCodes = fkkoRaw ? extractFkkoCodesFromText(fkkoRaw) : [];
-        const activityRaw = safeTrimText(extractLine('ВИД_ОБРАЩЕНИЯ'));
-        const activityTypes = activityRaw ? activityRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
-        return {
-          kind: 'legacy',
-          obj: {
-            companyName,
-            inn,
-            region,
-            addressAliases: {},
-            sites: [
-              {
-                address,
-                activityTypes,
-                fkkoCodes,
-              },
-            ],
-          },
-        };
-      }
-    }
-
-    function normalizeActivityTypes(v) {
-      if (!Array.isArray(v)) return [];
-      return v.map((x) => String(x ?? '').trim()).filter(Boolean);
-    }
-
-    function normalizeAddressAliases(v) {
-      if (!v || typeof v !== 'object') return {};
-      const out = {};
-      for (const [k, val] of Object.entries(v)) {
-        const kk = String(k ?? '').trim();
-        const vv = String(val ?? '').trim();
-        if (!kk || !vv) continue;
-        out[kk] = vv;
-      }
-      return out;
-    }
-
-    function normalizeEntries(entries) {
-      if (!Array.isArray(entries)) return [];
-      const out = [];
-      for (const e of entries) {
-        const fkkoRaw = String(e?.fkkoCode ?? e?.fkko_code ?? '').trim();
-        const fkkoCode = normalizeFkkoCode(fkkoRaw);
-        if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
-        const wasteName = String(e?.wasteName ?? e?.waste_name ?? '').trim();
-        const hazardClass = String(e?.hazardClass ?? e?.hazard_class ?? '').trim();
-        const activityTypes = normalizeActivityTypes(e?.activityTypes ?? e?.activity_types);
-        if (activityTypes.length === 0) continue;
-        out.push({ fkkoCode, wasteName, hazardClass, activityTypes });
-      }
-      return out;
-    }
-
-    function normalizeSites(sites, addressAliases) {
-      if (!Array.isArray(sites)) return [];
-      const out = [];
-      for (const it of sites) {
-        const addrRaw = String(it?.address ?? '').trim();
-        const resolved = addressAliases && addressAliases[addrRaw] ? String(addressAliases[addrRaw]).trim() : addrRaw;
-        const address = resolved || addrRaw;
-
-        let entries = normalizeEntries(it?.entries);
-
-        if (entries.length === 0) {
-          const fkkoRaw = Array.isArray(it?.fkkoCodes) ? it.fkkoCodes.map((x) => String(x ?? '').trim()).filter(Boolean).join(', ') : String(it?.fkkoCodes ?? '').trim();
-          const fkkoCodes = fkkoRaw ? extractFkkoCodesFromText(fkkoRaw) : [];
-          const activityTypes = normalizeActivityTypes(it?.activityTypes);
-          entries = fkkoCodes.map((code) => ({
-            fkkoCode: code,
-            wasteName: '',
-            hazardClass: '',
-            activityTypes: [...activityTypes],
-          }));
+      if (!chatRes.ok) {
+        const errText = await chatRes.text();
+        console.error('Timeweb API error:', chatRes.status, errText);
+        if (!hasParsedEntries) {
+          return res.status(502).json({
+            message: `Ошибка ИИ (${chatRes.status}). Попробуйте загрузить файл повторно.`,
+          });
         }
+        console.log('AI failed but programmatic parse succeeded — using fallback');
+      } else {
+        const completion = await chatRes.json();
+        const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
+        rawContent = raw;
+        try {
+          const ai = JSON.parse(raw);
+          companyName = String(ai.companyName ?? ai.company_name ?? '').replace(/\bне указано\b/gi, '').trim();
+          inn = String(ai.inn ?? '').replace(/\bне указано\b/gi, '').trim();
+          regionFromAi = String(ai.region ?? '').replace(/\bне указано\b/gi, '').trim();
 
-        const fkkoCodes = [...new Set(entries.map((e) => e.fkkoCode))];
-        const activityTypes = [...new Set(entries.flatMap((e) => e.activityTypes))];
-
-        if (!address && fkkoCodes.length === 0 && activityTypes.length === 0) continue;
-        out.push({ address, addressRef: addrRaw, fkkoCodes, activityTypes, entries });
+          if (!hasParsedEntries) {
+            const aiSites = normalizeAiSites(ai.sites, normalizeAddressAliases(ai.addressAliases));
+            if (aiSites.length > 0) {
+              parsed.sites = aiSites;
+              parsed.addressAliases = normalizeAddressAliases(ai.addressAliases);
+            }
+          }
+        } catch (parseErr) {
+          console.error('Failed to parse AI JSON:', parseErr.message, raw.slice(0, 500));
+          if (!hasParsedEntries) {
+            return res.status(502).json({
+              message: 'Не удалось разобрать ответ ИИ. Попробуйте ещё раз.',
+            });
+          }
+        }
       }
-      return out;
     }
 
-    const parsed = parseAiJsonOrFallback();
-    const ai = parsed.obj ?? {};
-    const companyName = safeTrimText(ai.companyName ?? ai.company_name ?? '');
-    const inn = safeTrimText(ai.inn ?? '');
-    const regionFromAi = safeTrimText(ai.region ?? '');
-    const addressAliases = normalizeAddressAliases(ai.addressAliases);
-    const sites = normalizeSites(ai.sites, addressAliases);
+    if (!companyName || !inn) {
+      const nameMatch = text.match(/(?:полное\s+наименование|лицензиат)\s*[:\-—]?\s*([^\n]{5,120})/i);
+      if (nameMatch && !companyName) companyName = nameMatch[1].trim();
+      const innMatch = text.match(/ИНН\s*[:\-—]?\s*(\d{10,12})/);
+      if (innMatch && !inn) inn = innMatch[1];
+      if (!regionFromAi) {
+        const regMatch = text.match(/(\S+\s+область|\S+\s+край|\S+\s+республика)/i);
+        if (regMatch) regionFromAi = regMatch[1];
+      }
+    }
 
-    const primaryAddress = String(sites?.[0]?.address ?? safeTrimText(ai.address ?? '')).trim();
-    const fkkoCodes = [...new Set((sites ?? []).flatMap((x) => Array.isArray(x.fkkoCodes) ? x.fkkoCodes : []))];
-    const activityTypes = [...new Set((sites ?? []).flatMap((x) => Array.isArray(x.activityTypes) ? x.activityTypes : []))];
+    const sites = parsed.sites;
+    const mergedAliases = parsed.addressAliases || {};
+    const primaryAddress = String(sites?.[0]?.address ?? '').trim();
+    const fkkoCodes = [...new Set(sites.flatMap((x) => x.fkkoCodes || []))];
+    const activityTypes = [...new Set(sites.flatMap((x) => x.activityTypes || []))];
+
+    console.log(`License parsed: ${companyName}, ${sites.length} site(s), ${fkkoCodes.length} FKKO codes, ${activityTypes.length} activity types`);
 
     const result = {
       companyName,
@@ -708,7 +834,7 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
         activityTypes: s.activityTypes,
         entries: s.entries ?? [],
       })),
-      addressAliases,
+      addressAliases: mergedAliases,
       fileOriginalName: file.originalname || 'license.pdf',
       fileStoredName: storedFileName,
     };
