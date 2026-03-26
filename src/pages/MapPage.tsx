@@ -338,14 +338,15 @@ export default function MapPage(): JSX.Element {
       const fkko = (overrides?.fkko ?? filterFkko).trim();
       const vid = (overrides?.vid ?? vidQuery).trim();
 
-      if (!region || !fkko || !vid) {
+      // region опционален: ищем по fkko + виду обращения во всех регионах
+      if (!fkko || !vid) {
         if (!overrides) setFilterValidationError('Заполните обязательные фильтры: ФККО и вид обращения.');
         return;
       }
       setFilterValidationError('');
 
       const qs = new URLSearchParams();
-      qs.set('region', region);
+      if (region) qs.set('region', region);
       qs.set('fkko', fkko);
       qs.set('vid', vid);
 
@@ -376,7 +377,7 @@ export default function MapPage(): JSX.Element {
     const r = searchParams.get('region') ?? '';
     const f = searchParams.get('fkko') ?? '';
     const v = searchParams.get('vid') ?? '';
-    if (!r || !f || !v) return;
+    if (!f || !v) return;
     const key = `${r}|${f}|${v}`;
     if (lastAutoSearchKey.current === key) return;
     lastAutoSearchKey.current = key;
@@ -581,11 +582,12 @@ export default function MapPage(): JSX.Element {
                 {searchItems.slice(0, 20).map((it) => {
                   const id = typeof it.id === 'number' ? it.id : null;
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
+                  const r = filterRegion.trim();
                   const mapParams = new URLSearchParams({
-                    region: filterRegion.trim(),
                     fkko: filterFkko.trim(),
                     vid: vidQuery.trim(),
                   });
+                  if (r) mapParams.set('region', r);
                   if (id != null) mapParams.set('focus', String(id));
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>

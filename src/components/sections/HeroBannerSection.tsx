@@ -116,7 +116,8 @@ export function HeroBannerSection(): JSX.Element {
     setIsSearching(true);
     setHasSearched(true);
     try {
-      const params = new URLSearchParams({ region: r, fkko: f, vid: v });
+      const params = new URLSearchParams({ fkko: f, vid: v });
+      if (r) params.set('region', r);
       const resp = await fetch(getApiUrl(`/api/licenses?${params.toString()}`));
       const data = await (resp.ok ? resp.json() : resp.json().catch(() => ({})));
       if (!resp.ok) throw new Error((data as { message?: string }).message ?? `Ошибка ${resp.status}`);
