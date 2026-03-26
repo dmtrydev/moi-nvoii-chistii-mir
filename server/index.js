@@ -167,13 +167,29 @@ function normalizeFkkoCode(v) {
     .replace(/[^\d]+/g, '');
 }
 
+function splitGluedDigitsToFkkoCodes(digitsOnly) {
+  const d = normalizeFkkoCode(digitsOnly);
+  if (!d) return [];
+  if (d.length === 11) return /^\d{11}$/.test(d) ? [d] : [];
+  if (d.length > 11 && d.length % 11 === 0) {
+    const out = [];
+    for (let i = 0; i < d.length; i += 11) {
+      const chunk = d.slice(i, i + 11);
+      if (/^\d{11}$/.test(chunk)) out.push(chunk);
+    }
+    return out;
+  }
+  const m = d.match(/\d{11}/g) ?? [];
+  return m.filter((x) => /^\d{11}$/.test(x));
+}
+
 function formatFkkoTokensToCodes(tokens) {
   const t = Array.isArray(tokens) ? tokens.map((x) => String(x ?? '').trim()).filter(Boolean) : [];
   if (t.length < 6) return [];
   const out = [];
   for (let i = 0; i + 5 < t.length; i += 6) {
     const code = normalizeFkkoCode(t.slice(i, i + 6).join(' '));
-    if (code) out.push(code);
+    if (/^\d{11}$/.test(code)) out.push(code);
   }
   return out;
 }
@@ -191,7 +207,18 @@ function extractFkkoCodesFromText(v) {
   // Если токенов < 6 или не получилось группировать — попробуем режим "коды разделены запятыми/точкой с запятой/переводом строки".
   if (grouped.length === 0) {
     const chunks = s.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean);
-    return chunks.map(normalizeFkkoCode).filter(Boolean);
+    const out = [];
+    for (const ch of chunks) {
+      const digits = normalizeFkkoCode(ch);
+      if (!digits) continue;
+      if (/^\d{11}$/.test(digits)) {
+        out.push(digits);
+        continue;
+      }
+      out.push(...splitGluedDigitsToFkkoCodes(digits));
+    }
+    if (out.length > 0) return [...new Set(out)];
+    return [...new Set(splitGluedDigitsToFkkoCodes(s))];
   }
 
   // Дедуп + стабильный порядок
@@ -329,18 +356,34 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'analyze-license' });
 });
 
-const EXTRACT_PROMPT = `Извлеки из текста лицензии (или документа об обращении с отходами) следующие данные.
+const EXTRACT_PROMPT = `Извлеки из текста лицензии (или документа об обращении с отходами) структурированные данные.
 
-Ответь строго в таком формате — по одной строке на поле, без лишнего текста и без JSON:
+Ответь СТРОГО валидным JSON (без markdown-обрамления, без комментариев, без пояснений). Никакого текста до/после JSON.
 
-НАЗВАНИЕ_ОРГАНИЗАЦИИ: полное наименование организации
-ИНН: числовой код ИНН
-РЕГИОН: регион РФ (например: Московская область, Республика Башкортостан, Краснодарский край). Если можно — выбери именно регион, не город.
-АДРЕС: полный адрес объекта
-КОДЫ_ФККО: перечисли коды ФККО. Внутри одного кода ставь пробелы как в исходнике (пример: 7 31 100 01 40 4). Разделяй между собой ТОЛЬКО разные коды (лучше запятой). НЕ ставь запятые между частями одного кода.
-ВИД_ОБРАЩЕНИЯ: виды деятельности по обращению с отходами из лицензии. Укажи через запятую один или несколько: Сбор, Транспортирование, Обезвреживание, Утилизация, Размещение, Обработка, Захоронение, Иное. Только те, что указаны в документе.
+Схема ответа:
+{
+  "companyName": "полное наименование организации (строка)",
+  "inn": "ИНН (строка, только цифры если возможно)",
+  "region": "регион РФ (например: Московская область, Республика Башкортостан, Краснодарский край). Если можно — выбери именно регион, не город.",
+  "addressAliases": {
+    "Адрес 1": "полный адрес из перечня адресов",
+    "Адрес 2": "полный адрес из перечня адресов"
+  },
+  "sites": [
+    {
+      "address": "полный адрес площадки ИЛИ ссылка вида 'Адрес 1' (если в таблице так и написано)",
+      "activityTypes": ["Сбор", "Транспортирование", "Обезвреживание", "Утилизация", "Размещение", "Обработка", "Захоронение", "Иное"],
+      "fkkoCodes": ["7 31 100 01 40 4", "4 71 101 01 52 1"]
+    }
+  ]
+}
 
-Если какого-то поля нет в документе — оставь после двоеточия пустое место или напиши «не указано».`;
+Правила:
+- Если в таблице в колонке адреса написано 'Адрес 1' — верни именно 'Адрес 1' в sites[].address и ОБЯЗАТЕЛЬНО добавь расшифровку в addressAliases.
+- fkkoCodes: перечисляй коды ФККО, внутри одного кода сохраняй пробелы как в исходнике (пример: 7 31 100 01 40 4). НЕ ставь запятые между частями одного кода.
+- activityTypes: только из списка выше. Если в документе вида работ нет — верни пустой массив.
+- Если адресов/строк таблицы несколько — sites должен содержать несколько элементов (по строкам таблицы или по смысловым группам, но не теряй привязку ФККО к адресу).
+- Если какого-то поля нет — верни пустую строку или пустой объект/массив.`;
 
 function guessRegionFromAddress(address) {
   const a = String(address || '').trim();
@@ -446,6 +489,10 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
     const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
     rawContent = raw;
 
+    function safeTrimText(v) {
+      return String(v ?? '').replace(/\bне указано\b/gi, '').trim();
+    }
+
     function extractLine(prefix) {
       const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const re = new RegExp(`^${escaped}\\s*[:：]?\\s*(.*)`, 'im');
@@ -453,24 +500,96 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       return m ? String(m[1] ?? '').trim() : '';
     }
 
-    const companyName = extractLine('НАЗВАНИЕ_ОРГАНИЗАЦИИ').replace(/\bне указано\b/gi, '').trim();
-    const inn = extractLine('ИНН').replace(/\bне указано\b/gi, '').trim();
-    const regionFromAi = extractLine('РЕГИОН').replace(/\bне указано\b/gi, '').trim();
-    const address = extractLine('АДРЕС').replace(/\bне указано\b/gi, '').trim();
-    const fkkoRaw = extractLine('КОДЫ_ФККО').replace(/\bне указано\b/gi, '').trim();
-    const fkkoCodes = fkkoRaw ? extractFkkoCodesFromText(fkkoRaw) : [];
-    const activityRaw = extractLine('ВИД_ОБРАЩЕНИЯ').replace(/\bне указано\b/gi, '').trim();
-    const activityTypes = activityRaw
-      ? activityRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean)
-      : [];
+    function parseAiJsonOrFallback() {
+      // 1) Пытаемся распарсить новый формат (валидный JSON).
+      try {
+        const obj = JSON.parse(raw);
+        return { kind: 'json', obj };
+      } catch {
+        // 2) Фолбэк: старый строковый формат
+        const companyName = safeTrimText(extractLine('НАЗВАНИЕ_ОРГАНИЗАЦИИ'));
+        const inn = safeTrimText(extractLine('ИНН'));
+        const region = safeTrimText(extractLine('РЕГИОН'));
+        const address = safeTrimText(extractLine('АДРЕС'));
+        const fkkoRaw = safeTrimText(extractLine('КОДЫ_ФККО'));
+        const fkkoCodes = fkkoRaw ? extractFkkoCodesFromText(fkkoRaw) : [];
+        const activityRaw = safeTrimText(extractLine('ВИД_ОБРАЩЕНИЯ'));
+        const activityTypes = activityRaw ? activityRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
+        return {
+          kind: 'legacy',
+          obj: {
+            companyName,
+            inn,
+            region,
+            addressAliases: {},
+            sites: [
+              {
+                address,
+                activityTypes,
+                fkkoCodes,
+              },
+            ],
+          },
+        };
+      }
+    }
+
+    function normalizeActivityTypes(v) {
+      if (!Array.isArray(v)) return [];
+      return v.map((x) => String(x ?? '').trim()).filter(Boolean);
+    }
+
+    function normalizeAddressAliases(v) {
+      if (!v || typeof v !== 'object') return {};
+      const out = {};
+      for (const [k, val] of Object.entries(v)) {
+        const kk = String(k ?? '').trim();
+        const vv = String(val ?? '').trim();
+        if (!kk || !vv) continue;
+        out[kk] = vv;
+      }
+      return out;
+    }
+
+    function normalizeSites(sites, addressAliases) {
+      if (!Array.isArray(sites)) return [];
+      const out = [];
+      for (const it of sites) {
+        const addrRaw = String(it?.address ?? '').trim();
+        const resolved = addressAliases && addressAliases[addrRaw] ? String(addressAliases[addrRaw]).trim() : addrRaw;
+        const fkkoRaw = Array.isArray(it?.fkkoCodes) ? it.fkkoCodes.map((x) => String(x ?? '').trim()).filter(Boolean).join(', ') : String(it?.fkkoCodes ?? '').trim();
+        const fkkoCodes = fkkoRaw ? extractFkkoCodesFromText(fkkoRaw) : [];
+        const activityTypes = normalizeActivityTypes(it?.activityTypes);
+        const address = resolved || addrRaw;
+        if (!address && fkkoCodes.length === 0 && activityTypes.length === 0) continue;
+        out.push({ address, addressRef: addrRaw, fkkoCodes, activityTypes });
+      }
+      return out;
+    }
+
+    const parsed = parseAiJsonOrFallback();
+    const ai = parsed.obj ?? {};
+    const companyName = safeTrimText(ai.companyName ?? ai.company_name ?? '');
+    const inn = safeTrimText(ai.inn ?? '');
+    const regionFromAi = safeTrimText(ai.region ?? '');
+    const addressAliases = normalizeAddressAliases(ai.addressAliases);
+    const sites = normalizeSites(ai.sites, addressAliases);
+
+    // Агрегаты для совместимости: address/lat/lng у лицензии будут от первой площадки,
+    // а fkkoCodes/activityTypes — объединение всех площадок.
+    const primaryAddress = String(sites?.[0]?.address ?? safeTrimText(ai.address ?? '')).trim();
+    const fkkoCodes = [...new Set((sites ?? []).flatMap((x) => Array.isArray(x.fkkoCodes) ? x.fkkoCodes : []))];
+    const activityTypes = [...new Set((sites ?? []).flatMap((x) => Array.isArray(x.activityTypes) ? x.activityTypes : []))];
 
     const result = {
       companyName,
       inn,
       region: regionFromAi,
-      address,
+      address: primaryAddress,
       fkkoCodes,
       activityTypes,
+      sites,
+      addressAliases,
       fileOriginalName: file.originalname || 'license.pdf',
       fileStoredName: storedFileName,
     };
@@ -510,6 +629,31 @@ function parseActivityTypesInput(v) {
   return s.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
 }
 
+function normalizeSitesInput(v) {
+  if (!Array.isArray(v)) return [];
+  const out = [];
+  for (const it of v) {
+    const address = String(it?.address ?? '').trim();
+    const region = it?.region == null ? null : String(it.region).trim() || null;
+    const siteLabel = it?.siteLabel == null ? null : String(it.siteLabel).trim() || null;
+    const lat = it?.lat == null || it.lat === '' ? null : Number(it.lat);
+    const lng = it?.lng == null || it.lng === '' ? null : Number(it.lng);
+    const fkkoCodes = parseFkkoInput(it?.fkkoCodes);
+    const activityTypes = parseActivityTypesInput(it?.activityTypes);
+    if (!address && fkkoCodes.length === 0 && activityTypes.length === 0) continue;
+    out.push({
+      address: address || null,
+      region,
+      siteLabel,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
+      fkkoCodes,
+      activityTypes,
+    });
+  }
+  return out;
+}
+
 app.post('/api/licenses', requireRole('USER'), async (req, res) => {
   try {
     const {
@@ -521,6 +665,7 @@ app.post('/api/licenses', requireRole('USER'), async (req, res) => {
       lng,
       fkkoCodes,
       activityTypes,
+      sites,
       fileOriginalName,
       fileStoredName,
     } = req.body ?? {};
@@ -530,15 +675,23 @@ app.post('/api/licenses', requireRole('USER'), async (req, res) => {
       return res.status(400).json({ message: 'companyName обязателен' });
     }
 
-    const fkkoArr = parseFkkoInput(fkkoCodes);
+    const sitesArr = normalizeSitesInput(sites);
+    const fkkoArr = sitesArr.length > 0
+      ? [...new Set(sitesArr.flatMap((s) => s.fkkoCodes))]
+      : parseFkkoInput(fkkoCodes);
     if (fkkoArr.length === 0) {
       return res.status(400).json({ message: 'Хотя бы один код ФККО обязателен. Коды извлекаются из лицензии и прикрепляются к организации.' });
     }
 
-    const activityArr = parseActivityTypesInput(activityTypes);
+    const activityArr = sitesArr.length > 0
+      ? [...new Set(sitesArr.flatMap((s) => s.activityTypes))]
+      : parseActivityTypesInput(activityTypes);
 
     const innStr = inn == null ? null : String(inn).trim() || null;
-    const addressStr = address == null ? null : String(address).trim() || null;
+    const primaryFromSites = sitesArr[0]?.address ? String(sitesArr[0].address).trim() : '';
+    const addressStr = primaryFromSites
+      ? primaryFromSites
+      : address == null ? null : String(address).trim() || null;
     const regionStrRaw = region == null ? '' : String(region).trim();
     const regionStr = regionStrRaw || guessRegionFromAddress(addressStr);
     let latNum = lat == null || lat === '' ? null : Number(lat);
@@ -562,41 +715,96 @@ app.post('/api/licenses', requireRole('USER'), async (req, res) => {
     const fileOriginalNameStr = fileOriginalName ? String(fileOriginalName).trim() : null;
     const fileStoredNameStr = fileStoredName ? String(fileStoredName).trim() : null;
 
-    const inserted = await query(
-      `INSERT INTO licenses
-        (company_name, inn, address, region, lat, lng, fkko_codes, activity_types, status, reward, owner_user_id, file_original_name, file_stored_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 100, $9, $10, $11)
-       RETURNING id,
-                 company_name AS "companyName",
-                 inn,
-                 address,
-                 region,
-                 lat,
-                 lng,
-                 fkko_codes AS "fkkoCodes",
-                 activity_types AS "activityTypes",
-                 status,
-                 reward,
-                 owner_user_id AS "ownerUserId",
-                 file_original_name AS "fileOriginalName",
-                 file_stored_name AS "fileStoredName",
-                 created_at AS "createdAt"`,
-      [
-        companyNameStr,
-        innStr,
-        addressStr,
-        regionStr || null,
-        latNum,
-        lngNum,
-        fkkoArr,
-        activityArr,
-        Number(req.user?.id ?? null),
-        fileOriginalNameStr,
-        fileStoredNameStr,
-      ],
-    );
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    return res.status(201).json(inserted.rows[0]);
+      const inserted = await client.query(
+        `INSERT INTO licenses
+          (company_name, inn, address, region, lat, lng, fkko_codes, activity_types, status, reward, owner_user_id, file_original_name, file_stored_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', 100, $9, $10, $11)
+         RETURNING id,
+                   company_name AS "companyName",
+                   inn,
+                   address,
+                   region,
+                   lat,
+                   lng,
+                   fkko_codes AS "fkkoCodes",
+                   activity_types AS "activityTypes",
+                   status,
+                   reward,
+                   owner_user_id AS "ownerUserId",
+                   file_original_name AS "fileOriginalName",
+                   file_stored_name AS "fileStoredName",
+                   created_at AS "createdAt"`,
+        [
+          companyNameStr,
+          innStr,
+          addressStr,
+          regionStr || null,
+          latNum,
+          lngNum,
+          fkkoArr,
+          activityArr,
+          Number(req.user?.id ?? null),
+          fileOriginalNameStr,
+          fileStoredNameStr,
+        ],
+      );
+
+      const created = inserted.rows[0];
+      const licenseId = Number(created?.id);
+
+      // Пишем площадки. Если sites не пришли — создаём одну площадку из полей license.
+      const sitesToInsert = sitesArr.length > 0 ? sitesArr : [{
+        address: addressStr,
+        region: regionStr || null,
+        siteLabel: 'Основная площадка',
+        lat: latNum,
+        lng: lngNum,
+        fkkoCodes: fkkoArr,
+        activityTypes: activityArr,
+      }];
+
+      const insertedSites = [];
+      for (let idx = 0; idx < sitesToInsert.length; idx++) {
+        const s = sitesToInsert[idx];
+        const row = await client.query(
+          `INSERT INTO license_sites
+             (license_id, site_label, address, region, lat, lng, fkko_codes, activity_types)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id,
+                     site_label AS "siteLabel",
+                     address,
+                     region,
+                     lat,
+                     lng,
+                     fkko_codes AS "fkkoCodes",
+                     activity_types AS "activityTypes"`,
+          [
+            licenseId,
+            s.siteLabel || (idx === 0 ? 'Основная площадка' : null),
+            s.address,
+            s.region || (regionStr || null),
+            s.lat,
+            s.lng,
+            s.fkkoCodes,
+            s.activityTypes,
+          ],
+        );
+        if (row.rows[0]) insertedSites.push(row.rows[0]);
+      }
+
+      await client.query('COMMIT');
+      return res.status(201).json({ ...created, sites: insertedSites });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
     console.error('create license error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка сохранения лицензии' });
@@ -728,25 +936,29 @@ app.get('/api/licenses', async (req, res) => {
       });
     }
 
+    // Поиск идёт по площадкам (license_sites), чтобы не терять привязку ФККО/видов работ к адресам.
+    // В ответе отдаём агрегат по лицензии (совместимость) + при необходимости можно подгрузить sites отдельно по id.
     const params = [region, fkko, fkko, vids];
     const sql = `
-      SELECT id,
-             company_name AS "companyName",
-             inn,
-             address,
-             region,
-             lat,
-             lng,
-             fkko_codes AS "fkkoCodes",
-             activity_types AS "activityTypes",
-             created_at AS "createdAt"
-      FROM licenses
-      WHERE deleted_at IS NULL
-        AND status = 'approved'
-        AND ($1 = '' OR region = $1)
-        AND ($2 = ANY(fkko_codes) OR array_to_string(fkko_codes, '') = $3)
-        AND (array_length(activity_types, 1) IS NULL OR activity_types && $4::text[])
-      ORDER BY created_at DESC
+      SELECT DISTINCT
+             l.id,
+             l.company_name AS "companyName",
+             l.inn,
+             l.address,
+             l.region,
+             l.lat,
+             l.lng,
+             l.fkko_codes AS "fkkoCodes",
+             l.activity_types AS "activityTypes",
+             l.created_at AS "createdAt"
+      FROM licenses l
+      JOIN license_sites s ON s.license_id = l.id
+      WHERE l.deleted_at IS NULL
+        AND l.status = 'approved'
+        AND ($1 = '' OR COALESCE(s.region, l.region) = $1 OR l.region = $1)
+        AND ($2 = ANY(s.fkko_codes) OR array_to_string(s.fkko_codes, '') = $3)
+        AND (array_length(s.activity_types, 1) IS NULL OR s.activity_types && $4::text[])
+      ORDER BY l.created_at DESC
       LIMIT 200
     `;
 
@@ -785,7 +997,23 @@ app.get('/api/licenses/:id', async (req, res) => {
     if (!rows.rows.length) {
       return res.status(404).json({ message: 'Объект не найден' });
     }
-    return res.json(rows.rows[0]);
+    const base = rows.rows[0];
+    const sites = await query(
+      `SELECT id,
+              site_label AS "siteLabel",
+              address,
+              region,
+              lat,
+              lng,
+              fkko_codes AS "fkkoCodes",
+              activity_types AS "activityTypes",
+              created_at AS "createdAt"
+       FROM license_sites
+       WHERE license_id = $1
+       ORDER BY id ASC`,
+      [id]
+    );
+    return res.json({ ...base, sites: sites.rows });
   } catch (err) {
     console.error('get license error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка получения объекта' });
@@ -842,7 +1070,22 @@ app.get('/api/licenses/:id/extended', requireAuth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    return res.json(license);
+    const sites = await query(
+      `SELECT id,
+              site_label AS "siteLabel",
+              address,
+              region,
+              lat,
+              lng,
+              fkko_codes AS "fkkoCodes",
+              activity_types AS "activityTypes",
+              created_at AS "createdAt"
+       FROM license_sites
+       WHERE license_id = $1
+       ORDER BY id ASC`,
+      [id]
+    );
+    return res.json({ ...license, sites: sites.rows });
   } catch (err) {
     console.error('extended license error:', err);
     return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка карточки' });
@@ -922,8 +1165,8 @@ app.get('/api/filters/fkko', async (_req, res) => {
   try {
     const rows = await query(
       `SELECT DISTINCT unnest(fkko_codes) AS code
-       FROM licenses
-       WHERE array_length(fkko_codes, 1) > 0 AND deleted_at IS NULL
+       FROM license_sites
+       WHERE array_length(fkko_codes, 1) > 0
        ORDER BY code ASC`,
       []
     );
@@ -939,8 +1182,8 @@ app.get('/api/filters/activity-types', async (_req, res) => {
   try {
     const rows = await query(
       `SELECT DISTINCT unnest(activity_types) AS activity
-       FROM licenses
-       WHERE array_length(activity_types, 1) > 0 AND deleted_at IS NULL
+       FROM license_sites
+       WHERE array_length(activity_types, 1) > 0
        ORDER BY activity ASC`,
       []
     );

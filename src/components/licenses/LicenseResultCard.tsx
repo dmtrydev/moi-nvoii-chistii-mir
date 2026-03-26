@@ -23,7 +23,8 @@ export function LicenseResultCard({
   const mainFkko = fkkoCodes.slice(0, compact ? 2 : 3);
   const restCount = Math.max(0, fkkoCodes.length - mainFkko.length);
   const fkkoTotal = fkkoCodes.length;
-  const hasAddress = Boolean(item.address?.trim());
+  const sitesCount = Array.isArray(item.sites) ? item.sites.length : 0;
+  const hasAddress = Boolean(item.address?.trim()) || sitesCount > 0;
 
   const isLight = variant === 'light';
 
@@ -79,6 +80,11 @@ export function LicenseResultCard({
                   {item.address}
                 </p>
               ) : null}
+              {(!compact || !item.region) && !item.address && sitesCount > 0 ? (
+                <p className={isLight ? 'text-xs text-[#b4cabe]' : 'text-xs text-white/70'}>
+                  Площадок: {sitesCount}
+                </p>
+              ) : null}
             </div>
 
             <div className={compact ? 'shrink-0 pt-0.5' : ''}>
@@ -110,7 +116,7 @@ export function LicenseResultCard({
                   <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" strokeLinecap="round" strokeLinejoin="round" />
                   <circle cx="12" cy="10" r="2.5" />
                 </svg>
-                Адрес указан
+                {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
               </span>
             )}
           </div>

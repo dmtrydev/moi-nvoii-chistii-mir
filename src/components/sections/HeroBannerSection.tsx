@@ -6,7 +6,7 @@ import { formatFkkoHuman } from '@/utils/fkko';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 
 const INITIAL_FKKO = '';

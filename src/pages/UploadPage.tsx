@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
 import { formatFkkoHuman, parseFkkoCodesFromText } from '@/utils/fkko';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -355,6 +355,32 @@ export default function UploadPage(): JSX.Element {
                     className="liquid-field w-full px-4"
                   />
                 </div>
+                {Array.isArray(formData.sites) && formData.sites.length > 0 && (
+                  <div className="rounded-xl border border-[#72b77d]/25 bg-white/5 p-4">
+                    <p className="text-[11px] uppercase tracking-wider text-[#9ab3a5] mb-2">Площадки (из лицензии)</p>
+                    <div className="space-y-3">
+                      {formData.sites.map((s, idx) => (
+                        <div key={idx} className="rounded-lg border border-[#72b77d]/20 bg-black/10 p-3">
+                          <p className="text-xs text-[#d8eadd]">
+                            <span className="text-[#9ab3a5]">Адрес:</span>{' '}
+                            {s.address || s.addressRef || '—'}
+                          </p>
+                          <p className="mt-1 text-xs text-[#d8eadd]">
+                            <span className="text-[#9ab3a5]">Виды:</span>{' '}
+                            {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
+                          </p>
+                          <p className="mt-1 text-xs text-[#d8eadd]">
+                            <span className="text-[#9ab3a5]">ФККО:</span>{' '}
+                            {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[11px] text-[#9ab3a5]">
+                      Эти площадки будут сохранены вместе с лицензией. Поле «Адрес» выше — основной адрес для карты (пока).
+                    </p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Регион</label>
                   <input

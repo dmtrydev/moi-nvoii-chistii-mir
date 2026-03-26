@@ -28,6 +28,47 @@ ALTER TABLE licenses ADD COLUMN IF NOT EXISTS reward INTEGER NOT NULL DEFAULT 10
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS rejection_note TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS file_original_name TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS file_stored_name TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS deleted_by INTEGER;
+
+-- Площадки (адреса осуществления деятельности) в рамках одной лицензии.
+-- Здесь хранится привязка: адрес -> виды работ -> коды ФККО.
+-- Старые поля licenses.address/lat/lng/fkko_codes/activity_types сохраняем как совместимость/агрегат,
+-- но новые данные пишем в license_sites.
+CREATE TABLE IF NOT EXISTS license_sites (
+  id BIGSERIAL PRIMARY KEY,
+  license_id INTEGER NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,
+  site_label TEXT,
+  address TEXT,
+  region TEXT,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
+  fkko_codes TEXT[] NOT NULL DEFAULT '{}',
+  activity_types TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_license_sites_license_id ON license_sites (license_id);
+CREATE INDEX IF NOT EXISTS idx_license_sites_region ON license_sites (region);
+CREATE INDEX IF NOT EXISTS idx_license_sites_fkko_codes_gin ON license_sites USING GIN (fkko_codes);
+CREATE INDEX IF NOT EXISTS idx_license_sites_activity_types_gin ON license_sites USING GIN (activity_types);
+CREATE INDEX IF NOT EXISTS idx_license_sites_lat_lng ON license_sites (lat, lng);
+
+-- Бэкфилл: для существующих licenses создаём 1 площадку, если ещё нет ни одной.
+-- Безопасно переисполняемо: вставка только при отсутствии site для license_id.
+INSERT INTO license_sites (license_id, site_label, address, region, lat, lng, fkko_codes, activity_types)
+SELECT
+  l.id,
+  'Основная площадка',
+  l.address,
+  l.region,
+  l.lat,
+  l.lng,
+  COALESCE(l.fkko_codes, '{}'),
+  COALESCE(l.activity_types, '{}')
+FROM licenses l
+WHERE NOT EXISTS (
+  SELECT 1 FROM license_sites s WHERE s.license_id = l.id
+);
 
 CREATE INDEX IF NOT EXISTS idx_licenses_region ON licenses (region);
 CREATE INDEX IF NOT EXISTS idx_licenses_inn ON licenses (inn);

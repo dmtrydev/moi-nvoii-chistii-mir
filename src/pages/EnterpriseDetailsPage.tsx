@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -88,12 +88,13 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     return `/map?${params.toString()}`;
   }, [item?.id]);
 
-  const fkkoCodes = Array.isArray(item?.fkkoCodes) ? item.fkkoCodes : [];
+  const fkkoCodes = useMemo(() => (Array.isArray(item?.fkkoCodes) ? item.fkkoCodes : []), [item?.fkkoCodes]);
   const hazardClasses = useMemo(() => hazardClassesFromFkko(fkkoCodes), [fkkoCodes]);
   const activityList =
     Array.isArray(item?.activityTypes) && item.activityTypes.length > 0
       ? item.activityTypes.join(', ')
       : 'не указаны';
+  const sites = Array.isArray(item?.sites) ? item.sites : [];
 
   const isAdmin = user?.role === 'SUPERADMIN';
   const isOwner = user && item?.ownerUserId != null && Number(item.ownerUserId) === user.id;
@@ -304,6 +305,30 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">Адрес</h3>
                     <p className="mt-2 text-sm text-[#d5e6dc] leading-relaxed">{item.address || 'не указан'}</p>
                   </section>
+
+                  {sites.length > 1 && (
+                    <section className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:p-5">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">Площадки</h3>
+                      <div className="mt-3 space-y-3">
+                        {sites.map((s, idx) => (
+                          <div key={s.id ?? idx} className="rounded-lg border border-[#78c483]/18 bg-black/10 p-3">
+                            <p className="text-sm text-[#ecf8ef] font-medium">
+                              {s.siteLabel || `Площадка ${idx + 1}`}
+                            </p>
+                            <p className="mt-1 text-sm text-[#d5e6dc] leading-relaxed">
+                              {s.address || '—'}
+                            </p>
+                            <p className="mt-2 text-xs text-[#a6beaf]">
+                              Виды: {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-[#a6beaf]">
+                              ФККО: {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
 

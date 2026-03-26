@@ -58,6 +58,19 @@ export interface LicenseDataFoundTexts {
   fkkoCodes: string;
 }
 
+export interface LicenseSiteData {
+  id?: number;
+  siteLabel?: string | null;
+  address: string;
+  region?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  fkkoCodes: string[];
+  activityTypes: string[];
+  /** Исходное значение из таблицы (например, 'Адрес 1') */
+  addressRef?: string;
+}
+
 /** Данные, извлечённые из лицензии (ответ ИИ + геокодинг) */
 export interface LicenseData {
   id?: number;
@@ -70,6 +83,8 @@ export interface LicenseData {
   lat?: number;
   lng?: number;
   createdAt?: string;
+  sites?: LicenseSiteData[];
+  addressAliases?: Record<string, string>;
   // Поля moderation / оплаты
   status?: 'pending' | 'approved' | 'rejected' | string;
   reward?: number;

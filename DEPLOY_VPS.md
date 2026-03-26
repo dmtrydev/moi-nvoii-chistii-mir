@@ -325,6 +325,15 @@ npm run build:client
 
 7. **Перезапустить Node-сервер**
    - останови старый процесс сервера и запусти новый;
+   - чтобы не получить ситуацию “старый backend остался на `3001`, а новый стартовал на `3002`” (из-за занятого порта), сделай проверку портов перед перезапуском:
+     ```bash
+     ss -ltnp | grep ':3001' || true
+     ss -ltnp | grep ':3002' || true
+     ```
+   - если видишь `node` в строках выше, убей именно тот PID (показывается в выводе `ss`), например:
+     ```bash
+     kill -9 <PID>
+     ```
    - параметры `server/.env` **НЕ трогай** (они игнорируются Git и задают доступ к БД и JWT).
    - если сервер запущен через `nohup`, перезапуск обычно делается так:
      ```bash
@@ -337,7 +346,22 @@ npm run build:client
    - nginx только проксирует запросы на Node (и раздаёт статику только если настроено иначе);
    - после успешного перезапуска Node всё должно заработать автоматически.
 
-9. **Проверка после обновления**
+9. **Фиксация “какой порт поднялся” и быстрый sanity-check**
+   - подожди 2-5 секунд после старта и проверь, на каком порту реально поднялся API (это критично для корректной работы фронтенда, т.к. `VITE_API_URL` вшивается в `dist` при сборке):
+     ```bash
+     sleep 2
+     curl -sS http://127.0.0.1:3001/api/health || true
+     curl -sS http://127.0.0.1:3002/api/health || true
+     ```
+   - после этого открой логи:
+     ```bash
+     tail -n 80 /tmp/moinoviichistiimir-server.log
+     ```
+   - если backend поднялся НЕ на `3001` (например, на `3002` из-за занятого `3001`), то либо:
+     - убеди проект работать на `3001` (освободи порт `3001` и перезапусти backend), либо
+     - обнови переменную `VITE_API_URL` в корневом `.env` на `3002` и заново пересобери фронтенд (`npm run build:client`).
+
+10. **Проверка после обновления**
    - открыть `https://app.moinovichistimir.ru/map`;
    - открыть `/login` и попробовать регистрацию + вход;
    - если что-то сломалось — смотреть логи процесса Node на VPS (файл `/tmp/moinoviichistiimir-server.log`).
@@ -350,4 +374,15 @@ npm run build:client
      ```bash
      tail -n 200 /tmp/moinoviichistiimir-server.log
      ```
+
+
+     cd /opt/moinoviichistiimir
+git pull
+npm run build:client
+pkill -f "node server/index.js" || true
+nohup npm start > /tmp/moinoviichistiimir-server.log 2>&1 & echo $!
+sleep 2
+curl -sS http://127.0.0.1:3001/api/health
+curl -sS http://127.0.0.1:3002/api/health || true
+tail -n 40 /tmp/moinoviichistiimir-server.log
 

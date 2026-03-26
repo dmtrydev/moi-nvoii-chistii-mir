@@ -116,8 +116,9 @@ function markerHtml(it: LicenseData): string {
   );
 }
 
-function createClusterIcon(cluster: any): L.DivIcon {
-  const count = typeof cluster?.getChildCount === 'function' ? cluster.getChildCount() : 0;
+function createClusterIcon(cluster: unknown): L.DivIcon {
+  const c = cluster as { getChildCount?: () => number } | null;
+  const count = typeof c?.getChildCount === 'function' ? c.getChildCount() : 0;
   return L.divIcon({
     html: `<div class="moinoviichistiimir-cluster"><span>${count}</span></div>`,
     className: 'moinoviichistiimir-cluster-wrapper',
@@ -155,12 +156,18 @@ function ClusterMarkers({
   const map = useMap();
 
   useEffect(() => {
-    const group = (L as any).markerClusterGroup({
+    const markerClusterGroupFactory = (L as unknown as { markerClusterGroup?: (opts: unknown) => L.LayerGroup }).markerClusterGroup;
+    if (typeof markerClusterGroupFactory !== 'function') return;
+    type ClusterGroup = L.LayerGroup & {
+      addLayer: (layer: L.Layer) => void;
+      zoomToShowLayer: (layer: L.Layer, callback: () => void) => void;
+    };
+    const group = markerClusterGroupFactory({
       showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
       disableClusteringAtZoom: 15,
       iconCreateFunction: createClusterIcon,
-    });
+    }) as unknown as ClusterGroup;
 
     const markersById = new Map<number, L.Marker>();
 
@@ -197,8 +204,7 @@ function ClusterMarkers({
     return () => {
       map.removeLayer(group);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, items, selectedId]);
+  }, [map, items, selectedId, onSelectId]);
 
   return null;
 }
@@ -328,7 +334,7 @@ export default function MapPage(): JSX.Element {
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
-  }, [filterFkko, filterRegion, filterVid]);
+  }, [filterFkko, filterRegion, filterVid, hasSearched]);
 
   const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
 
