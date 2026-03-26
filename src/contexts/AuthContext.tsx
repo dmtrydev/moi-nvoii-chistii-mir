@@ -140,6 +140,15 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     }
   }, [accessToken]);
 
+  useEffect(() => {
+    if (!accessToken) return;
+    const REFRESH_INTERVAL = 10 * 60 * 1000;
+    const id = setInterval(() => {
+      refreshSession().catch(() => {});
+    }, REFRESH_INTERVAL);
+    return () => clearInterval(id);
+  }, [accessToken, refreshSession]);
+
   const value = useMemo(
     () => ({ user, accessToken, isReady, login, register, logout }),
     [user, accessToken, isReady, login, register, logout],

@@ -66,7 +66,7 @@ export function signAccessToken({ userId, role, sessionId }) {
     sid: sessionId,
   };
   return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: '15m',
+    expiresIn: '24h',
   });
 }
 

@@ -547,6 +547,8 @@ function parseFkkoTableFromText(fullText) {
       }
     }
 
+    const addrWordRe = /\b(ул\.?\s|улица|пер\.|переулок|поселок|пос\.\s|город\s|г\.\s|село\s|р-н|район\b|обл\.|обл,|область|край\b|респ\.|республика|д\.\s*\d|дом\s*\d)/i;
+
     let wasteName = beforeFkko;
     if (wasteName.length < 5) {
       const wasteLines = [];
@@ -556,11 +558,13 @@ function parseFkkoTableFromText(fullText) {
         if (fkkoSpacedRe.test(pl) || fkkoCompactRe.test(pl)) break;
         if (/Наименование вида|Код отхода|Класс\s*опасно|Виды работ|Место осуществления/i.test(pl)) break;
         if (/^\d+$/.test(pl) && pl.length <= 3) continue;
+        if (/^[а-яёА-ЯЁ0-9]{1,4}$/.test(pl)) continue;
         if (/Адрес\s+\d+$/.test(pl)) break;
         if (/^\d{6}/.test(pl)) break;
-        let isAddr = false;
-        for (const act of KNOWN_ACTIVITIES) { if (pl === act || pl.startsWith(act)) { isAddr = true; break; } }
-        if (isAddr) break;
+        if (addrWordRe.test(pl)) break;
+        let isAct = false;
+        for (const act of KNOWN_ACTIVITIES) { if (pl === act || pl.startsWith(act)) { isAct = true; break; } }
+        if (isAct) break;
         wasteLines.unshift(pl);
       }
       if (wasteLines.length > 0) {
@@ -571,6 +575,11 @@ function parseFkkoTableFromText(fullText) {
       .replace(/\s*(I{1,3}V?|IV|V)\s*(класс)?.*$/i, '')
       .replace(/\s+/g, ' ')
       .trim();
+    if (/^\d{6}/.test(wasteName) || addrWordRe.test(wasteName)) {
+      wasteName = wasteName
+        .replace(/^.*?\b(?:д|дом)\.?\s*\d+\s*[а-яёА-ЯЁa-zA-Z]?\s+/i, '')
+        .trim();
+    }
 
     rawEntries.push({ fkkoCode, wasteName, hazardClass, activityType, addressRef });
   }
