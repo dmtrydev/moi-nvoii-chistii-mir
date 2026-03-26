@@ -341,15 +341,6 @@ export default function UploadPage(): JSX.Element {
                     className="liquid-field w-full px-4"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Адрес</label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData((prev) => prev ? { ...prev, address: e.target.value } : prev)}
-                    className="liquid-field w-full px-4"
-                  />
-                </div>
                 {Array.isArray(formData.sites) && formData.sites.length > 0 && (
                   <div className="rounded-xl border border-[#72b77d]/25 bg-white/5 p-4">
                     <p className="text-[11px] uppercase tracking-wider text-[#9ab3a5] mb-2">Площадки (из лицензии)</p>
@@ -399,56 +390,6 @@ export default function UploadPage(): JSX.Element {
                     </p>
                   </div>
                 )}
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Регион</label>
-                  <input
-                    type="text"
-                    value={formData.region ?? ''}
-                    onChange={(e) => setFormData((prev) => prev ? { ...prev, region: e.target.value } : prev)}
-                    placeholder="Например: Московская область"
-                    className="liquid-field w-full px-4 placeholder:text-[#88a799]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">
-                    Коды ФККО * (извлекаются из лицензии, обязательны)
-                  </label>
-                  <input
-                    type="text"
-                    value={Array.isArray(formData.fkkoCodes) ? formData.fkkoCodes.map(formatFkkoHuman).join(', ') : ''}
-                    onChange={(e) =>
-                      setFormData((prev) =>
-                        prev ? { ...prev, fkkoCodes: parseFkkoCodesFromText(e.target.value) } : prev
-                      )
-                    }
-                    placeholder="Через запятую или пробел"
-                    className="liquid-field w-full px-4 placeholder:text-[#88a799]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">
-                    Виды обращения
-                  </label>
-                  <input
-                    type="text"
-                    value={Array.isArray(formData.activityTypes) ? formData.activityTypes.join(', ') : ''}
-                    onChange={(e) =>
-                      setFormData((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              activityTypes: e.target.value
-                                .split(/[,;]+/)
-                                .map((x) => x.trim())
-                                .filter(Boolean),
-                            }
-                          : prev
-                      )
-                    }
-                    placeholder="Сбор, Транспортирование, Обезвреживание и т.д."
-                    className="liquid-field w-full px-4 placeholder:text-[#88a799]"
-                  />
-                </div>
                 {formData.lat != null && formData.lng != null && (
                   <p className="text-xs text-[#9ab3a5]">Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}</p>
                 )}

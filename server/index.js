@@ -894,31 +894,22 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       console.error('pdfplumber failed, will use fallback:', plumberErr.message);
     }
 
-    if (pdfplumberOk && TIMEWEB_BASE) {
-      const hText = headerTextForAi || '';
-      if (hText.length > 50) {
+    if (pdfplumberOk) {
+      const plainText = await extractTextFromPdf(file.buffer);
+      const headerSlice = plainText ? plainText.slice(0, 6000) : '';
+
+      if (TIMEWEB_BASE && headerSlice.length > 50) {
         try {
           const headerAi = await callTimewebAi(
-            'Ты извлекаешь реквизиты из текста лицензии. Отвечай СТРОГО валидным JSON.',
-            `Извлеки из текста лицензии реквизиты ЛИЦЕНЗИАТА (организации, которой выдана лицензия).
-
-ВАЖНО:
-- companyName — это название ОРГАНИЗАЦИИ-ЛИЦЕНЗИАТА (например ООО "Котельная №3"), а НЕ название органа (Росприроднадзор и т.п.)
-- ИНН — это ИНН организации-лицензиата
-- Ищи строки вроде "Лицензиат:", "Полное наименование:", пункт 2 или 3 лицензии
-
-Ответь JSON:
-{"companyName":"...","inn":"...","region":"..."}
-
-Текст:
-
-${hText.slice(0, 5000)}`,
-            500,
+            'Ты извлекаешь структурированные данные из текста лицензии. Отвечай СТРОГО валидным JSON без markdown.',
+            `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${headerSlice}`,
+            4000,
           );
-          companyName = String(headerAi.companyName ?? '').replace(/\bне указано\b/gi, '').trim();
+          rawContent = JSON.stringify(headerAi);
+          companyName = String(headerAi.companyName ?? headerAi.company_name ?? '').replace(/\bне указано\b/gi, '').trim();
           inn = String(headerAi.inn ?? '').replace(/\bне указано\b/gi, '').trim();
           regionFromAi = String(headerAi.region ?? '').replace(/\bне указано\b/gi, '').trim();
-          console.log(`Header AI OK: ${companyName}, ИНН ${inn}`);
+          console.log(`Header AI OK: ${companyName}, ИНН ${inn}, region ${regionFromAi}`);
         } catch (err) {
           console.error('Header AI failed:', err.message);
         }
