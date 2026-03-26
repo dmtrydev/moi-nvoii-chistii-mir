@@ -58,6 +58,14 @@ export interface LicenseDataFoundTexts {
   fkkoCodes: string;
 }
 
+/** Привязка одного кода ФККО к конкретным видам работ */
+export interface FkkoEntry {
+  fkkoCode: string;
+  wasteName?: string;
+  hazardClass?: string;
+  activityTypes: string[];
+}
+
 export interface LicenseSiteData {
   id?: number;
   siteLabel?: string | null;
@@ -67,6 +75,8 @@ export interface LicenseSiteData {
   lng?: number | null;
   fkkoCodes: string[];
   activityTypes: string[];
+  /** Гранулярная привязка ФККО → виды работ */
+  entries?: FkkoEntry[];
   /** Исходное значение из таблицы (например, 'Адрес 1') */
   addressRef?: string;
 }

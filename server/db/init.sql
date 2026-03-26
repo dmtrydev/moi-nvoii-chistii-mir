@@ -70,6 +70,36 @@ WHERE NOT EXISTS (
   SELECT 1 FROM license_sites s WHERE s.license_id = l.id
 );
 
+-- Гранулярная привязка: ФККО-код → вид работы на конкретной площадке.
+-- Позволяет фильтровать точно: «код X + вид Y» без ложных совпадений.
+CREATE TABLE IF NOT EXISTS site_fkko_activities (
+  id BIGSERIAL PRIMARY KEY,
+  site_id BIGINT NOT NULL REFERENCES license_sites(id) ON DELETE CASCADE,
+  fkko_code TEXT NOT NULL,
+  waste_name TEXT,
+  hazard_class TEXT,
+  activity_type TEXT NOT NULL,
+  UNIQUE(site_id, fkko_code, activity_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sfa_site_id ON site_fkko_activities(site_id);
+CREATE INDEX IF NOT EXISTS idx_sfa_fkko_code ON site_fkko_activities(fkko_code);
+CREATE INDEX IF NOT EXISTS idx_sfa_activity_type ON site_fkko_activities(activity_type);
+CREATE INDEX IF NOT EXISTS idx_sfa_fkko_activity ON site_fkko_activities(fkko_code, activity_type);
+
+-- Бэкфилл site_fkko_activities из старых данных license_sites:
+-- для каждой пары (fkko_code, activity_type) на площадке создаём запись.
+INSERT INTO site_fkko_activities (site_id, fkko_code, activity_type)
+SELECT s.id, f.code, a.activity
+FROM license_sites s,
+     LATERAL unnest(s.fkko_codes) AS f(code),
+     LATERAL unnest(s.activity_types) AS a(activity)
+WHERE NOT EXISTS (
+  SELECT 1 FROM site_fkko_activities sfa
+  WHERE sfa.site_id = s.id AND sfa.fkko_code = f.code AND sfa.activity_type = a.activity
+)
+ON CONFLICT DO NOTHING;
+
 CREATE INDEX IF NOT EXISTS idx_licenses_region ON licenses (region);
 CREATE INDEX IF NOT EXISTS idx_licenses_inn ON licenses (inn);
 CREATE INDEX IF NOT EXISTS idx_licenses_fkko_codes_gin ON licenses USING GIN (fkko_codes);

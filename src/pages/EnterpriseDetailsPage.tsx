@@ -306,9 +306,11 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     <p className="mt-2 text-sm text-[#d5e6dc] leading-relaxed">{item.address || 'не указан'}</p>
                   </section>
 
-                  {sites.length > 1 && (
+                  {sites.length > 0 && (
                     <section className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:p-5">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">Площадки</h3>
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">
+                        Площадки ({sites.length})
+                      </h3>
                       <div className="mt-3 space-y-3">
                         {sites.map((s, idx) => (
                           <div key={s.id ?? idx} className="rounded-lg border border-[#78c483]/18 bg-black/10 p-3">
@@ -318,12 +320,33 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                             <p className="mt-1 text-sm text-[#d5e6dc] leading-relaxed">
                               {s.address || '—'}
                             </p>
-                            <p className="mt-2 text-xs text-[#a6beaf]">
-                              Виды: {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
-                            </p>
-                            <p className="mt-1 text-xs text-[#a6beaf]">
-                              ФККО: {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
-                            </p>
+                            {Array.isArray(s.entries) && s.entries.length > 0 ? (
+                              <div className="mt-2 space-y-1.5">
+                                {s.entries.map((entry, eIdx) => (
+                                  <div key={eIdx} className="rounded border border-[#78c483]/14 bg-black/5 px-2.5 py-1.5">
+                                    <p className="text-xs text-[#c8f8d0] font-mono">
+                                      {formatFkkoHuman(entry.fkkoCode)}
+                                      {entry.hazardClass ? ` — ${entry.hazardClass} класс` : ''}
+                                    </p>
+                                    {entry.wasteName && (
+                                      <p className="text-[11px] text-[#a6beaf] mt-0.5 leading-tight">{entry.wasteName}</p>
+                                    )}
+                                    <p className="text-xs text-[#d5e6dc] mt-0.5">
+                                      {entry.activityTypes.join(', ')}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <>
+                                <p className="mt-2 text-xs text-[#a6beaf]">
+                                  Виды: {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
+                                </p>
+                                <p className="mt-1 text-xs text-[#a6beaf]">
+                                  ФККО: {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
+                                </p>
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>

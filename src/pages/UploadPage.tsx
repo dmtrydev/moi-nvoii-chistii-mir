@@ -365,19 +365,42 @@ export default function UploadPage(): JSX.Element {
                             <span className="text-[#9ab3a5]">Адрес:</span>{' '}
                             {s.address || s.addressRef || '—'}
                           </p>
-                          <p className="mt-1 text-xs text-[#d8eadd]">
-                            <span className="text-[#9ab3a5]">Виды:</span>{' '}
-                            {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
-                          </p>
-                          <p className="mt-1 text-xs text-[#d8eadd]">
-                            <span className="text-[#9ab3a5]">ФККО:</span>{' '}
-                            {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
-                          </p>
+                          {Array.isArray(s.entries) && s.entries.length > 0 ? (
+                            <div className="mt-2 space-y-1.5">
+                              {s.entries.map((entry, eIdx) => (
+                                <div key={eIdx} className="rounded border border-[#72b77d]/15 bg-black/5 px-2.5 py-1.5">
+                                  <p className="text-xs text-[#d8eadd]">
+                                    <span className="text-[#9ab3a5]">ФККО:</span>{' '}
+                                    {formatFkkoHuman(entry.fkkoCode)}
+                                    {entry.hazardClass ? ` (${entry.hazardClass} класс)` : ''}
+                                  </p>
+                                  {entry.wasteName && (
+                                    <p className="text-[11px] text-[#a5bcae] mt-0.5 leading-tight">{entry.wasteName}</p>
+                                  )}
+                                  <p className="text-xs text-[#d8eadd] mt-0.5">
+                                    <span className="text-[#9ab3a5]">Виды работ:</span>{' '}
+                                    {entry.activityTypes.join(', ')}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <>
+                              <p className="mt-1 text-xs text-[#d8eadd]">
+                                <span className="text-[#9ab3a5]">Виды:</span>{' '}
+                                {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
+                              </p>
+                              <p className="mt-1 text-xs text-[#d8eadd]">
+                                <span className="text-[#9ab3a5]">ФККО:</span>{' '}
+                                {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
+                              </p>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
                     <p className="mt-3 text-[11px] text-[#9ab3a5]">
-                      Эти площадки будут сохранены вместе с лицензией. Поле «Адрес» выше — основной адрес для карты (пока).
+                      Эти площадки будут сохранены вместе с лицензией. Каждый код ФККО привязан к конкретным видам работ.
                     </p>
                   </div>
                 )}

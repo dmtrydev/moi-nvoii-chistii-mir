@@ -42,30 +42,51 @@ export function HeroBannerSection(): JSX.Element {
     Promise.all([
       fetch(getApiUrl('/api/filters/regions')).then((r) => (r.ok ? r.json() : { regions: [] })),
       fetch(getApiUrl('/api/filters/fkko')).then((r) => (r.ok ? r.json() : { fkko: [] })),
-      fetch(getApiUrl('/api/filters/activity-types')).then((r) => (r.ok ? r.json() : { activityTypes: [] })),
     ])
-      .then(([regData, fkkoData, activityData]) => {
+      .then(([regData, fkkoData]) => {
         if (!alive) return;
         setRegions(Array.isArray(regData.regions) ? regData.regions : []);
         setFkkoOptions(Array.isArray(fkkoData.fkko) ? fkkoData.fkko : []);
-        const fromApi = Array.isArray(activityData.activityTypes) ? activityData.activityTypes : [];
-        const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
-        setActivityTypeOptions(
-          [...new Set([...defaults, ...fromApi])]
-            .map((x) => String(x).trim())
-            .filter((x) => x && x.toLowerCase() !== 'иное'),
-        );
       })
       .catch(() => {
         if (!alive) return;
         setRegions([]);
         setFkkoOptions([]);
-        setActivityTypeOptions(['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение']);
       });
     return () => {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
+    const fkkoDigits = filterFkko.replace(/[^\d]+/g, '');
+    const fkkoParam = /^\d{11}$/.test(fkkoDigits) ? fkkoDigits : '';
+    const url = fkkoParam
+      ? getApiUrl(`/api/filters/activity-types?fkko=${fkkoParam}`)
+      : getApiUrl('/api/filters/activity-types');
+    let alive = true;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : { activityTypes: [] }))
+      .then((data) => {
+        if (!alive) return;
+        const fromApi = Array.isArray(data.activityTypes) ? data.activityTypes : [];
+        const list = fkkoParam
+          ? fromApi
+          : [...new Set([...defaults, ...fromApi])];
+        setActivityTypeOptions(
+          list.map((x: string) => String(x).trim()).filter((x: string) => x && x.toLowerCase() !== 'иное'),
+        );
+        if (fkkoParam) {
+          setFilterVid((prev) => prev.filter((v) => fromApi.includes(v)));
+        }
+      })
+      .catch(() => {
+        if (!alive) return;
+        setActivityTypeOptions(defaults);
+      });
+    return () => { alive = false; };
+  }, [filterFkko]);
 
   const regionOptions = useMemo(() => {
     const merged = [...RUSSIAN_REGION_SUGGESTIONS, ...regions];
