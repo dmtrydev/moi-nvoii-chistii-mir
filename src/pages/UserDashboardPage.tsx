@@ -126,7 +126,6 @@ export default function UserDashboardPage(): JSX.Element {
                 <thead>
                   <tr>
                     <th className="text-left px-4 py-2">Организация</th>
-                    <th className="text-left px-4 py-2">Регион</th>
                     <th className="text-left px-4 py-2">Статус</th>
                     <th className="text-left px-4 py-2">Награда</th>
                     <th className="text-left px-4 py-2">Дата</th>
@@ -140,7 +139,6 @@ export default function UserDashboardPage(): JSX.Element {
                           {item.companyName}
                         </Link>
                       </td>
-                      <td className="px-4 py-2">{item.region ?? '—'}</td>
                       <td className="px-4 py-2">
                         {item.status === 'approved' ? 'Одобрена' : item.status === 'rejected' ? 'Отклонена' : 'На проверке'}
                         {item.status === 'rejected' && item.rejectionNote ? (
@@ -153,7 +151,7 @@ export default function UserDashboardPage(): JSX.Element {
                   ))}
                   {licenses.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-3 text-center text-[#9ab3a5]">
+                      <td colSpan={4} className="px-4 py-3 text-center text-[#9ab3a5]">
                         Лицензии пока не загружены
                       </td>
                     </tr>

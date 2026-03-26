@@ -190,28 +190,50 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                 <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight leading-tight max-w-3xl">
                   {item.companyName || 'Организация'}
                 </h1>
-                {(item.address || item.region) && (
-                  <p className="mt-4 flex items-start gap-2 text-sm text-white/85 max-w-3xl leading-relaxed">
-                    <svg
-                      className="mt-0.5 h-4 w-4 shrink-0 text-[#b8f5bb]"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      aria-hidden
-                    >
-                      <path
-                        d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <circle cx="12" cy="10" r="2.5" />
-                    </svg>
-                    <span>
-                      {[item.region, item.address].filter(Boolean).join(item.region && item.address ? ', ' : '') ||
-                        'Адрес не указан'}
-                    </span>
-                  </p>
+                {(sites.length > 0 || item.address) && (
+                  <div className="mt-4 space-y-2 max-w-3xl">
+                    {sites.length > 0
+                      ? sites.map((s, i) => (
+                          <p key={s.id ?? i} className="flex items-start gap-2 text-sm text-white/85 leading-relaxed">
+                            <svg
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[#b8f5bb]"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden
+                            >
+                              <path
+                                d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <circle cx="12" cy="10" r="2.5" />
+                            </svg>
+                            <span>{s.address || 'Адрес не указан'}</span>
+                          </p>
+                        ))
+                      : item.address && (
+                          <p className="flex items-start gap-2 text-sm text-white/85 leading-relaxed">
+                            <svg
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[#b8f5bb]"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden
+                            >
+                              <path
+                                d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <circle cx="12" cy="10" r="2.5" />
+                            </svg>
+                            <span>{item.address}</span>
+                          </p>
+                        )}
+                  </div>
                 )}
               </div>
             </header>
@@ -283,10 +305,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                       <p className="mt-2 font-mono text-lg font-semibold text-[#ecf8ef] tabular-nums">
                         {item.inn || '—'}
                       </p>
-                    </div>
-                    <div className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">Регион</h3>
-                      <p className="mt-2 text-sm font-medium text-[#ecf8ef] leading-snug">{item.region || '—'}</p>
                     </div>
                     {hazardClasses.length > 0 && (
                       <div className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:col-span-2 lg:col-span-1">

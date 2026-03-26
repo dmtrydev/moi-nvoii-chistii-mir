@@ -60,16 +60,8 @@ export function LicenseResultCard({
                 >
                   ИНН {item.inn || 'не указан'}
                 </span>
-                {item.region ? (
-                  <>
-                    <span className="mx-1.5 text-slate-300" aria-hidden>
-                      ·
-                    </span>
-                    <span className={isLight ? 'text-[#b4cabe]' : 'text-white/70'}>{item.region}</span>
-                  </>
-                ) : null}
               </p>
-              {(!compact || !item.region) && item.address ? (
+              {item.address ? (
                 <p
                   className={
                     isLight
@@ -79,8 +71,7 @@ export function LicenseResultCard({
                 >
                   {item.address}
                 </p>
-              ) : null}
-              {(!compact || !item.region) && !item.address && sitesCount > 0 ? (
+              ) : sitesCount > 0 ? (
                 <p className={isLight ? 'text-xs text-[#b4cabe]' : 'text-xs text-white/70'}>
                   Площадок: {sitesCount}
                 </p>

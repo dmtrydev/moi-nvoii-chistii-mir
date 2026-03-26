@@ -88,14 +88,6 @@ export function HeroBannerSection(): JSX.Element {
     return () => { alive = false; };
   }, [filterFkko]);
 
-  const regionOptions = useMemo(() => {
-    const merged = [...RUSSIAN_REGION_SUGGESTIONS, ...regions];
-    const normalized = merged
-      .map((r) => String(r).trim())
-      .filter(Boolean);
-    return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
-  }, [regions]);
-
   const fkkoHintOptions = useMemo<AutocompleteOption[]>(() => {
     const seen = new Set<string>();
     const items: AutocompleteOption[] = [];
@@ -113,7 +105,14 @@ export function HeroBannerSection(): JSX.Element {
     });
     return items;
   }, [fkkoOptions]);
-  // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
+
+  const regionOptions = useMemo(() => {
+    const merged = [...RUSSIAN_REGION_SUGGESTIONS, ...regions];
+    const normalized = merged
+      .map((r) => String(r).trim())
+      .filter(Boolean);
+    return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [regions]);
 
   const handleResetFilters = (): void => {
     setFilterFkko(INITIAL_FKKO);

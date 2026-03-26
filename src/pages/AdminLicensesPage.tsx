@@ -176,7 +176,7 @@ export default function AdminLicensesPage(): JSX.Element {
                         <div className="text-sm text-[#9ab3a5]">ID: {lic.id}</div>
                         <div className="text-base font-semibold text-[#f5fff7] mt-1">{lic.companyName}</div>
                         <div className="text-sm text-[#9ab3a5] mt-1">
-                          {lic.region ?? '—'} · {lic.inn ?? '—'}
+                          ИНН {lic.inn ?? '—'}
                         </div>
                         {lic.address ? <div className="text-sm text-[#c3d7cb] mt-1">{lic.address}</div> : null}
                       </div>
@@ -256,7 +256,6 @@ export default function AdminLicensesPage(): JSX.Element {
             <tr>
               <th className="px-3 py-2 text-left">ID</th>
               <th className="px-3 py-2 text-left">Организация</th>
-              <th className="px-3 py-2 text-left">Регион</th>
               <th className="px-3 py-2 text-left">ИНН</th>
               <th className="px-3 py-2 text-left">Статус</th>
               <th className="px-3 py-2 text-left">Награда</th>
@@ -270,7 +269,6 @@ export default function AdminLicensesPage(): JSX.Element {
               <tr key={lic.id}>
                 <td className="px-3 py-1.5">{lic.id}</td>
                 <td className="px-3 py-1.5">{lic.companyName}</td>
-                <td className="px-3 py-1.5">{lic.region ?? '—'}</td>
                 <td className="px-3 py-1.5">{lic.inn ?? '—'}</td>
                 <td className="px-3 py-1.5">
                   {lic.status === 'approved' ? 'Одобрено' : lic.status === 'rejected' ? 'Отклонено' : 'На проверке'}

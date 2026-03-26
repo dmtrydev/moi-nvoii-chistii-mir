@@ -66,7 +66,6 @@ function markerVariant(it: LicenseData): 'green' | 'orange' {
 
 function markerHtml(it: LicenseData): string {
   const title = it.companyName || 'Организация';
-  const region = it.region || '';
   const inn = it.inn || '';
   const addr = it.address || '';
   const fkko = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
@@ -81,7 +80,7 @@ function markerHtml(it: LicenseData): string {
       <div className="moinoviichistiimir-popup-head">
         <div className="moinoviichistiimir-popup-title">{title}</div>
         <div className="moinoviichistiimir-popup-sub">
-          <span className="moinoviichistiimir-popup-badge">{region || 'Регион не указан'}</span>
+          <span className="moinoviichistiimir-popup-badge">{addr || 'Адрес не указан'}</span>
         </div>
         <div className="moinoviichistiimir-popup-activities">
           <EnterpriseActivityStrip activityTypes={activityTypes} variant="light" size="sm" />
@@ -287,6 +286,7 @@ export default function MapPage(): JSX.Element {
       .filter(Boolean);
     return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
   }, [regions]);
+
   const fkkoHintOptions = useMemo<AutocompleteOption[]>(() => {
     const seen = new Set<string>();
     const items: AutocompleteOption[] = [];
@@ -366,7 +366,6 @@ export default function MapPage(): JSX.Element {
       const fkko = (overrides?.fkko ?? filterFkko).trim();
       const vid = (overrides?.vid ?? vidQuery).trim();
 
-      // region опционален: ищем по fkko + виду обращения во всех регионах
       if (!fkko || !vid) {
         if (!overrides) setFilterValidationError('Заполните обязательные фильтры: ФККО и вид обращения.');
         return;
