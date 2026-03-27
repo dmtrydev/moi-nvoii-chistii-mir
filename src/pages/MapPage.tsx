@@ -32,8 +32,8 @@ function getApiUrl(p: string): string {
   return base ? `${base}${p.startsWith('/') ? p : `/${p}`}` : p;
 }
 
-const mapField = 'liquid-field';
-const mapFieldSm = 'liquid-field !h-9';
+const mapField = 'liquid-field !h-11';
+const mapFieldSm = 'liquid-field !h-10';
 
 /** Внешняя ПКК во iframe (тот же движок, что ik8map.roscadastres.com: векторные границы #D20404). См. .env.example */
 const CADASTRE_IFRAME_URL = String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim();
@@ -480,7 +480,7 @@ export default function MapPage(): JSX.Element {
       <aside
         className={`relative z-30 overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar flex-shrink-0 transition-[width] duration-300 ease-out ${
           menuVisible
-            ? 'w-full max-w-[360px] lg:max-w-[420px] px-5 py-6 md:px-6 md:py-7 m-3 md:m-4 rounded-3xl bg-white shadow-eco-float border border-black/[0.04]'
+            ? 'w-full max-w-[380px] lg:max-w-[460px] px-5 py-6 md:px-7 md:py-8 m-3 md:m-4 rounded-3xl bg-white shadow-eco-float border border-black/[0.04]'
             : 'w-0 min-w-0 overflow-hidden px-0 py-0 m-0 border-0'
         }`}
       >
@@ -508,7 +508,7 @@ export default function MapPage(): JSX.Element {
           <h2 className="mt-1 text-lg font-semibold text-ink">Рабочая площадка — карта</h2>
         </div>
 
-        <section className="mb-6">
+        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Фильтры
           </h3>
@@ -572,7 +572,7 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="mb-6">
+        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Результаты
           </h3>
@@ -636,7 +636,7 @@ export default function MapPage(): JSX.Element {
           )}
         </section>
 
-        <section className="mb-6">
+        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Легенда
           </h3>
@@ -656,7 +656,7 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="mb-6">
+        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Подложка карты
           </h3>
@@ -717,7 +717,7 @@ export default function MapPage(): JSX.Element {
           </p>
         </section>
 
-        <section className="mt-auto pt-4 border-t border-black/[0.06]">
+        <section className="mt-auto rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
           <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Маршрут
           </h3>

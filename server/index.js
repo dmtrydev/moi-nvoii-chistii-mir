@@ -20,6 +20,7 @@ import adminRouter from './adminRoutes.js';
 import authRouter from './authRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
 import userRouter from './userRoutes.js';
+import supportRouter from './supportRoutes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -159,6 +160,7 @@ app.use('/api/', rateLimit({ name: 'global', windowMs: 60_000, max: 100 }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
+app.use('/api/support', supportRouter);
 
 function normalizeFkkoCode(v) {
   // FKKO часто пишут с пробелами: "7 31 100 01 40 4"

@@ -167,3 +167,35 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs (created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs (action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs (entity_type, entity_id);
 
+-- Система поддержки (чат пользователь <-> администраторы)
+CREATE TABLE IF NOT EXISTS support_conversations (
+  id BIGSERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'open',
+  subject TEXT,
+  last_message_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_conversations_user_id ON support_conversations (user_id);
+CREATE INDEX IF NOT EXISTS idx_support_conversations_last_message_at ON support_conversations (last_message_at DESC);
+
+CREATE TABLE IF NOT EXISTS support_messages (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id BIGINT NOT NULL REFERENCES support_conversations(id) ON DELETE CASCADE,
+  author_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  author_role TEXT NOT NULL,
+  body_text TEXT,
+  attachment_path TEXT,
+  attachment_original_name TEXT,
+  attachment_mime TEXT,
+  read_by_user BOOLEAN NOT NULL DEFAULT FALSE,
+  read_by_admin BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (body_text IS NOT NULL OR attachment_path IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_messages_conversation_id ON support_messages (conversation_id);
+CREATE INDEX IF NOT EXISTS idx_support_messages_created_at ON support_messages (created_at ASC);
+

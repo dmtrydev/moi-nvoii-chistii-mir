@@ -211,8 +211,8 @@
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   }
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-content {
-    margin: 14px 16px;
-    width: 312px;
+    margin: 16px 18px;
+    width: min(420px, calc(100vw - 72px));
   }
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-close-button {
     color: var(--eco-muted);
@@ -300,7 +300,7 @@
     gap: 10px;
   }
   .moinoviichistiimir-popup-item {
-    padding: 12px 14px;
+    padding: 14px 16px;
     border-radius: var(--radius-unified);
     background: var(--eco-app-bg);
     border: none;
@@ -450,6 +450,7 @@
     background: var(--eco-surface);
     box-shadow: var(--eco-shadow-card);
     transition: box-shadow 0.25s ease, transform 0.25s ease;
+    min-width: 0;
   }
 
   .glass-kicker {
@@ -582,6 +583,7 @@
     overflow: hidden;
     background: var(--eco-surface);
     box-shadow: var(--eco-shadow-card);
+    min-width: 0;
   }
 
   .glass-table {

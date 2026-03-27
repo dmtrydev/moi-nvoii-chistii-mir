@@ -10,12 +10,14 @@ export default function AdminLayout(): JSX.Element {
     { to: '/dashboard', label: 'Панель' },
     { to: '/dashboard/profile', label: 'Профиль' },
     { to: '/dashboard/upload', label: 'Загрузка лицензии' },
+    { to: '/dashboard/support', label: 'Поддержка' },
     { to: '/map', label: 'Карта' },
     { to: '/directory', label: 'Справочник ФККО' },
   ];
   const adminLinks = [
     { to: '/admin/dashboard', label: 'Обзор админки' },
     { to: '/admin/licenses', label: 'Объекты' },
+    { to: '/admin/support', label: 'Чаты поддержки' },
     { to: '/admin/logs', label: 'Журнал действий' },
   ];
 

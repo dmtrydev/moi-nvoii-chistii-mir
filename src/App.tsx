@@ -13,6 +13,7 @@ import FkkoDirectoryPage from '@/pages/FkkoDirectoryPage';
 import UserDashboardPage from '@/pages/UserDashboardPage';
 import UserUploadPage from '@/pages/UserUploadPage';
 import UserProfilePage from '@/pages/UserProfilePage';
+import SupportChatPage from '@/pages/SupportChatPage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
 
@@ -44,6 +45,7 @@ export default function App(): JSX.Element {
             <Route index element={<UserDashboardPage />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="upload" element={<UserUploadPage />} />
+            <Route path="support" element={<SupportChatPage />} />
             <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />
@@ -60,6 +62,7 @@ export default function App(): JSX.Element {
             <Route path="licenses" element={<AdminLicensesPage />} />
             <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
             <Route path="logs" element={<AdminLogsPage />} />
+            <Route path="support" element={<SupportChatPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
