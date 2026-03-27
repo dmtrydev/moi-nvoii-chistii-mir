@@ -18,7 +18,7 @@ export function CheckboxMultiSelect({
   return (
     <div
       className={[
-        'rounded-xl border border-[#72b77d]/25 bg-white/5 p-3',
+        'rounded-2xl border border-black/[0.06] bg-app-bg p-3 shadow-sm',
         maxHeightClassName,
         'overflow-y-auto',
       ].join(' ')}
@@ -36,7 +36,7 @@ export function CheckboxMultiSelect({
               key={opt}
               className={[
                 'flex items-center gap-2 rounded-lg px-2 py-2 cursor-pointer transition-colors select-none',
-                checked ? 'bg-white/5 border border-[#84da91]/20' : 'hover:bg-white/5 border border-transparent',
+                checked ? 'bg-white border border-black/[0.08] shadow-sm' : 'hover:bg-white/80 border border-transparent',
               ].join(' ')}
             >
               <input
@@ -56,8 +56,8 @@ export function CheckboxMultiSelect({
                 className={[
                   'h-5 w-5 rounded-[4px] border flex items-center justify-center transition-colors',
                   checked
-                    ? 'bg-[#e7eee9] border-[#cfd9d2] text-[#1b2a22]'
-                    : 'bg-white border-[#cfd9d2] text-transparent',
+                    ? 'bg-gradient-to-br from-accent-from to-accent-to border-transparent text-[#1a2e12]'
+                    : 'bg-white border-black/15 text-transparent',
                 ].join(' ')}
               >
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
@@ -70,7 +70,7 @@ export function CheckboxMultiSelect({
                   />
                 </svg>
               </span>
-              <span className="text-sm text-[#d6e7dd]">{opt}</span>
+              <span className="text-sm text-ink">{opt}</span>
             </label>
           );
         })}

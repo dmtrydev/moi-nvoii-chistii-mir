@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
-import { formatFkkoHuman, parseFkkoCodesFromText } from '@/utils/fkko';
+import { formatFkkoHuman } from '@/utils/fkko';
 import { useAuth } from '@/contexts/useAuth';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
@@ -224,27 +224,27 @@ export default function UploadPage(): JSX.Element {
   const highlight = isDragging || step === 'dragging';
 
   return (
-    <div className="min-h-screen glass-bg text-[#f5fff7] font-sans flex flex-col">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,_rgba(76,175,80,0.08),_transparent_50%)] pointer-events-none" />
+    <div className="min-h-screen glass-bg text-ink font-sans flex flex-col page-enter">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,_rgba(95,217,58,0.12),_transparent_50%)] pointer-events-none" />
 
-      <header className="relative flex items-center justify-between px-6 py-4 border-b border-[#72b77d]/25 bg-[#0f1e17]/65 backdrop-blur-xl">
+      <header className="relative flex items-center justify-between px-6 py-4 border-b border-black/[0.06] bg-white/90 backdrop-blur-md shadow-sm">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm text-[#a5bcae] hover:text-[#f5fff7] transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           На главную
         </Link>
         <Link
           to="/map"
-          className="text-sm text-[#a5bcae] hover:text-[#f5fff7] transition-colors"
+          className="text-sm text-ink-muted hover:text-ink transition-colors font-medium"
         >
           Карта объектов
         </Link>
       </header>
 
       {apiReachable === false && (
-        <div className="relative mx-4 mt-4 p-4 rounded-xl bg-[#291f10]/80 border border-amber-300/30 text-amber-100">
+        <div className="relative mx-4 mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600" />
             <div className="flex-1 min-w-0">
@@ -283,10 +283,10 @@ export default function UploadPage(): JSX.Element {
               onDragLeave={onDragLeave}
               onDrop={onDrop}
               className={`
-                rounded-2xl border-2 border-dashed transition-all duration-200 glass-panel
+                rounded-3xl border-2 border-dashed transition-all duration-200 glass-panel
                 ${highlight
-                  ? 'border-[#87de94] bg-[#4caf50]/14'
-                  : 'border-[#72b77d]/30 hover:border-[#7fd98d] hover:bg-white/10'}
+                  ? 'border-[#5fd93a] bg-accent-soft'
+                  : 'border-black/15 hover:border-[#5fd93a]/50 hover:bg-app-bg'}
               `}
             >
               <label className="flex flex-col items-center justify-center gap-4 py-16 px-8 cursor-pointer">
@@ -297,15 +297,15 @@ export default function UploadPage(): JSX.Element {
                   className="sr-only"
                 />
                 <span
-                  className={`flex items-center justify-center w-16 h-16 rounded-full transition-colors ${highlight ? 'bg-[#4caf50]/28 text-[#d8ffde]' : 'bg-white/10 text-[#9ab3a5]'}`}
+                  className={`flex items-center justify-center w-16 h-16 rounded-full transition-colors ${highlight ? 'bg-accent-soft text-[#1f5c14]' : 'bg-app-bg text-ink-muted'}`}
                 >
                   <Upload className="w-8 h-8" />
                 </span>
                 <div className="text-center space-y-1">
-                  <p className="text-lg font-medium text-[#f5fff7]">
+                  <p className="text-lg font-medium text-ink">
                     {highlight ? 'Отпустите файл здесь' : 'Перетащите лицензию в PDF сюда'}
                   </p>
-                  <p className="text-sm text-[#9ab3a5]">или нажмите, чтобы выбрать файл</p>
+                  <p className="text-sm text-ink-muted">или нажмите, чтобы выбрать файл</p>
                 </div>
               </label>
             </div>
@@ -318,13 +318,13 @@ export default function UploadPage(): JSX.Element {
                   {formValidationError}
                 </div>
               )}
-              <div className="flex items-center gap-2 mb-4 text-[#a7bfb1] text-sm">
-                <CheckCircle className="w-5 h-5 text-[#4caf50]" />
+              <div className="flex items-center gap-2 mb-4 text-ink-muted text-sm">
+                <CheckCircle className="w-5 h-5 text-[#22c55e]" />
                 <span>Проверьте данные и при необходимости отредактируйте поля. Затем нажмите «Отправить на проверку».</span>
               </div>
               <div className="space-y-4 mb-6">
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">Название организации</label>
+                  <label className="block text-xs uppercase tracking-wider text-ink-muted mb-1.5">Название организации</label>
                   <input
                     type="text"
                     value={formData.companyName}
@@ -333,7 +333,7 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-[#9ab3a5] mb-1.5">ИНН</label>
+                  <label className="block text-xs uppercase tracking-wider text-ink-muted mb-1.5">ИНН</label>
                   <input
                     type="text"
                     value={formData.inn}
@@ -342,29 +342,29 @@ export default function UploadPage(): JSX.Element {
                   />
                 </div>
                 {Array.isArray(formData.sites) && formData.sites.length > 0 && (
-                  <div className="rounded-xl border border-[#72b77d]/25 bg-white/5 p-4">
-                    <p className="text-[11px] uppercase tracking-wider text-[#9ab3a5] mb-2">Площадки (из лицензии)</p>
+                  <div className="rounded-2xl border border-black/[0.06] bg-app-bg p-4">
+                    <p className="text-[11px] uppercase tracking-wider text-ink-muted mb-2">Площадки (из лицензии)</p>
                     <div className="space-y-3">
                       {formData.sites.map((s, idx) => (
-                        <div key={idx} className="rounded-lg border border-[#72b77d]/20 bg-black/10 p-3">
-                          <p className="text-xs text-[#d8eadd]">
-                            <span className="text-[#9ab3a5]">Адрес:</span>{' '}
+                        <div key={idx} className="rounded-xl border border-black/[0.06] bg-surface p-3 shadow-sm">
+                          <p className="text-xs text-ink">
+                            <span className="text-ink-muted">Адрес:</span>{' '}
                             {s.address || s.addressRef || '—'}
                           </p>
                           {Array.isArray(s.entries) && s.entries.length > 0 ? (
                             <div className="mt-2 space-y-1.5">
                               {s.entries.map((entry, eIdx) => (
-                                <div key={eIdx} className="rounded border border-[#72b77d]/15 bg-black/5 px-2.5 py-1.5">
-                                  <p className="text-xs text-[#d8eadd]">
-                                    <span className="text-[#9ab3a5]">ФККО:</span>{' '}
+                                <div key={eIdx} className="rounded-lg border border-black/[0.05] bg-app-bg px-2.5 py-1.5">
+                                  <p className="text-xs text-ink">
+                                    <span className="text-ink-muted">ФККО:</span>{' '}
                                     {formatFkkoHuman(entry.fkkoCode)}
                                     {entry.hazardClass ? ` (${entry.hazardClass} класс)` : ''}
                                   </p>
                                   {entry.wasteName && (
-                                    <p className="text-[11px] text-[#a5bcae] mt-0.5 leading-tight">{entry.wasteName}</p>
+                                    <p className="text-[11px] text-ink-muted mt-0.5 leading-tight">{entry.wasteName}</p>
                                   )}
-                                  <p className="text-xs text-[#d8eadd] mt-0.5">
-                                    <span className="text-[#9ab3a5]">Виды работ:</span>{' '}
+                                  <p className="text-xs text-ink mt-0.5">
+                                    <span className="text-ink-muted">Виды работ:</span>{' '}
                                     {entry.activityTypes.join(', ')}
                                   </p>
                                 </div>
@@ -372,12 +372,12 @@ export default function UploadPage(): JSX.Element {
                             </div>
                           ) : (
                             <>
-                              <p className="mt-1 text-xs text-[#d8eadd]">
-                                <span className="text-[#9ab3a5]">Виды:</span>{' '}
+                              <p className="mt-1 text-xs text-ink">
+                                <span className="text-ink-muted">Виды:</span>{' '}
                                 {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
                               </p>
-                              <p className="mt-1 text-xs text-[#d8eadd]">
-                                <span className="text-[#9ab3a5]">ФККО:</span>{' '}
+                              <p className="mt-1 text-xs text-ink">
+                                <span className="text-ink-muted">ФККО:</span>{' '}
                                 {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
                               </p>
                             </>
@@ -385,13 +385,13 @@ export default function UploadPage(): JSX.Element {
                         </div>
                       ))}
                     </div>
-                    <p className="mt-3 text-[11px] text-[#9ab3a5]">
+                    <p className="mt-3 text-[11px] text-ink-muted">
                       Эти площадки будут сохранены вместе с лицензией. Каждый код ФККО привязан к конкретным видам работ.
                     </p>
                   </div>
                 )}
                 {formData.lat != null && formData.lng != null && (
-                  <p className="text-xs text-[#9ab3a5]">Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}</p>
+                  <p className="text-xs text-ink-muted">Координаты: {formData.lat.toFixed(5)}, {formData.lng.toFixed(5)}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-3">
@@ -399,7 +399,7 @@ export default function UploadPage(): JSX.Element {
                   type="button"
                   onClick={handlePublishClick}
                   disabled={isSubmitting}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors disabled:opacity-60 shadow-sm"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-sm font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow disabled:opacity-60 shadow-sm"
                 >
                   {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
                   Отправить на проверку
@@ -417,23 +417,23 @@ export default function UploadPage(): JSX.Element {
 
           {(step === 'analyzing') && (
             <div className="rounded-2xl glass-panel p-12 flex flex-col items-center gap-6">
-              <Loader2 className="w-12 h-12 text-[#4caf50] animate-spin" />
-              <p className="text-center text-[#f5fff7] font-medium">
+              <Loader2 className="w-12 h-12 text-[#22c55e] animate-spin" />
+              <p className="text-center text-ink font-medium">
                 Нейросеть анализирует лицензию...
               </p>
-              <p className="text-sm text-[#9ab3a5]">Извлечение реквизитов и кодов ФККО</p>
+              <p className="text-sm text-ink-muted">Извлечение реквизитов и кодов ФККО</p>
             </div>
           )}
 
           {step === 'error' && (
-            <div className="rounded-2xl border border-red-400/35 bg-[#281515]/80 p-8">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-8">
               <p className="glass-danger font-medium mb-2">Ошибка</p>
-              <p className="text-[#e0ccc9] text-sm mb-6">{errorMessage}</p>
+              <p className="text-red-900/90 text-sm mb-6">{errorMessage}</p>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-4 py-2 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm"
+                  className="px-4 py-2 rounded-2xl glass-btn-dark text-sm font-semibold"
                 >
                   Загрузить снова
                 </button>
@@ -448,18 +448,18 @@ export default function UploadPage(): JSX.Element {
           )}
 
           {step === 'published' && (
-            <div className="rounded-2xl border border-[#84da91]/35 bg-[#0f1f17]/80 p-8 text-center">
-              <div className="w-14 h-14 rounded-full bg-[#4caf50]/15 flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-7 h-7 text-[#2e7d32]" />
+            <div className="rounded-3xl border border-black/[0.06] bg-surface shadow-eco-card p-8 text-center">
+              <div className="w-14 h-14 rounded-full bg-accent-soft flex items-center justify-center mx-auto mb-4">
+                <MapPin className="w-7 h-7 text-[#1f5c14]" />
               </div>
-              <h2 className="text-xl font-semibold text-[#f5fff7] mb-2">Заявка отправлена на проверку</h2>
-              <p className="text-[#a3bcaf] text-sm mb-6">
+              <h2 className="text-xl font-semibold text-ink mb-2">Заявка отправлена на проверку</h2>
+              <p className="text-ink-muted text-sm mb-6">
                 Мы отправили заявку администраторам. После проверки объект появится на карте.
               </p>
               <div className="flex gap-3 justify-center">
                 <Link
                   to="/map"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
                 >
                   Перейти к карте
                 </Link>

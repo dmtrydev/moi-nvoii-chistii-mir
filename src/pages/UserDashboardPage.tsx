@@ -116,8 +116,8 @@ export default function UserDashboardPage(): JSX.Element {
   }, [accessToken]);
 
   return (
-    <div className="min-h-screen glass-bg text-[#f5fff7] p-4 md:p-6">
-      <div className="max-w-6xl mx-auto glass-shell p-4 md:p-6 space-y-5">
+    <div className="w-full max-w-6xl mx-auto space-y-6 page-enter">
+      <div className="space-y-6">
         <div className="glass-panel p-5 flex items-center justify-between gap-4">
           <div>
             <div className="glass-kicker">Personal Space</div>
@@ -142,26 +142,26 @@ export default function UserDashboardPage(): JSX.Element {
 
         <div className="glass-panel p-5">
           <p className="glass-kicker">Balance</p>
-          <p className="text-3xl font-bold text-[#f5fff7] mt-1">{balance} Экокоинов</p>
+          <p className="text-3xl font-bold text-ink mt-1">{balance} Экокоинов</p>
         </div>
 
         <section className="glass-panel p-5 space-y-4">
           <div>
             <p className="glass-kicker">Enterprise Search</p>
-            <h2 className="text-base font-semibold text-[#f5fff7] mt-1">Поиск организации</h2>
+            <h2 className="text-base font-semibold text-ink mt-1">Поиск организации</h2>
             <p className="text-xs glass-muted mt-1">Введите название компании или ИНН — достаточно одного</p>
           </div>
 
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8faea0] pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-muted pointer-events-none" />
               <input
                 type="text"
                 value={entQuery}
                 onChange={(e) => { setEntQuery(e.target.value); setEntSearched(false); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') void runEnterpriseSearch(); }}
                 placeholder="ООО Экология или 7712345678"
-                className="w-full h-10 rounded-lg border border-[#7ccd89]/25 bg-white/5 pl-9 pr-3 text-sm text-[#f5fff7] placeholder:text-[#8faea0] focus:outline-none focus:ring-1 focus:ring-[#4caf50]/50 transition-colors"
+                className="glass-input !h-10 pl-9 pr-3 text-sm"
               />
             </div>
             <button
@@ -179,12 +179,12 @@ export default function UserDashboardPage(): JSX.Element {
           )}
 
           {entSearched && !entSearching && !entError && entResults.length === 0 && (
-            <div className="text-sm text-[#9ab3a5]">Ничего не найдено по запросу «{entQuery.trim()}»</div>
+            <div className="text-sm text-ink-muted">Ничего не найдено по запросу «{entQuery.trim()}»</div>
           )}
 
           {entResults.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-[#8faea0]">
+              <p className="text-xs text-ink-muted">
                 Найдено: {entResults.length}{entResults.length >= 200 ? '+' : ''}
               </p>
               <div className="glass-table-wrap">
@@ -203,25 +203,25 @@ export default function UserDashboardPage(): JSX.Element {
                       const id = typeof it.id === 'number' ? it.id : null;
                       const fkkoCodes = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
                       return (
-                        <tr key={it.siteId ?? `${it.companyName}-${it.address}`} className="border-t border-[#7ccd89]/10">
-                          <td className="px-4 py-2.5 font-medium text-[#f5fff7] max-w-[220px]">
+                        <tr key={it.siteId ?? `${it.companyName}-${it.address}`} className="border-t border-black/[0.06]">
+                          <td className="px-4 py-2.5 font-medium text-ink max-w-[220px]">
                             <span className="line-clamp-2">{it.companyName || '—'}</span>
                           </td>
-                          <td className="px-4 py-2.5 font-mono text-xs text-[#d9ebe0] whitespace-nowrap">
+                          <td className="px-4 py-2.5 font-mono text-xs text-ink whitespace-nowrap">
                             {it.inn || '—'}
                           </td>
-                          <td className="px-4 py-2.5 text-xs text-[#b4cabe] max-w-[260px]">
+                          <td className="px-4 py-2.5 text-xs text-ink-muted max-w-[260px]">
                             <span className="line-clamp-2">{it.address || '—'}</span>
                           </td>
                           <td className="px-4 py-2.5">
                             <div className="flex flex-wrap gap-1">
                               {fkkoCodes.slice(0, 3).map((c) => (
-                                <span key={c} className="rounded bg-white/5 border border-[#7ccd89]/20 px-1.5 py-0.5 text-[11px] font-mono text-[#d3e6da]">
+                                <span key={c} className="rounded-lg bg-app-bg px-1.5 py-0.5 text-[11px] font-mono text-ink">
                                   {formatFkkoHuman(c)}
                                 </span>
                               ))}
                               {fkkoCodes.length > 3 && (
-                                <span className="text-[11px] text-[#8faea0]">+{fkkoCodes.length - 3}</span>
+                                <span className="text-[11px] text-ink-muted">+{fkkoCodes.length - 3}</span>
                               )}
                             </div>
                           </td>
@@ -239,20 +239,20 @@ export default function UserDashboardPage(): JSX.Element {
                 </table>
               </div>
               {entResults.length > 30 && (
-                <p className="text-xs text-[#8faea0]">Показаны первые 30 результатов</p>
+                <p className="text-xs text-ink-muted">Показаны первые 30 результатов</p>
               )}
             </div>
           )}
         </section>
 
-        {loading && <div className="glass-panel p-4 text-sm text-[#9ab3a5]">Загрузка данных...</div>}
+        {loading && <div className="glass-panel p-4 text-sm text-ink-muted">Загрузка данных...</div>}
         {error && <div className="glass-panel p-4 text-sm glass-danger">{error}</div>}
 
         {!loading && !error && (
           <>
             <section className="glass-panel p-3">
               <div className="px-3 py-2">
-                <h2 className="text-base font-semibold text-[#f5fff7]">Мои лицензии</h2>
+                <h2 className="text-base font-semibold text-ink">Мои лицензии</h2>
               </div>
               <div className="glass-table-wrap">
               <table className="glass-table">
@@ -284,7 +284,7 @@ export default function UserDashboardPage(): JSX.Element {
                   ))}
                   {licenses.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-3 text-center text-[#9ab3a5]">
+                      <td colSpan={4} className="px-4 py-3 text-center text-ink-muted">
                         Лицензии пока не загружены
                       </td>
                     </tr>
@@ -296,7 +296,7 @@ export default function UserDashboardPage(): JSX.Element {
 
             <section className="glass-panel p-3">
               <div className="px-3 py-2">
-                <h2 className="text-base font-semibold text-[#f5fff7]">История начислений</h2>
+                <h2 className="text-base font-semibold text-ink">История начислений</h2>
               </div>
               <div className="glass-table-wrap">
               <table className="glass-table">
@@ -314,12 +314,12 @@ export default function UserDashboardPage(): JSX.Element {
                       <td className="px-4 py-2">{new Date(item.createdAt).toLocaleString()}</td>
                       <td className="px-4 py-2">{item.companyName ?? `#${item.licenseId}`}</td>
                       <td className="px-4 py-2">{item.type}</td>
-                      <td className="px-4 py-2 text-[#90e19a] font-medium">+{item.amount}</td>
+                      <td className="px-4 py-2 text-[#1f5c14] font-semibold">+{item.amount}</td>
                     </tr>
                   ))}
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-3 text-center text-[#9ab3a5]">
+                      <td colSpan={4} className="px-4 py-3 text-center text-ink-muted">
                         Начислений пока нет
                       </td>
                     </tr>

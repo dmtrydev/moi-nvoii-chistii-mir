@@ -165,15 +165,32 @@ npm run build:client
 cd /opt/moinoviichistiimir && npm install && cd server && npm install
 ```
 
-## 9) Запуск сервера
+## 9) Запуск сервера через PM2 (рекомендуется)
 
-Сервер стартует командой:
-```bash
-cd /opt/moinoviichistiimir
-npm start
-```
+1. Установить PM2 глобально:
+   ```bash
+   sudo npm install -g pm2
+   ```
 
-Он отдаёт статику фронта из `dist/` и API с `/api/*`.
+2. Первый запуск приложения под PM2:
+   ```bash
+   cd /opt/moinoviichistiimir
+   pm2 start npm --name moinoviichistiimir -- start
+   ```
+
+3. Проверить статус и логи:
+   ```bash
+   pm2 status
+   pm2 logs moinoviichistiimir --lines 100
+   ```
+
+4. Включить автозапуск PM2 после ребута:
+   ```bash
+   pm2 startup systemd -u $USER --hp $HOME
+   pm2 save
+   ```
+
+Приложение отдаёт статику фронта из `dist/` и API с `/api/*`.
 
 Проверка локально:
 ```bash
@@ -239,15 +256,20 @@ cd server && npm install && cd ..
 npm run build:client
 ```
 
-## 12.3) Перезапустить сервер
+## 12.3) Перезапустить сервер (PM2)
 
-1. Если сервер запущен “вручную”, останови процесс и запусти снова:
+1. Если приложение уже было добавлено в PM2:
    ```bash
-   # пример: найти PID можно через ps -ef | rg "server/index.js"
-   npm start
+   cd /opt/moinoviichistiimir
+   pm2 restart moinoviichistiimir
    ```
 
-Рекомендуется закрепить сервер через systemd (если хочешь, скажи — добавлю в этот файл готовый unit).
+2. Если это первый запуск через PM2:
+   ```bash
+   cd /opt/moinoviichistiimir
+   pm2 start npm --name moinoviichistiimir -- start
+   pm2 save
+   ```
 
 ## 12.4) Проверка после обновления
 
@@ -328,8 +350,8 @@ npm run build:client
      npm run build:client
      ```
 
-7. **Перезапустить Node-сервер**
-   - останови старый процесс сервера и запусти новый;
+7. **Перезапустить Node-сервер через PM2**
+   - если приложение уже зарегистрировано в PM2, выполняй только `pm2 restart moinoviichistiimir`;
    - чтобы не получить ситуацию “старый backend остался на `3001`, а новый стартовал на `3002`” (из-за занятого порта), сделай проверку портов перед перезапуском:
      ```bash
      ss -ltnp | grep ':3001' || true
@@ -340,11 +362,11 @@ npm run build:client
      kill -9 <PID>
      ```
    - параметры `server/.env` **НЕ трогай** (они игнорируются Git и задают доступ к БД и JWT).
-   - если сервер запущен через `nohup`, перезапуск обычно делается так:
+   - перезапуск через PM2:
      ```bash
-     pkill -f "node server/index.js" || true
      cd /opt/moinoviichistiimir
-     nohup npm start > /tmp/moinoviichistiimir-server.log 2>&1 & echo $!
+     pm2 restart moinoviichistiimir || pm2 start npm --name moinoviichistiimir -- start
+     pm2 save
      ```
 
 8. **nginx, как правило, перезапускать не нужно**
@@ -360,7 +382,7 @@ npm run build:client
      ```
    - после этого открой логи:
      ```bash
-     tail -n 80 /tmp/moinoviichistiimir-server.log
+     pm2 logs moinoviichistiimir --lines 80
      ```
    - если backend поднялся НЕ на `3001` (например, на `3002` из-за занятого `3001`), то либо:
      - убеди проект работать на `3001` (освободи порт `3001` и перезапусти backend), либо
@@ -369,7 +391,7 @@ npm run build:client
 10. **Проверка после обновления**
    - открыть `https://app.moinovichistimir.ru/map`;
    - открыть `/login` и попробовать регистрацию + вход;
-   - если что-то сломалось — смотреть логи процесса Node на VPS (файл `/tmp/moinoviichistiimir-server.log`).
+   - если что-то сломалось — смотреть логи процесса Node на VPS через PM2.
    - быстрые проверки командами:
      ```bash
      curl -I https://app.moinovichistimir.ru/map
@@ -377,19 +399,21 @@ npm run build:client
      ```
    - и логи:
      ```bash
-     tail -n 200 /tmp/moinoviichistiimir-server.log
+     pm2 logs moinoviichistiimir --lines 200
      ```
 
-
-     cd /opt/moinoviichistiimir
+Быстрый сценарий обновления:
+```bash
+cd /opt/moinoviichistiimir
 git pull
 npm run build:client
-pkill -f "node server/index.js" || true
-nohup npm start > /tmp/moinoviichistiimir-server.log 2>&1 & echo $!
+pm2 restart moinoviichistiimir || pm2 start npm --name moinoviichistiimir -- start
+pm2 save
 sleep 2
 curl -sS http://127.0.0.1:3001/api/health
 curl -sS http://127.0.0.1:3002/api/health || true
-tail -n 40 /tmp/moinoviichistiimir-server.log
+pm2 logs moinoviichistiimir --lines 40
+```
 
 
 sudo -u postgres psql -d moinoviichistiimir -v ON_ERROR_STOP=1 <<'SQL'
@@ -409,3 +433,26 @@ ALTER SEQUENCE transactions_id_seq RESTART WITH 1;
 
 COMMIT;
 SQL
+
+Перевел ваш деплой на pm2 и обновил DEPLOY_VPS.md (разделы запуска/перезапуска и быстрый сценарий).
+
+Что теперь делать на VPS один раз:
+
+cd /opt/moinoviichistiimir
+sudo npm install -g pm2
+pm2 start npm --name moinoviichistiimir -- start
+pm2 startup systemd -u $USER --hp $HOME
+pm2 save
+pm2 status
+Дальше при каждом обновлении:
+
+cd /opt/moinoviichistiimir
+git pull
+npm run build:client
+pm2 restart moinoviichistiimir
+pm2 save
+Если снова увидите 502, сразу смотрите:
+
+pm2 logs moinoviichistiimir --lines 200
+curl -sS http://127.0.0.1:3001/api/health || true
+sudo tail -n 100 /var/log/nginx/error.log

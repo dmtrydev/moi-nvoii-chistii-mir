@@ -62,7 +62,7 @@ export default function AdminDashboardPage(): JSX.Element {
           <h1 className="glass-title mt-1">Админ-панель</h1>
         </div>
       </div>
-      {loading && <div className="glass-panel p-4 text-[#9ab3a5] text-sm">Загрузка...</div>}
+      {loading && <div className="glass-panel p-4 text-ink-muted text-sm">Загрузка...</div>}
       {error && <div className="glass-panel p-4 glass-danger text-sm">{error}</div>}
       {data && (
         <div className="grid gap-4 md:grid-cols-2">

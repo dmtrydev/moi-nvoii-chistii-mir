@@ -160,7 +160,7 @@ export default function AdminLicensesPage(): JSX.Element {
               <div className="glass-kicker">Заявки на проверку</div>
               <h2 className="glass-title mt-1">Очередь модерации</h2>
             </div>
-            <div className="text-sm text-[#9ab3a5]">Всего: {pendingItems.length}</div>
+            <div className="text-sm text-ink-muted">Всего: {pendingItems.length}</div>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -173,19 +173,19 @@ export default function AdminLicensesPage(): JSX.Element {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="min-w-[220px]">
-                        <div className="text-sm text-[#9ab3a5]">ID: {lic.id}</div>
-                        <div className="text-base font-semibold text-[#f5fff7] mt-1">{lic.companyName}</div>
-                        <div className="text-sm text-[#9ab3a5] mt-1">
+                        <div className="text-sm text-ink-muted">ID: {lic.id}</div>
+                        <div className="text-base font-semibold text-ink mt-1">{lic.companyName}</div>
+                        <div className="text-sm text-ink-muted mt-1">
                           ИНН {lic.inn ?? '—'}
                         </div>
-                        {lic.address ? <div className="text-sm text-[#c3d7cb] mt-1">{lic.address}</div> : null}
+                        {lic.address ? <div className="text-sm text-ink-muted mt-1">{lic.address}</div> : null}
                       </div>
 
                       <div className="flex flex-wrap gap-2 items-center">
-                        <div className="px-3 py-1 rounded-lg border border-[#72b77d]/25 bg-white/5 text-xs text-[#d9ffe0] font-semibold">
+                        <div className="px-3 py-1 rounded-xl bg-accent-soft text-xs text-[#1f5c14] font-semibold">
                           На проверке
                         </div>
-                        <div className="px-3 py-1 rounded-lg border border-[#72b77d]/25 bg-white/5 text-xs text-[#c8f8d0] font-semibold">
+                        <div className="px-3 py-1 rounded-xl bg-app-bg border border-black/[0.06] text-xs text-ink font-semibold">
                           +{lic.reward} Экокоинов
                         </div>
                       </div>
@@ -193,10 +193,10 @@ export default function AdminLicensesPage(): JSX.Element {
 
                     {fkko.length > 0 && (
                       <div className="space-y-1">
-                        <div className="text-xs font-semibold text-[#8faea0]">Коды ФККО</div>
+                        <div className="text-xs font-semibold text-ink-muted">Коды ФККО</div>
                         <div className="flex flex-wrap gap-2">
                           {fkko.map((c) => (
-                            <span key={c} className="inline-flex px-2.5 py-1 rounded-lg border border-[#78c483]/24 bg-white/5 text-sm text-[#d8ffe0]">
+                            <span key={c} className="inline-flex px-2.5 py-1 rounded-xl bg-app-bg text-sm text-ink">
                               {formatFkkoHuman(c)}
                             </span>
                           ))}
@@ -206,8 +206,8 @@ export default function AdminLicensesPage(): JSX.Element {
 
                     {activity.length > 0 && (
                       <div className="space-y-1">
-                        <div className="text-xs font-semibold text-[#8faea0]">Виды обращения</div>
-                        <div className="text-sm text-[#c3d7cb]">{activity.join(', ')}</div>
+                        <div className="text-xs font-semibold text-ink-muted">Виды обращения</div>
+                        <div className="text-sm text-ink-muted">{activity.join(', ')}</div>
                       </div>
                     )}
 

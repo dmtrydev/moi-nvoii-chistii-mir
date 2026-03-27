@@ -59,8 +59,8 @@ export default function UserProfilePage(): JSX.Element {
   const displayName = user?.fullName ?? user?.email ?? 'Пользователь';
 
   return (
-    <div className="min-h-screen glass-bg text-[#f5fff7] p-4 md:p-6">
-      <div className="max-w-4xl mx-auto glass-shell p-4 md:p-6 space-y-5">
+    <div className="w-full max-w-4xl mx-auto space-y-5 page-enter">
+      <div className="space-y-5">
         <div className="glass-panel p-5 flex items-start justify-between gap-4 flex-col md:flex-row">
           <div className="flex items-center gap-4">
             <UserAvatar name={user?.fullName ?? null} email={user?.email ?? null} size={52} />
@@ -92,16 +92,16 @@ export default function UserProfilePage(): JSX.Element {
           <div className="glass-kicker">Данные пользователя</div>
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex gap-3">
-              <div className="w-[140px] text-[#9ab3a5]">Email</div>
+              <div className="w-[140px] text-ink-muted">Email</div>
               <div className="font-medium">{user?.email ?? '—'}</div>
             </div>
             <div className="flex gap-3">
-              <div className="w-[140px] text-[#9ab3a5]">Никнейм</div>
+              <div className="w-[140px] text-ink-muted">Никнейм</div>
               <div className="font-medium">{user?.fullName ?? '—'}</div>
             </div>
             <div className="flex gap-3">
-              <div className="w-[140px] text-[#9ab3a5]">Пароль</div>
-              <div className="font-medium text-[#9ab3a5]">********</div>
+              <div className="w-[140px] text-ink-muted">Пароль</div>
+              <div className="font-medium text-ink-muted">********</div>
             </div>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function UserProfilePage(): JSX.Element {
             </div>
 
             {error && <div className="text-xs glass-danger">{error}</div>}
-            {success && <div className="text-xs text-[#90e19a]">{success}</div>}
+            {success && <div className="text-xs text-[#1f5c14] font-medium">{success}</div>}
 
             <button
               type="submit"
@@ -148,4 +148,5 @@ export default function UserProfilePage(): JSX.Element {
     </div>
   );
 }
+
 

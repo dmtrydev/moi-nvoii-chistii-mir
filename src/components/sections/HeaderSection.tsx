@@ -27,7 +27,7 @@ export function HeaderSection(): JSX.Element {
                       </span>
                     ) : (
                       <a
-                        className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-xl tracking-[-0.20px] leading-6 whitespace-nowrap text-slate-700 hover:text-[#2e7d32] transition-colors"
+                        className="relative flex items-center w-fit mt-[-1.00px] font-medium text-xl tracking-[-0.20px] leading-6 whitespace-nowrap text-slate-700 hover:text-[#1f5c14] transition-colors"
                         href={link.href}
                         rel="noopener noreferrer"
                         target="_blank"
@@ -43,19 +43,19 @@ export function HeaderSection(): JSX.Element {
 
           <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
             <a
-              className="inline-flex flex-col items-center justify-center px-[30px] py-5 relative flex-[0_0_auto] bg-[#4caf50] rounded-[60px] hover:bg-[#43a047] transition-colors shadow-sm"
+              className="inline-flex flex-col items-center justify-center px-[30px] py-5 relative flex-[0_0_auto] rounded-[60px] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
               href="https://moinoviichistiimir-template.framer.website/contact-us"
               rel="noopener noreferrer"
               target="_blank"
             >
               <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
                 <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
-                  <span className="flex items-center w-fit font-manrope font-medium text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap relative mt-[-1.00px] text-white">
+                  <span className="flex items-center w-fit font-medium text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap relative mt-[-1.00px] text-[#1a2e12]">
                     Начать работу
                   </span>
                 </div>
               </div>
-              <div className="absolute w-full h-full top-0 left-0 rounded-[60px] border border-solid border-[#43a047]" />
+              <div className="absolute w-full h-full top-0 left-0 rounded-[60px] border border-black/5 pointer-events-none" />
             </a>
           </div>
         </nav>

@@ -102,52 +102,52 @@ export default function FkkoDirectoryPage(): JSX.Element {
   }, []);
 
   return (
-    <div className="flex flex-col w-full min-h-screen glass-bg">
+    <div className="flex flex-col w-full min-h-screen glass-bg page-enter">
       <main className="relative z-10 w-full max-w-[1510px] mx-auto px-4 sm:px-6 md:px-8 lg:px-[50px] py-10">
         <div className="flex items-center justify-between gap-4 mb-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#a3bcaf] hover:text-[#f5fff7] transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors">
             Назад на главную
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-xs uppercase tracking-[0.16em] text-[#8faea0]">Справочник</span>
+            <span className="text-xs uppercase tracking-[0.16em] text-ink-muted">Справочник</span>
           </div>
         </div>
 
         <div className="flex gap-6 items-start">
           <aside className="w-full max-w-[320px] glass-panel p-4 sm:p-5 md:p-6">
-            <h2 className="text-sm font-semibold text-[#f5fff7] mb-3">Разделы</h2>
+            <h2 className="text-sm font-semibold text-ink mb-3">Разделы</h2>
             <div className="space-y-2">
               {sections.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => setActiveSection(s.id)}
-                  className={`w-full text-left rounded-lg px-3 py-2 border transition-colors ${
+                  className={`w-full text-left rounded-xl px-3 py-2.5 border transition-all ${
                     activeSection === s.id
-                      ? 'bg-[#4caf50]/22 border-[#83d88e] text-[#c5f7cc] font-medium'
-                      : 'bg-white/5 border-[#72b77d]/20 text-[#c2d7cc] hover:bg-white/10'
+                      ? 'bg-accent-soft border-transparent text-[#1f5c14] font-semibold shadow-sm'
+                      : 'bg-app-bg border-black/[0.06] text-ink-muted hover:bg-white'
                   }`}
                 >
                   {s.title}
                 </button>
               ))}
-              <div className="text-xs text-[#8faea0] pt-2">Темы и другие разделы добавятся позже.</div>
+              <div className="text-xs text-ink-muted pt-2">Темы и другие разделы добавятся позже.</div>
             </div>
           </aside>
 
           <section className="flex-1 glass-panel p-4 sm:p-5 md:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h2 className="text-lg font-semibold text-[#f5fff7]">{activeSection === 'fkko' ? 'ФККО: коды отходов' : 'Раздел'}</h2>
+              <h2 className="text-lg font-semibold text-ink">{activeSection === 'fkko' ? 'ФККО: коды отходов' : 'Раздел'}</h2>
 
-              <div className="text-xs text-[#a5bcae]">
+              <div className="text-xs text-ink-muted">
                 {error ? '' : isLoading ? '' : `Показано: ${visibleCodes.length} / ${filteredCodes.length}`}
               </div>
             </div>
 
             {activeSection === 'fkko' && (
               <>
-                <div className="rounded-lg bg-white/5 border border-[#72b77d]/20 p-3 mb-4">
-                  <p className="text-xs text-[#b7ccbf] leading-relaxed">
+                <div className="rounded-2xl bg-app-bg border border-black/[0.06] p-4 mb-4">
+                  <p className="text-xs text-ink-muted leading-relaxed">
                     В этом разделе отображаются все коды ФККО, которые встречаются в лицензиях проекта. Описание
                     каждого кода будет подключено отдельным источником данных.
                   </p>
@@ -155,7 +155,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
 
                 <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Поиск по коду</p>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Поиск по коду</p>
                     <input
                       type="text"
                       value={query}
@@ -165,11 +165,11 @@ export default function FkkoDirectoryPage(): JSX.Element {
                     />
                   </div>
                   <div className="flex flex-col sm:items-end gap-2">
-                    <div className="text-sm text-[#b7ccbf]">{isLoading ? 'Загрузка...' : `Найдено: ${filteredCodes.length}`}</div>
+                    <div className="text-sm text-ink-muted">{isLoading ? 'Загрузка...' : `Найдено: ${filteredCodes.length}`}</div>
                     <button
                       type="button"
                       onClick={() => setQuery('')}
-                      className="text-xs text-[#9ab3a5] hover:text-[#f5fff7] transition-colors"
+                      className="text-xs text-ink-muted hover:text-ink transition-colors"
                       disabled={!query}
                     >
                       Сбросить
@@ -179,10 +179,10 @@ export default function FkkoDirectoryPage(): JSX.Element {
 
                 {error && <p className="text-sm glass-danger">{error}</p>}
 
-                {(!error && isLoading) && <p className="text-sm text-[#9ab3a5]">Загрузка списка...</p>}
+                {(!error && isLoading) && <p className="text-sm text-ink-muted">Загрузка списка...</p>}
 
                 {!error && !isLoading && filteredCodes.length === 0 && (
-                  <p className="text-sm text-[#9ab3a5]">По вашему запросу коды не найдены.</p>
+                  <p className="text-sm text-ink-muted">По вашему запросу коды не найдены.</p>
                 )}
 
                 {!error && !isLoading && filteredCodes.length > 0 && (
@@ -193,10 +193,10 @@ export default function FkkoDirectoryPage(): JSX.Element {
                         return (
                           <div
                             key={c}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-[#72b77d]/20 bg-white/5 px-3 py-2"
+                            className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.06] bg-app-bg px-3 py-2.5"
                           >
                             <div className="min-w-0">
-                              <div className="text-sm font-medium text-[#e6f2e9] whitespace-nowrap overflow-hidden text-ellipsis">
+                              <div className="text-sm font-medium text-ink whitespace-nowrap overflow-hidden text-ellipsis">
                                 {human}
                               </div>
                             </div>
@@ -204,7 +204,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
                             <button
                               type="button"
                               onClick={() => void copyToClipboard(c)}
-                              className="text-xs text-[#9ab3a5] hover:text-[#d8ffdd] transition-colors flex-shrink-0"
+                              className="text-xs text-ink-muted hover:text-[#1f5c14] transition-colors flex-shrink-0 font-medium"
                               aria-label={`Копировать код ФККО ${human}`}
                             >
                               {copiedCode === c ? 'Готово' : 'Копировать'}
@@ -219,7 +219,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
                         <button
                           type="button"
                           onClick={() => setPage((p) => p + 1)}
-                          className="h-10 rounded-lg bg-[#4caf50] text-sm font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm px-5"
+                          className="h-11 rounded-2xl text-sm font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm px-6"
                         >
                           Показать ещё
                         </button>

@@ -127,7 +127,7 @@ function createClusterIcon(cluster: unknown): L.DivIcon {
 }
 
 function createPointIcon(variant: 'green' | 'orange'): L.DivIcon {
-  const color = variant === 'orange' ? '#f59e0b' : '#4caf50';
+  const color = variant === 'orange' ? '#ea580c' : '#22c55e';
   return L.divIcon({
     className: 'moinoviichistiimir-point-wrapper',
     html: `
@@ -478,15 +478,17 @@ export default function MapPage(): JSX.Element {
   return (
     <div className="flex h-screen overflow-hidden glass-bg">
       <aside
-        className={`relative bg-[#0f1f18]/72 border-r border-[#72b77d]/25 shadow-2xl overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar flex-shrink-0 transition-[width] duration-300 ease-out ${
-          menuVisible ? 'w-full max-w-[360px] lg:max-w-[420px] px-5 py-6' : 'w-0 min-w-0 overflow-hidden border-r-0 px-0 py-0'
+        className={`relative z-30 overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar flex-shrink-0 transition-[width] duration-300 ease-out ${
+          menuVisible
+            ? 'w-full max-w-[360px] lg:max-w-[420px] px-5 py-6 md:px-6 md:py-7 m-3 md:m-4 rounded-3xl bg-white shadow-eco-float border border-black/[0.04]'
+            : 'w-0 min-w-0 overflow-hidden px-0 py-0 m-0 border-0'
         }`}
       >
         <div className={`min-w-0 w-full max-w-full h-full ${!menuVisible ? 'invisible' : ''}`}>
         <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-[#9db6a8] hover:text-[#f5fff7] transition-colors min-w-0 shrink"
+            className="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors min-w-0 shrink"
           >
             <ArrowLeft className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">На главную</span>
@@ -502,22 +504,22 @@ export default function MapPage(): JSX.Element {
           </button>
         </div>
         <div className="mb-6">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0]">Управление</p>
-          <h2 className="mt-1 text-lg font-semibold text-[#f5fff7]">Рабочая площадка — карта</h2>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">Управление</p>
+          <h2 className="mt-1 text-lg font-semibold text-ink">Рабочая площадка — карта</h2>
         </div>
 
         <section className="mb-6">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8faea0] mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Фильтры
           </h3>
           <div className="space-y-3">
             {filterValidationError && (
-              <div className="text-xs text-amber-100 bg-[#2d2313]/80 border border-amber-300/25 rounded-lg px-3 py-2">
+              <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2.5 shadow-sm">
                 {filterValidationError}
               </div>
             )}
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">ФККО *</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">ФККО *</p>
               <AutocompleteInput
                 value={filterFkko}
                 onChange={setFilterFkko}
@@ -529,7 +531,7 @@ export default function MapPage(): JSX.Element {
               />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">
                 Вид обращения *
               </p>
               <MultiSelectDropdown
@@ -542,7 +544,7 @@ export default function MapPage(): JSX.Element {
               />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Регион (необязательно)</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Регион (необязательно)</p>
               <AutocompleteInput
                 value={filterRegion}
                 onChange={setFilterRegion}
@@ -556,14 +558,14 @@ export default function MapPage(): JSX.Element {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-xs text-[#9ab3a5] hover:text-[#f5fff7] transition-colors"
+              className="text-xs text-ink-muted hover:text-ink transition-colors"
             >
               Сбросить фильтры
             </button>
             <button
               type="button"
               onClick={handleFindClick}
-              className="w-full glass-btn-dark !h-10 !rounded-lg text-[11px] font-medium"
+              className="w-full glass-btn-dark !h-11 !rounded-2xl text-[11px] font-medium"
             >
               Найти объект
             </button>
@@ -571,28 +573,28 @@ export default function MapPage(): JSX.Element {
         </section>
 
         <section className="mb-6">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8faea0] mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Результаты
           </h3>
 
           {!hasSearched && (
-            <div className="text-xs text-[#9ab3a5]">
+            <div className="text-xs text-ink-muted">
               Заполните обязательные фильтры (ФККО, вид обращения). Регион — необязателен.
             </div>
           )}
-          {hasSearched && isSearching && <div className="text-xs text-[#9ab3a5]">Идёт поиск…</div>}
+          {hasSearched && isSearching && <div className="text-xs text-ink-muted">Идёт поиск…</div>}
           {hasSearched && !isSearching && searchError && (
               <div className="text-xs glass-danger">
               {searchError}
             </div>
           )}
           {hasSearched && !isSearching && !searchError && searchItems.length === 0 && (
-            <div className="text-xs text-[#9ab3a5]">Ничего не найдено</div>
+            <div className="text-xs text-ink-muted">Ничего не найдено</div>
           )}
 
           {hasSearched && searchItems.length > 0 && (
             <div className="space-y-2">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0]">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
                 Найдено: {searchItems.length}
               </div>
               <div className="space-y-3">
@@ -618,7 +620,7 @@ export default function MapPage(): JSX.Element {
                         <button
                           type="button"
                           onClick={() => void geocodeMissing(it.siteId as number)}
-                          className="mt-2 h-8 px-3 rounded-lg bg-white/8 border border-[#7ccd89]/25 text-[11px] text-[#c9ddd1] hover:bg-white/12 transition-colors"
+                          className="mt-2 h-8 px-3 rounded-xl bg-app-bg border border-black/[0.06] text-[11px] text-ink hover:bg-white shadow-sm transition-colors"
                         >
                           Определить координаты по адресу
                         </button>
@@ -628,17 +630,17 @@ export default function MapPage(): JSX.Element {
                 })}
               </div>
               {searchItems.length > 20 && (
-                <div className="text-xs text-[#8faea0]">Показаны первые 20 результатов</div>
+                <div className="text-xs text-ink-muted">Показаны первые 20 результатов</div>
               )}
             </div>
           )}
         </section>
 
         <section className="mb-6">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8faea0] mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Легенда
           </h3>
-          <div className="space-y-2 text-xs text-[#a6beaf]">
+          <div className="space-y-2 text-xs text-ink-muted">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]" />
               <span>Хранение</span>
@@ -648,24 +650,24 @@ export default function MapPage(): JSX.Element {
               <span>Захоронение</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#4caf50]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />
               <span>Утилизация / обработка</span>
             </div>
           </div>
         </section>
 
         <section className="mb-6">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8faea0] mb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Подложка карты
           </h3>
-          <div className="flex rounded-lg bg-white/8 border border-[#7ccd89]/25 p-1 gap-1">
+          <div className="flex rounded-2xl bg-app-bg border border-black/[0.06] p-1 gap-1">
             <button
               type="button"
               onClick={() => setBaseMapStyle('osm')}
-              className={`flex-1 min-h-[36px] rounded-lg px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`flex-1 min-h-[36px] rounded-xl px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
                 baseMapStyle === 'osm'
-                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-lg !px-2'
-                  : 'text-[#9ab3a5] hover:text-[#f5fff7] hover:bg-white/10'
+                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-xl !px-2'
+                  : 'text-ink-muted hover:text-ink hover:bg-white'
               }`}
             >
               Обычная
@@ -673,23 +675,23 @@ export default function MapPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setBaseMapStyle('cadastral')}
-              className={`flex-1 min-h-[36px] rounded-lg px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`flex-1 min-h-[36px] rounded-xl px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
                 baseMapStyle === 'cadastral'
-                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-lg !px-2'
-                  : 'text-[#9ab3a5] hover:text-[#f5fff7] hover:bg-white/10'
+                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-xl !px-2'
+                  : 'text-ink-muted hover:text-ink hover:bg-white'
               }`}
             >
               Кадастровая
             </button>
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-[#8faea0]">
+          <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
             {CADASTRE_IFRAME_URL ? (
               baseMapStyle === 'cadastral' ? (
                 <>
                   Встроена карта в стиле{' '}
                   <a
                     href="https://ik8map.roscadastres.com/map"
-                    className="text-[#2e7d32] hover:text-[#43a047] underline underline-offset-2"
+                    className="text-[#1f5c14] hover:text-[#2d7a1f] underline underline-offset-2"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -700,7 +702,7 @@ export default function MapPage(): JSX.Element {
                 </>
               ) : (
                 <>
-                  Задан <span className="text-[#d1e5d8] font-medium">VITE_CADASTRE_IFRAME_URL</span>: в режиме «Кадастровая» откроется та же
+                  Задан <span className="text-ink font-medium">VITE_CADASTRE_IFRAME_URL</span>: в режиме «Кадастровая» откроется та же
                   схема, что на ik8map.roscadastres.com (векторные тайлы, цвет #D20404).
                 </>
               )
@@ -709,19 +711,19 @@ export default function MapPage(): JSX.Element {
                 Векторные границы участков (GeoJSON с бэкенда) и клик по карте — запрос сведений ПКК. При зуме ≥ 14
                 подгружаются контуры; клик открывает карточку. Если API ПКК редиректится, настройте CADASTRE_PKK_API_BASE /
                 CADASTRE_MAPSERVER_BASE на сервере (см. server/.env.example). Альтернатива — iframe:{' '}
-                <span className="text-[#d1e5d8] font-medium">VITE_CADASTRE_IFRAME_URL</span>.
+                <span className="text-ink font-medium">VITE_CADASTRE_IFRAME_URL</span>.
               </>
             )}
           </p>
         </section>
 
-        <section className="mt-auto pt-2 border-t border-[#72b77d]/25">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8faea0] mb-3">
+        <section className="mt-auto pt-4 border-t border-black/[0.06]">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
             Маршрут
           </h3>
-          <div className="space-y-3 text-xs text-[#c0d6ca]">
+          <div className="space-y-3 text-xs text-ink-muted">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Точка А</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Точка А</p>
               <input
                 type="text"
                 placeholder="Выберите объект"
@@ -729,7 +731,7 @@ export default function MapPage(): JSX.Element {
               />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[#8faea0] mb-1.5">Точка B</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Точка B</p>
               <input
                 type="text"
                 placeholder="Выберите объект"
@@ -739,13 +741,13 @@ export default function MapPage(): JSX.Element {
             <div className="flex gap-2">
               <button
                 type="button"
-                className="flex-1 glass-btn-dark !h-9 !rounded-lg text-[11px] font-medium"
+                className="flex-1 glass-btn-dark !h-9 !rounded-xl text-[11px] font-medium"
               >
                 Построить
               </button>
               <button
                 type="button"
-                className="flex-1 h-9 rounded-lg border border-[#7ccd89]/25 bg-white/10 text-[11px] text-[#d8eade] hover:bg-white/14 transition-colors"
+                className="flex-1 h-9 rounded-xl border border-black/[0.08] bg-white text-[11px] text-ink hover:shadow-eco-card transition-colors"
               >
                 Сбросить
               </button>
@@ -755,12 +757,12 @@ export default function MapPage(): JSX.Element {
         </div>
       </aside>
 
-      <div className="flex-1 relative min-w-0">
+      <div className="flex-1 relative min-w-0 rounded-3xl overflow-hidden m-3 md:m-4 ml-0 md:ml-0 shadow-eco-float border border-black/[0.04] bg-app-bg">
         {cadastreUsesIframe ? (
           <iframe
             title="Публичная кадастровая карта"
             src={CADASTRE_IFRAME_URL}
-            className="absolute inset-0 z-0 h-full w-full min-h-0 border-0 bg-[#0a0a0a]"
+            className="absolute inset-0 z-0 h-full w-full min-h-0 border-0 bg-app-bg"
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
           />
@@ -773,8 +775,8 @@ export default function MapPage(): JSX.Element {
           >
             <FocusMap center={focusCenter} zoom={13} />
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
             />
             {baseMapStyle === 'cadastral' && <CadastreVectorSystem enabled apiBase={getApiUrl} />}
             <ClusterMarkers items={markersItems} selectedId={selectedId} onSelectId={setSelectedId} />
@@ -784,31 +786,33 @@ export default function MapPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setMenuVisible(true)}
-            className="absolute left-4 top-4 z-20 glass-btn-soft inline-flex items-center justify-center gap-2 h-9 min-w-[88px] px-3 py-2 text-xs font-medium pointer-events-auto whitespace-nowrap"
+            className="absolute left-4 top-4 z-20 glass-btn-soft inline-flex items-center justify-center gap-2 h-10 min-w-[88px] px-3 py-2 text-xs font-medium pointer-events-auto whitespace-nowrap shadow-eco-float"
             title="Показать меню"
           >
             <PanelLeft className="w-4 h-4 flex-shrink-0" />
             Меню
           </button>
         )}
-        <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
-          <div className={`pointer-events-auto inline-flex items-center gap-1 rounded-lg bg-[#0f1f18]/80 border border-[#7ccd89]/30 shadow-md p-1 ${!menuVisible ? 'ml-14' : ''}`}>
+        <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none gap-3">
+          <div
+            className={`pointer-events-auto inline-flex items-center gap-1 rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.06] shadow-eco-float p-1 ${!menuVisible ? 'ml-14' : ''}`}
+          >
             <button
               type="button"
-              className="h-8 min-w-[72px] rounded-md px-3 text-[11px] font-medium text-white bg-[#4caf50] transition-colors whitespace-nowrap"
+              className="h-9 min-w-[72px] rounded-xl px-3 text-[11px] font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to transition-colors whitespace-nowrap shadow-sm"
             >
               2D карта
             </button>
             <button
               type="button"
-              className="h-8 min-w-[72px] rounded-md px-3 text-[11px] font-medium text-[#aac1b4] hover:text-white hover:bg-white/10 transition-colors whitespace-nowrap"
+              className="h-9 min-w-[72px] rounded-xl px-3 text-[11px] font-medium text-ink-muted hover:text-ink hover:bg-app-bg transition-colors whitespace-nowrap"
             >
               3D глобус
             </button>
           </div>
           <Link
             to="/upload"
-            className="pointer-events-auto inline-flex items-center justify-center h-9 min-w-[120px] rounded-lg bg-[#4caf50] px-4 py-2 text-[11px] font-medium text-white hover:bg-[#43a047] transition-colors whitespace-nowrap shadow-md"
+            className="pointer-events-auto inline-flex items-center justify-center h-10 min-w-[120px] rounded-2xl px-4 py-2 text-[11px] font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow whitespace-nowrap shadow-eco-float"
           >
             Разместить объект
           </Link>

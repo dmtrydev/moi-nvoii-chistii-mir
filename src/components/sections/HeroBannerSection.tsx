@@ -166,10 +166,10 @@ export function HeroBannerSection(): JSX.Element {
       <div className="relative z-[1] flex flex-1 flex-col items-stretch justify-center max-w-[1510px] w-full mx-auto px-4 sm:px-6 md:px-8 lg:px-[50px] py-12 sm:py-14 md:py-16 lg:py-20">
         <div className="flex min-w-0 w-full max-w-4xl flex-col gap-8 lg:gap-10">
             <header className="hero-reveal space-y-4 text-left">
-              <h1 className="font-manrope font-semibold text-[#f5fff7] text-2xl sm:text-3xl md:text-[28px] lg:text-[32px] xl:text-[34px] leading-tight tracking-tight">
+              <h1 className="font-semibold text-ink text-2xl sm:text-3xl md:text-[28px] lg:text-[32px] xl:text-[34px] leading-tight tracking-tight">
                 Управление отходами по ФККО, контроль объектов и маршрутов на одной карте.
               </h1>
-              <p className="text-base sm:text-lg text-[#a9c0b2] max-w-2xl leading-relaxed">
+              <p className="text-base sm:text-lg text-ink-muted max-w-2xl leading-relaxed">
                 Фильтруйте по ФККО, виду обращения и региону. Планируйте экологическую инфраструктуру в
                 реальном времени.
               </p>
@@ -204,16 +204,16 @@ export function HeroBannerSection(): JSX.Element {
 
             <div className="hero-reveal flex flex-col gap-4">
               <div className="space-y-1">
-                <h2 className="text-lg sm:text-xl font-semibold text-[#f5fff7] leading-tight">
+                <h2 className="text-lg sm:text-xl font-semibold text-ink leading-tight">
                   Фильтр объектов по экологии
                 </h2>
-                <p className="text-sm sm:text-base text-[#a9c0b2]">
+                <p className="text-sm sm:text-base text-ink-muted">
                   Настройте параметры и смотрите объекты, площадки и маршруты в вашем регионе.
                 </p>
               </div>
 
               {validationError && (
-                <div className="text-sm text-amber-100 bg-[#2d2313]/80 border border-amber-300/25 rounded-lg px-4 py-3">
+                <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
                   {validationError}
                 </div>
               )}
@@ -254,7 +254,7 @@ export function HeroBannerSection(): JSX.Element {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[#72b77d]/22 pt-4">
+                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-black/[0.06] pt-4">
                   <button
                     type="button"
                     onClick={() => void runSearch()}
@@ -264,7 +264,7 @@ export function HeroBannerSection(): JSX.Element {
                   </button>
                   <Link
                     to="/upload"
-                    className="glass-btn-soft inline-flex items-center justify-center px-5 sm:px-6 h-10 sm:h-11 text-sm font-medium border-[#7fd98d]/50 !text-[#d7ffe0]"
+                    className="glass-btn-soft inline-flex items-center justify-center px-5 sm:px-6 h-10 sm:h-11 text-sm font-medium"
                   >
                     Разместить объект
                   </Link>
@@ -276,7 +276,7 @@ export function HeroBannerSection(): JSX.Element {
                       setHasSearched(false);
                       setSearchError('');
                     }}
-                    className="text-sm font-medium text-[#9ab3a5] hover:text-[#f5fff7] transition-colors"
+                    className="text-sm font-medium text-ink-muted hover:text-ink transition-colors"
                   >
                     Сбросить фильтры
                   </button>
@@ -287,19 +287,19 @@ export function HeroBannerSection(): JSX.Element {
             {hasSearched && (
               <section className="hero-reveal glass-panel p-4 sm:p-5 md:p-6">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg sm:text-xl font-semibold text-[#f5fff7]">Подходящие предприятия</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-ink">Подходящие предприятия</h3>
                   <button
                     type="button"
                     onClick={() => navigate(toMapPath())}
-                    className="inline-flex items-center justify-center h-9 rounded-lg border border-[#7ccd89]/25 bg-white/8 px-4 text-xs font-medium text-[#d8eade] hover:bg-white/12 transition-colors"
+                    className="inline-flex items-center justify-center h-9 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white transition-colors"
                   >
                     Все на карте
                   </button>
                 </div>
-                {isSearching && <p className="text-sm text-[#9ab3a5]">Идёт поиск…</p>}
+                {isSearching && <p className="text-sm text-ink-muted">Идёт поиск…</p>}
                 {!isSearching && searchError && <p className="text-sm glass-danger">{searchError}</p>}
                 {!isSearching && !searchError && items.length === 0 && (
-                  <p className="text-sm text-[#9ab3a5]">По этим фильтрам ничего не найдено.</p>
+                  <p className="text-sm text-ink-muted">По этим фильтрам ничего не найдено.</p>
                 )}
                 {!isSearching && !searchError && items.length > 0 && (
                   <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">

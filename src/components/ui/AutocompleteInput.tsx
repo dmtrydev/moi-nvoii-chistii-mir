@@ -129,7 +129,7 @@ export function AutocompleteInput({
                     type="button"
                     onClick={() => choose(option.value)}
                   className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
-                      idx === highlightedIndex ? 'bg-[#4caf50]/25 text-white' : 'text-[#d6e7dd] hover:bg-white/10'
+                      idx === highlightedIndex ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg'
                     }`}
                   >
                     {option.label}
@@ -138,7 +138,7 @@ export function AutocompleteInput({
               ))}
             </ul>
           ) : (
-            <div className="px-3 py-2 text-sm text-[#8faea0]">{noResultsText}</div>
+            <div className="px-3 py-2 text-sm text-ink-muted">{noResultsText}</div>
           )}
         </div>
       )}

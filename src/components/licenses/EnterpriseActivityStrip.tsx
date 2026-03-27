@@ -112,14 +112,14 @@ export function EnterpriseActivityStrip({
             data-tooltip={label}
             className={[
               'enterprise-activity-tooltip-target',
-              'inline-flex shrink-0 items-center justify-center rounded-full border transition-colors',
+              'inline-flex shrink-0 items-center justify-center rounded-full border transition-all duration-200',
               dim,
               active
                 ? isLight
-                  ? 'border-[#63c671]/70 bg-[#4caf50]/18 text-[#d8ffe0] shadow-sm'
+                  ? 'border-transparent bg-gradient-to-br from-accent-from to-accent-to text-[#1a2e12] shadow-md'
                   : 'border-[#4caf50]/45 bg-[#4caf50]/15 text-[#b8f5bb]'
                 : isLight
-                  ? 'border-[#79c986]/35 bg-white/5 text-[#89a798]'
+                  ? 'border-black/[0.08] bg-app-bg text-ink-muted'
                   : 'border-white/10 bg-white/[0.06] text-white/25',
             ].join(' ')}
           >

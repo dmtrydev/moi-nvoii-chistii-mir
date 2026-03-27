@@ -43,21 +43,21 @@ export default function LoginPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center glass-bg text-slate-900 px-4 py-8">
-      <div className="w-full max-w-md glass-shell p-6 space-y-4">
+    <div className="min-h-screen flex items-center justify-center glass-bg px-4 py-8 page-enter">
+      <div className="w-full max-w-md glass-shell p-8 space-y-5">
         <div>
           <div className="glass-kicker">Welcome</div>
-          <h1 className="text-[28px] font-semibold tracking-tight text-[#f5fff7] mt-1">Вход / Регистрация</h1>
+          <h1 className="text-[28px] font-semibold tracking-tight text-ink mt-2">Вход / Регистрация</h1>
         </div>
 
         <div className="glass-panel p-1.5 flex gap-2">
           <button
             type="button"
             onClick={() => setMode('login')}
-            className={`flex-1 h-10 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'login'
-                ? 'bg-[#4caf50]/30 text-white border border-[#89df96]/50'
-                : 'text-[#9fb8ab] hover:bg-white/10'
+                ? 'bg-accent-soft text-[#1f5c14] shadow-sm'
+                : 'text-ink-muted hover:bg-app-bg'
             }`}
           >
             Войти
@@ -65,10 +65,10 @@ export default function LoginPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setMode('register')}
-            className={`flex-1 h-10 rounded-xl text-sm font-medium transition-colors ${
+            className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'register'
-                ? 'bg-[#4caf50]/30 text-white border border-[#89df96]/50'
-                : 'text-[#9fb8ab] hover:bg-white/10'
+                ? 'bg-accent-soft text-[#1f5c14] shadow-sm'
+                : 'text-ink-muted hover:bg-app-bg'
             }`}
           >
             Регистрация
@@ -123,13 +123,13 @@ export default function LoginPage(): JSX.Element {
         </form>
 
         {mode === 'register' && (
-          <div className="text-[11px] text-[#9ab3a5] leading-relaxed">
-            Регистрация создаёт пользователя с ролью <span className="text-[#90e19a] font-semibold">USER</span>.
-            Для роли <span className="text-[#90e19a] font-semibold">SUPERADMIN</span> используйте создание через админ-скрипт/DB.
+          <div className="text-[11px] text-ink-muted leading-relaxed">
+            Регистрация создаёт пользователя с ролью <span className="text-[#1f5c14] font-semibold">USER</span>.
+            Для роли <span className="text-[#1f5c14] font-semibold">SUPERADMIN</span> используйте создание через админ-скрипт/DB.
           </div>
         )}
 
-        <div className="text-xs text-[#9ab3a5]">
+        <div className="text-xs text-ink-muted">
           <Link to="/" className="glass-link underline underline-offset-2">
             На главную
           </Link>

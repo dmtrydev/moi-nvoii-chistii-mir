@@ -29,15 +29,15 @@ export function LicenseResultCard({
   const isLight = variant === 'light';
 
   const shell = isLight
-    ? 'rounded-2xl border border-[#7ccd88]/26 bg-[#102018]/70 shadow-xl shadow-black/20 overflow-hidden backdrop-blur-xl'
+    ? 'rounded-2xl bg-surface shadow-eco-card overflow-hidden transition-shadow hover:shadow-eco-card-hover'
     : 'rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden';
 
-  const accentBar = 'bg-[#4caf50]';
+  const accentBar = 'bg-gradient-to-b from-accent-from to-accent-to';
 
   return (
     <article className={shell}>
       <div className="flex min-w-0">
-        <div className={`w-1 shrink-0 ${accentBar}`} aria-hidden />
+        <div className={`w-1.5 shrink-0 ${accentBar}`} aria-hidden />
         <div className={`min-w-0 flex-1 ${compact ? 'p-3.5 sm:p-4' : 'p-4 sm:p-5'}`}>
           <div className={compact ? 'flex flex-col gap-2.5' : 'space-y-3'}>
             <div className="min-w-0 flex-1 space-y-1.5">
@@ -45,17 +45,17 @@ export function LicenseResultCard({
                 className={
                   isLight
                     ? compact
-                      ? 'text-[18px] sm:text-[20px] font-semibold tracking-tight text-[#f5fff7] leading-[1.18] line-clamp-4'
-                      : 'text-[15px] sm:text-lg font-semibold tracking-tight text-[#f5fff7] leading-snug'
+                      ? 'text-[18px] sm:text-[20px] font-semibold tracking-tight text-ink leading-[1.18] line-clamp-4'
+                      : 'text-[15px] sm:text-lg font-semibold tracking-tight text-ink leading-snug'
                     : 'text-[15px] sm:text-lg font-semibold tracking-tight text-white leading-snug'
                 }
               >
                 {item.companyName || 'Организация'}
               </h3>
-              <p className={isLight ? 'text-xs text-[#9ab3a5]' : 'text-xs text-white/60'}>
+              <p className={isLight ? 'text-xs text-ink-muted' : 'text-xs text-white/60'}>
                 <span
                   className={
-                    isLight ? 'font-mono tabular-nums text-[#d9ebe0]' : 'font-mono tabular-nums text-white/85'
+                    isLight ? 'font-mono tabular-nums text-ink' : 'font-mono tabular-nums text-white/85'
                   }
                 >
                   ИНН {item.inn || 'не указан'}
@@ -65,14 +65,14 @@ export function LicenseResultCard({
                 <p
                   className={
                     isLight
-                      ? 'text-xs text-[#b4cabe] line-clamp-2 sm:line-clamp-none'
+                      ? 'text-xs text-ink-muted line-clamp-2 sm:line-clamp-none'
                       : 'text-xs text-white/70 line-clamp-2'
                   }
                 >
                   {item.address}
                 </p>
               ) : sitesCount > 0 ? (
-                <p className={isLight ? 'text-xs text-[#b4cabe]' : 'text-xs text-white/70'}>
+                <p className={isLight ? 'text-xs text-ink-muted' : 'text-xs text-white/70'}>
                   Площадок: {sitesCount}
                 </p>
               ) : null}
@@ -88,7 +88,7 @@ export function LicenseResultCard({
               <span
                 className={
                   isLight
-                    ? 'inline-flex items-center rounded-full bg-[#4caf50]/18 px-2.5 py-1 text-[11px] font-medium text-[#c4f5cc] ring-1 ring-inset ring-[#4caf50]/35'
+                    ? 'inline-flex items-center rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-[#1f5c14]'
                     : 'inline-flex items-center rounded-full bg-[#4caf50]/15 px-2.5 py-1 text-[11px] font-medium text-[#b8f5bb] ring-1 ring-inset ring-[#4caf50]/25'
                 }
               >
@@ -99,7 +99,7 @@ export function LicenseResultCard({
               <span
                 className={
                   isLight
-                    ? 'inline-flex items-center gap-1 rounded-full bg-[#4caf50]/18 px-2.5 py-1 text-[11px] font-medium text-[#c4f5cc] ring-1 ring-inset ring-[#4caf50]/35'
+                    ? 'inline-flex items-center gap-1 rounded-full bg-app-bg px-2.5 py-1 text-[11px] font-medium text-ink-muted'
                     : 'inline-flex items-center gap-1 rounded-full bg-[#4caf50]/15 px-2.5 py-1 text-[11px] font-medium text-[#b8f5bb] ring-1 ring-inset ring-[#4caf50]/25'
                 }
               >
@@ -119,7 +119,7 @@ export function LicenseResultCard({
                   key={code}
                   className={
                     isLight
-                      ? 'rounded-lg border border-[#7ccd88]/22 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-[#d3e6da]'
+                      ? 'rounded-lg bg-app-bg px-2 py-0.5 text-[11px] font-medium text-ink'
                       : 'rounded-lg border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/85'
                   }
                 >
@@ -130,7 +130,7 @@ export function LicenseResultCard({
                 <span
                   className={
                     isLight
-                      ? 'rounded-lg border border-dashed border-[#7ccd88]/28 px-2 py-0.5 text-[11px] text-[#9bb4a6]'
+                      ? 'rounded-lg border border-dashed border-black/10 px-2 py-0.5 text-[11px] text-ink-muted'
                       : 'rounded-lg border border-dashed border-white/20 px-2 py-0.5 text-[11px] text-white/55'
                   }
                 >
@@ -145,7 +145,7 @@ export function LicenseResultCard({
               to={mapPath}
               className={
                 isLight
-                  ? 'inline-flex flex-1 items-center justify-center h-9 rounded-xl border border-[#7ccd88]/25 bg-white/5 px-4 text-xs font-medium text-[#d8eadd] hover:bg-white/10 transition-colors'
+                  ? 'inline-flex flex-1 items-center justify-center h-10 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white hover:shadow-sm transition-all'
                   : 'inline-flex flex-1 items-center justify-center h-9 rounded-xl border border-white/20 px-4 text-xs font-medium text-white/90 hover:bg-white/10 transition-colors'
               }
             >
@@ -153,7 +153,7 @@ export function LicenseResultCard({
             </Link>
             <Link
               to={detailsPath}
-              className="inline-flex flex-1 items-center justify-center h-9 rounded-xl bg-[#4caf50] px-4 text-xs font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm"
+              className="inline-flex flex-1 items-center justify-center h-10 rounded-xl px-4 text-xs font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
             >
               Карточка предприятия
             </Link>

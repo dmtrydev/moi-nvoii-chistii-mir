@@ -156,47 +156,47 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen glass-bg text-[#f5fff7]">
-      <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-10 pb-12">
-        <div className="mb-6 flex flex-wrap gap-2">
+    <div className="min-h-screen glass-bg text-ink page-enter">
+      <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-10 pb-14">
+        <div className="mb-8 flex flex-wrap gap-3">
           <Link
             to="/"
-            className="glass-btn-soft inline-flex items-center justify-center h-9 px-4 text-xs font-medium"
+            className="glass-btn-soft inline-flex items-center justify-center h-11 px-5 text-sm font-medium"
           >
             На главную
           </Link>
           <Link
             to={mapPath}
-            className="inline-flex items-center justify-center h-9 rounded-xl bg-[#4caf50] px-4 text-xs font-medium text-white hover:bg-[#43a047] transition-colors shadow-sm"
+            className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
           >
             Показать на карте
           </Link>
         </div>
 
-        {loading && <p className="text-[#a3bcaf]">Загрузка карточки предприятия...</p>}
+        {loading && <p className="text-ink-muted">Загрузка карточки предприятия...</p>}
         {!loading && error && <p className="glass-danger">{error}</p>}
 
         {!loading && !error && item && (
-          <div className="rounded-2xl border border-[#79c784]/28 bg-[#0f1f17]/72 shadow-2xl overflow-hidden backdrop-blur-xl">
-            <header className="relative overflow-hidden bg-[#1a3527] px-5 py-8 sm:px-8 sm:py-10 text-white">
+          <div className="rounded-3xl bg-surface shadow-eco-card overflow-hidden">
+            <header className="relative overflow-hidden bg-gradient-to-br from-white via-app-bg to-[#f0fce8] px-6 py-10 sm:px-10 sm:py-12">
               <div
-                className="pointer-events-none absolute inset-0 opacity-[0.12]"
+                className="pointer-events-none absolute inset-0 opacity-[0.35]"
                 style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%235fd93a' fill-opacity='0.12'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
                 }}
               />
               <div className="relative">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#b8f5bb]">Предприятие</p>
-                <h1 className="mt-2 text-2xl sm:text-3xl font-semibold tracking-tight leading-tight max-w-3xl">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1f5c14]">Предприятие</p>
+                <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight leading-tight max-w-3xl text-ink">
                   {item.companyName || 'Организация'}
                 </h1>
                 {(sites.length > 0 || item.address) && (
-                  <div className="mt-4 space-y-2 max-w-3xl">
+                  <div className="mt-5 space-y-2 max-w-3xl">
                     {sites.length > 0
                       ? sites.map((s, i) => (
-                          <p key={s.id ?? i} className="flex items-start gap-2 text-sm text-white/85 leading-relaxed">
+                          <p key={s.id ?? i} className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
                             <svg
-                              className="mt-0.5 h-4 w-4 shrink-0 text-[#b8f5bb]"
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[#3d9a2f]"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -214,9 +214,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                           </p>
                         ))
                       : item.address && (
-                          <p className="flex items-start gap-2 text-sm text-white/85 leading-relaxed">
+                          <p className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
                             <svg
-                              className="mt-0.5 h-4 w-4 shrink-0 text-[#b8f5bb]"
+                              className="mt-0.5 h-4 w-4 shrink-0 text-[#3d9a2f]"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -238,84 +238,84 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               </div>
             </header>
 
-            <div className="border-b border-[#73bd7e]/24 bg-white/5 px-4 sm:px-6">
-              <nav className="flex gap-1" aria-label="Разделы карточки">
+            <div className="border-b border-black/[0.06] bg-app-bg/50 px-4 sm:px-8">
+              <nav className="flex gap-2 pt-2" aria-label="Разделы карточки">
                 <button
                   type="button"
                   onClick={() => setTab('about')}
                   className={[
-                    'relative px-4 py-3 text-sm font-medium transition-colors rounded-t-lg',
+                    'relative px-5 py-3.5 text-sm font-semibold transition-all rounded-t-2xl',
                     tab === 'about'
-                      ? 'text-[#c4f5cc] bg-white/10 shadow-[0_-1px_0_0_rgba(160,240,172,0.24)]'
-                      : 'text-[#9ab3a5] hover:text-[#f5fff7]',
+                      ? 'text-ink bg-surface shadow-[0_-4px_20px_rgba(15,23,42,0.06)]'
+                      : 'text-ink-muted hover:text-ink hover:bg-white/60',
                   ].join(' ')}
                 >
                   Сводка
                   {tab === 'about' && (
-                    <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-[#4caf50]" />
+                    <span className="absolute bottom-0 left-4 right-4 h-1 rounded-full bg-gradient-to-r from-accent-from to-accent-to" />
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setTab('fkko')}
                   className={[
-                    'relative px-4 py-3 text-sm font-medium transition-colors rounded-t-lg',
+                    'relative px-5 py-3.5 text-sm font-semibold transition-all rounded-t-2xl',
                     tab === 'fkko'
-                      ? 'text-[#c4f5cc] bg-white/10 shadow-[0_-1px_0_0_rgba(160,240,172,0.24)]'
-                      : 'text-[#9ab3a5] hover:text-[#f5fff7]',
+                      ? 'text-ink bg-surface shadow-[0_-4px_20px_rgba(15,23,42,0.06)]'
+                      : 'text-ink-muted hover:text-ink hover:bg-white/60',
                   ].join(' ')}
                 >
                   Коды ФККО
                   {fkkoCodes.length > 0 && (
-                    <span className="ml-1.5 inline-flex min-w-[1.25rem] justify-center rounded-md bg-white/12 px-1 text-[11px] font-semibold text-[#d6e7dd] tabular-nums">
+                    <span className="ml-2 inline-flex min-w-[1.35rem] justify-center rounded-lg bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold text-[#1f5c14] tabular-nums">
                       {fkkoCodes.length}
                     </span>
                   )}
                   {tab === 'fkko' && (
-                    <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-[#4caf50]" />
+                    <span className="absolute bottom-0 left-4 right-4 h-1 rounded-full bg-gradient-to-r from-accent-from to-accent-to" />
                   )}
                 </button>
               </nav>
             </div>
 
-            <div className="p-5 sm:p-6 lg:p-8">
+            <div className="p-6 sm:p-8 lg:p-10">
               {tab === 'about' && (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   <section aria-labelledby="activity-strip-label">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <h2 id="activity-strip-label" className="text-sm font-semibold text-[#ecf8ef]">
+                        <h2 id="activity-strip-label" className="text-base font-semibold text-ink">
                           Виды деятельности
                         </h2>
-                        <p className="mt-1 text-xs text-[#9ab3a5] max-w-xl">
+                        <p className="mt-1 text-sm text-ink-muted max-w-xl">
                           Круги подсвечены, если в данных есть соответствующий вид работ (по ключевым словам в списке).
                         </p>
                       </div>
                       <EnterpriseActivityStrip activityTypes={item.activityTypes} variant="light" size="md" />
                     </div>
-                    <p className="mt-3 text-sm text-[#d5e6dc] rounded-xl border border-[#78c483]/26 bg-white/5 px-4 py-3">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-[#8faea0]">Как в лицензии</span>
-                      <span className="block mt-1">{activityList}</span>
+                    <p className="mt-4 text-sm text-ink rounded-2xl bg-app-bg px-5 py-4 shadow-sm">
+                      <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">Как в лицензии</span>
+                      <span className="block mt-2 leading-relaxed">{activityList}</span>
                     </p>
                   </section>
 
-                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">ИНН</h3>
-                      <p className="mt-2 font-mono text-lg font-semibold text-[#ecf8ef] tabular-nums">
+                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="rounded-2xl bg-app-bg p-5 shadow-sm">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">ИНН</h3>
+                      <p className="mt-3 font-mono text-xl font-semibold text-ink tabular-nums">
                         {item.inn || '—'}
                       </p>
                     </div>
                     {hazardClasses.length > 0 && (
-                      <div className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:col-span-2 lg:col-span-1">
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">
+                      <div className="rounded-2xl bg-app-bg p-5 shadow-sm sm:col-span-2 lg:col-span-1">
+                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
                           Классы опасности (по ФККО)
                         </h3>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           {hazardClasses.map((hc) => (
                             <span
                               key={hc}
-                              className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg bg-[#4caf50]/20 px-2.5 text-sm font-bold text-[#d8ffe0] ring-1 ring-[#84da91]/40"
+                              className="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-xl bg-accent-soft px-3 text-sm font-bold text-[#1f5c14]"
                             >
                               {hc}
                             </span>
@@ -325,37 +325,37 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     )}
                   </section>
 
-                  <section className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:p-5">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">Адрес</h3>
-                    <p className="mt-2 text-sm text-[#d5e6dc] leading-relaxed">{item.address || 'не указан'}</p>
+                  <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">Адрес</h3>
+                    <p className="mt-3 text-sm text-ink leading-relaxed">{item.address || 'не указан'}</p>
                   </section>
 
                   {sites.length > 0 && (
-                    <section className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:p-5">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8faea0]">
+                    <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
                         Площадки ({sites.length})
                       </h3>
-                      <div className="mt-3 space-y-3">
+                      <div className="mt-4 space-y-4">
                         {sites.map((s, idx) => (
-                          <div key={s.id ?? idx} className="rounded-lg border border-[#78c483]/18 bg-black/10 p-3">
-                            <p className="text-sm text-[#ecf8ef] font-medium">
+                          <div key={s.id ?? idx} className="rounded-xl bg-surface p-4 shadow-eco-card">
+                            <p className="text-sm text-ink font-semibold">
                               {s.siteLabel || `Площадка ${idx + 1}`}
                             </p>
-                            <p className="mt-1 text-sm text-[#d5e6dc] leading-relaxed">
+                            <p className="mt-1 text-sm text-ink-muted leading-relaxed">
                               {s.address || '—'}
                             </p>
                             {Array.isArray(s.entries) && s.entries.length > 0 ? (
-                              <div className="mt-2 space-y-1.5">
+                              <div className="mt-3 space-y-2">
                                 {s.entries.map((entry, eIdx) => (
-                                  <div key={eIdx} className="rounded border border-[#78c483]/14 bg-black/5 px-2.5 py-1.5">
-                                    <p className="text-xs text-[#c8f8d0] font-mono">
+                                  <div key={eIdx} className="rounded-xl bg-app-bg px-3 py-2.5">
+                                    <p className="text-xs text-[#1f5c14] font-mono font-medium">
                                       {formatFkkoHuman(entry.fkkoCode)}
                                       {entry.hazardClass ? ` — ${entry.hazardClass} класс` : ''}
                                     </p>
                                     {entry.wasteName && (
-                                      <p className="text-[11px] text-[#a6beaf] mt-0.5 leading-tight">{entry.wasteName}</p>
+                                      <p className="text-[11px] text-ink-muted mt-1 leading-tight">{entry.wasteName}</p>
                                     )}
-                                    <p className="text-xs text-[#d5e6dc] mt-0.5">
+                                    <p className="text-xs text-ink mt-1">
                                       {entry.activityTypes.join(', ')}
                                     </p>
                                   </div>
@@ -363,10 +363,10 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                               </div>
                             ) : (
                               <>
-                                <p className="mt-2 text-xs text-[#a6beaf]">
+                                <p className="mt-2 text-xs text-ink-muted">
                                   Виды: {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
                                 </p>
-                                <p className="mt-1 text-xs text-[#a6beaf]">
+                                <p className="mt-1 text-xs text-ink-muted">
                                   ФККО: {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
                                 </p>
                               </>
@@ -381,44 +381,47 @@ export default function EnterpriseDetailsPage(): JSX.Element {
 
               {tab === 'fkko' && (
                 <section>
-                  <h2 className="text-lg font-semibold text-[#ecf8ef]">Коды ФККО с расшифровкой</h2>
-                  <p className="mt-1 text-sm text-[#9ab3a5]">
+                  <h2 className="text-xl font-semibold text-ink">Коды ФККО с расшифровкой</h2>
+                  <p className="mt-2 text-sm text-ink-muted">
                     Структура кода: класс, группа, подгруппа, вид, тип и класс опасности отхода.
                   </p>
                   {fkkoCodes.length > 0 ? (
-                    <div className="mt-5 space-y-3">
+                    <div className="mt-6 space-y-3">
                       {fkkoCodes.map((code) => (
                         <div
                           key={code}
-                          className="rounded-xl border border-[#78c483]/24 bg-white/5 p-4 hover:border-[#84da91]/45 transition-colors"
+                          className="rounded-2xl bg-app-bg p-5 shadow-sm hover:shadow-eco-card transition-shadow"
                         >
-                          <p className="text-sm font-semibold text-[#c8f8d0]">{formatFkkoHuman(code)}</p>
-                          <p className="mt-1 text-xs text-[#a6beaf] leading-relaxed">{decodeFkko(code)}</p>
+                          <p className="text-sm font-semibold text-[#1f5c14]">{formatFkkoHuman(code)}</p>
+                          <p className="mt-2 text-xs text-ink-muted leading-relaxed">{decodeFkko(code)}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-4 text-sm text-[#9ab3a5]">Коды ФККО не указаны.</p>
+                    <p className="mt-6 text-sm text-ink-muted">Коды ФККО не указаны.</p>
                   )}
                 </section>
               )}
 
               {(item?.status || item?.reward || item?.rejectionNote || item?.fileStoredName) && (
-                <section className="mt-8 rounded-xl border border-[#78c483]/24 bg-white/5 p-4 sm:p-5">
-                  <h2 className="text-base font-semibold text-[#ecf8ef]">Модерация и документ</h2>
+                <section className="mt-10 rounded-2xl bg-app-bg p-6 sm:p-7 shadow-sm">
+                  <h2 className="text-lg font-semibold text-ink">Модерация и документ</h2>
 
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm text-[#c4d9cd]">
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm text-ink-muted">
                       {item.status ? (
                         <>
-                          Статус: <span className="font-semibold">{item.status === 'pending' ? 'На проверке' : item.status === 'approved' ? 'Одобрена' : 'Отклонена'}</span>
+                          Статус:{' '}
+                          <span className="font-semibold text-ink">
+                            {item.status === 'pending' ? 'На проверке' : item.status === 'approved' ? 'Одобрена' : 'Отклонена'}
+                          </span>
                         </>
                       ) : (
                         <span>Статус не указан</span>
                       )}
                       {typeof item.reward === 'number' ? (
                         <div className="mt-1">
-                          Награда: <span className="font-semibold text-[#c8f8d0]">+{item.reward} Экокоинов</span>
+                          Награда: <span className="font-semibold text-[#1f5c14]">+{item.reward} Экокоинов</span>
                         </div>
                       ) : null}
                       {item.status === 'rejected' && item.rejectionNote ? (
@@ -433,7 +436,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                           onClick={() => {
                             void downloadPdf();
                           }}
-                          className="px-4 py-2 rounded-lg bg-[#4caf50] text-white text-sm font-medium hover:bg-[#43a047] transition-colors shadow-sm"
+                          className="px-5 py-2.5 rounded-2xl glass-btn-dark text-sm font-semibold"
                         >
                           Скачать файл (PDF)
                         </button>
@@ -446,7 +449,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                             onClick={() => {
                               void approveCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
                             }}
-                            className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
+                            className="px-5 py-2.5 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
                           >
                             Одобрить
                           </button>
@@ -455,7 +458,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                             onClick={() => {
                               void rejectCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
                             }}
-                            className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors"
+                            className="px-5 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors shadow-sm"
                           >
                             Отклонить
                           </button>

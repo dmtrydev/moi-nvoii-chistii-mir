@@ -59,7 +59,7 @@ export function MultiSelectDropdown({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span className={selectedLabel ? 'text-[#f6fff8]' : 'text-[#8daea0]'}>
+        <span className={selectedLabel ? 'text-ink' : 'text-ink-muted'}>
           {selectedLabel || placeholder}
         </span>
         <svg
@@ -98,7 +98,7 @@ export function MultiSelectDropdown({
                   }}
                   className={[
                     'block w-full px-3 py-2 text-left text-sm transition-colors',
-                    checked ? 'bg-[#4caf50]/18 text-white' : 'text-[#d6e7dd] hover:bg-white/10',
+                    checked ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg',
                   ].join(' ')}
                   role="option"
                   aria-selected={checked}
@@ -109,8 +109,8 @@ export function MultiSelectDropdown({
                       className={[
                         'h-5 w-5 rounded-[4px] border flex items-center justify-center transition-colors',
                         checked
-                          ? 'bg-[#e7eee9] border-[#cfd9d2] text-[#1b2a22]'
-                          : 'bg-white border-[#cfd9d2] text-transparent',
+                          ? 'bg-gradient-to-br from-accent-from to-accent-to border-transparent text-[#1a2e12]'
+                          : 'bg-white border-black/15 text-transparent',
                       ].join(' ')}
                     >
                       <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
@@ -129,7 +129,7 @@ export function MultiSelectDropdown({
               );
             })}
             {normalizedOptions.length === 0 && (
-              <div className="px-3 py-2 text-sm text-[#8faea0]">Нет вариантов</div>
+              <div className="px-3 py-2 text-sm text-ink-muted">Нет вариантов</div>
             )}
           </div>
         </div>
