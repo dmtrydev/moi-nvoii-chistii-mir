@@ -71,6 +71,39 @@ function parseArgs(argv) {
   return { jsonPath: positional[0] ?? '', dryRun, geocode, includeInactive };
 }
 
+/** Позиция из сообщения V8/Node: "... at position 123" */
+function extractJsonErrorPosition(message) {
+  const m = String(message ?? '').match(/position\s+(\d+)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function printJsonParseDiagnostics(raw, err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  const pos = extractJsonErrorPosition(msg);
+  const len = raw.length;
+  console.error('Подсказка: чаще всего это обрезанный при передаче файл, склейка двух JSON или битая выгрузка. Проверьте размер на ПК и на VPS (должны совпадать), при необходимости перекачайте через scp/rsync.');
+  if (pos != null) {
+    console.error(`Позиция ошибки (символ): ${pos}, длина файла (символов): ${len}`);
+    if (pos >= len) {
+      console.error('Похоже, файл обрезан: позиция ошибки не меньше длины файла.');
+      const tail = raw.slice(Math.max(0, len - 400));
+      console.error('…хвост файла (последние ~400 символов):\n', tail);
+      return;
+    }
+    const from = Math.max(0, pos - 120);
+    const to = Math.min(len, pos + 120);
+    const snippet = raw.slice(from, to);
+    const rel = pos - from;
+    console.error('Фрагмент вокруг ошибки (между линиями):');
+    console.error('---');
+    console.error(snippet);
+    console.error('---');
+    console.error(`${' '.repeat(Math.min(rel, snippet.length))}^ (ориентировочно)`);
+  }
+}
+
 function parseYandexPos(pos) {
   const s = String(pos ?? '').trim();
   if (!s) return null;
@@ -327,6 +360,7 @@ async function main() {
     root = JSON.parse(raw);
   } catch (e) {
     console.error('Ошибка JSON.parse:', e instanceof Error ? e.message : e);
+    printJsonParseDiagnostics(raw, e);
     process.exit(1);
   }
 
