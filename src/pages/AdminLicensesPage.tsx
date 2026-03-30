@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
 import { formatFkkoHuman } from '@/utils/fkko';
@@ -245,88 +246,108 @@ export default function AdminLicensesPage(): JSX.Element {
         </div>
       </div>
 
-      {dupModalOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dup-modal-title"
-        >
-          <div className="glass-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl">
-            <h2 id="dup-modal-title" className="glass-title">
-              Дубли по ИНН
-            </h2>
-            {!dupGroups.length ? (
-              <p className="mt-3 text-sm text-ink-muted">Дублей по ИНН не найдено.</p>
-            ) : (
-              <>
-                <p className="mt-3 text-sm text-ink-muted">
-                  Для каждой группы остаётся запись с минимальным ID (первая по времени подачи). Остальные будут
-                  помечены как удалённые и скрыты с карты.
-                </p>
-                <div className="mt-4 space-y-4">
-                  {dupGroups.map((g) => (
-                    <div key={g.normalizedInn} className="rounded-xl border border-black/[0.08] bg-app-bg/40 p-3">
-                      <div className="text-sm font-semibold text-ink">
-                        ИНН {g.normalizedInn}
-                        <span className="font-normal text-ink-muted">
-                          {' '}
-                          — оставить ID {g.keepLicenseId}
-                        </span>
-                      </div>
-                      <ul className="mt-2 space-y-1 text-sm text-ink-muted list-disc list-inside">
-                        {g.licenses.map((lic) => (
-                          <li key={lic.id}>
-                            <span className="text-ink font-medium">ID {lic.id}</span>
-                            {lic.id === g.keepLicenseId ? ' (оставляем)' : ' (будет удалён)'} — {lic.companyName};{' '}
-                            {lic.status === 'approved' ? 'одобрено' : lic.status === 'rejected' ? 'отклонено' : 'на проверке'}; владелец{' '}
-                            {lic.ownerUserId ?? '—'}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5 flex flex-col sm:flex-row flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={dupResolveLoading}
-                    onClick={() => {
-                      void handleResolveDuplicates(false);
-                    }}
-                    className="glass-btn-soft !h-10 !px-4"
-                  >
-                    Удалить дубли, не списывать экокоины
-                  </button>
-                  <button
-                    type="button"
-                    disabled={dupResolveLoading}
-                    onClick={() => {
-                      void handleResolveDuplicates(true);
-                    }}
-                    className="glass-btn-dark !h-10 !px-4 !bg-[#7f1d1d] !border-[#7f1d1d] hover:!bg-[#991b1b]"
-                  >
-                    Удалить дубли и списать экокоины
-                  </button>
-                </div>
-              </>
-            )}
-            <div className="mt-4">
-              <button
-                type="button"
-                disabled={dupResolveLoading}
-                onClick={() => {
+      {dupModalOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm outline-none"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="dup-modal-title"
+              tabIndex={-1}
+              autoFocus
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !dupResolveLoading) {
                   setDupModalOpen(false);
                   setDupGroups([]);
-                }}
-                className="glass-btn-soft !h-9 !px-4"
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && !dupResolveLoading) {
+                  setDupModalOpen(false);
+                  setDupGroups([]);
+                }
+              }}
+            >
+              <div
+                className="glass-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
               >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                <h2 id="dup-modal-title" className="glass-title">
+                  Дубли по ИНН
+                </h2>
+                {!dupGroups.length ? (
+                  <p className="mt-3 text-sm text-ink-muted">Дублей по ИНН не найдено.</p>
+                ) : (
+                  <>
+                    <p className="mt-3 text-sm text-ink-muted">
+                      Для каждой группы остаётся запись с минимальным ID (первая по времени подачи). Остальные будут
+                      помечены как удалённые и скрыты с карты.
+                    </p>
+                    <div className="mt-4 space-y-4">
+                      {dupGroups.map((g) => (
+                        <div key={g.normalizedInn} className="rounded-xl border border-black/[0.08] bg-app-bg/40 p-3">
+                          <div className="text-sm font-semibold text-ink">
+                            ИНН {g.normalizedInn}
+                            <span className="font-normal text-ink-muted">
+                              {' '}
+                              — оставить ID {g.keepLicenseId}
+                            </span>
+                          </div>
+                          <ul className="mt-2 space-y-1 text-sm text-ink-muted list-disc list-inside">
+                            {g.licenses.map((lic) => (
+                              <li key={lic.id}>
+                                <span className="text-ink font-medium">ID {lic.id}</span>
+                                {lic.id === g.keepLicenseId ? ' (оставляем)' : ' (будет удалён)'} — {lic.companyName};{' '}
+                                {lic.status === 'approved' ? 'одобрено' : lic.status === 'rejected' ? 'отклонено' : 'на проверке'}; владелец{' '}
+                                {lic.ownerUserId ?? '—'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-5 flex flex-col sm:flex-row flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={dupResolveLoading}
+                        onClick={() => {
+                          void handleResolveDuplicates(false);
+                        }}
+                        className="glass-btn-soft !h-10 !px-4"
+                      >
+                        Удалить дубли, не списывать экокоины
+                      </button>
+                      <button
+                        type="button"
+                        disabled={dupResolveLoading}
+                        onClick={() => {
+                          void handleResolveDuplicates(true);
+                        }}
+                        className="glass-btn-dark !h-10 !px-4 !bg-[#7f1d1d] !border-[#7f1d1d] hover:!bg-[#991b1b]"
+                      >
+                        Удалить дубли и списать экокоины
+                      </button>
+                    </div>
+                  </>
+                )}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    disabled={dupResolveLoading}
+                    onClick={() => {
+                      setDupModalOpen(false);
+                      setDupGroups([]);
+                    }}
+                    className="glass-btn-soft !h-9 !px-4"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {!!pendingItems.length && (
         <div className="glass-panel p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
