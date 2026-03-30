@@ -125,6 +125,8 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   const [draft, setDraft] = useState<LicenseData | null>(null);
   const [patchLoading, setPatchLoading] = useState(false);
   const [patchError, setPatchError] = useState('');
+  /** Ключ вида `license` или `site-0` во время запроса к /api/geocode */
+  const [geocodeTarget, setGeocodeTarget] = useState<string | null>(null);
   const { accessToken, user } = useAuth();
 
   useEffect(() => {
@@ -249,6 +251,50 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     });
     if (!res.ok) throw new Error('Не удалось отклонить');
     window.location.reload();
+  }
+
+  async function applyGeocodeToDraft(kind: 'license' | 'site', siteIdx?: number): Promise<void> {
+    if (!draft) return;
+    setPatchError('');
+    const address =
+      kind === 'license'
+        ? String(draft.address ?? '').trim()
+        : String(draft.sites?.[siteIdx ?? -1]?.address ?? '').trim();
+    if (!address) {
+      setPatchError(
+        kind === 'license'
+          ? 'Укажите адрес в поле «Адрес (строка лицензии)».'
+          : 'Укажите адрес этой площадки.',
+      );
+      return;
+    }
+    const key = kind === 'license' ? 'license' : `site-${siteIdx}`;
+    setGeocodeTarget(key);
+    try {
+      const r = await fetch(getApiUrl(`/api/geocode?address=${encodeURIComponent(address)}`));
+      const data = (await r.json().catch(() => ({}))) as { lat?: number; lng?: number; message?: string };
+      if (!r.ok) {
+        throw new Error(data.message ?? `Ошибка ${r.status}`);
+      }
+      const { lat, lng } = data;
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        throw new Error('Сервер не вернул координаты');
+      }
+      if (kind === 'license') {
+        setDraft((prev) => (prev ? { ...prev, lat, lng } : prev));
+      } else if (siteIdx != null) {
+        setDraft((prev) => {
+          if (!prev?.sites?.[siteIdx]) return prev;
+          const sites = [...prev.sites];
+          sites[siteIdx] = { ...sites[siteIdx], lat, lng };
+          return { ...prev, sites };
+        });
+      }
+    } catch (e) {
+      setPatchError(e instanceof Error ? e.message : 'Не удалось определить координаты');
+    } finally {
+      setGeocodeTarget(null);
+    }
   }
 
   async function saveDraft(): Promise<void> {
@@ -556,6 +602,21 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                           }
                         />
                       </div>
+                      <div className="sm:col-span-2">
+                        <button
+                          type="button"
+                          disabled={!!geocodeTarget || patchLoading}
+                          onClick={() => void applyGeocodeToDraft('license')}
+                          className="inline-flex items-center justify-center min-h-10 px-4 rounded-xl border border-black/[0.08] bg-white/90 text-sm font-semibold text-[#1f5c14] hover:bg-white disabled:opacity-50"
+                        >
+                          {geocodeTarget === 'license'
+                            ? 'Запрос к геокодеру…'
+                            : 'Подставить координаты по адресу строки лицензии'}
+                        </button>
+                        <p className="mt-1.5 text-xs text-ink-muted">
+                          Яндекс Геокодер (ключ на сервере). Поля lat/lng обновятся в форме — нажмите «Сохранить», чтобы записать в БД.
+                        </p>
+                      </div>
                     </section>
 
                     <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm space-y-4">
@@ -672,6 +733,18 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                                   }
                                 />
                               </div>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <button
+                                type="button"
+                                disabled={!!geocodeTarget || patchLoading}
+                                onClick={() => void applyGeocodeToDraft('site', siteIdx)}
+                                className="inline-flex items-center min-h-9 px-3 rounded-xl border border-black/[0.06] bg-white/80 text-sm font-semibold text-[#1f5c14] hover:bg-white disabled:opacity-50"
+                              >
+                                {geocodeTarget === `site-${siteIdx}`
+                                  ? 'Запрос к геокодеру…'
+                                  : 'Определить координаты по адресу площадки'}
+                              </button>
                             </div>
                           </div>
                           <div className="space-y-2">
