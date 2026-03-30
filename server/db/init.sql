@@ -33,6 +33,7 @@ ALTER TABLE licenses ADD COLUMN IF NOT EXISTS deleted_by INTEGER;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_source TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_external_ref TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_needs_review BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_inactive BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_licenses_import_source
   ON licenses (import_source)

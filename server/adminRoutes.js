@@ -172,6 +172,7 @@ adminRouter.get('/licenses', async (req, res) => {
     offset = 0,
     status: statusQ,
     importSource: importSourceQ,
+    importRegistryInactive: importRegistryInactiveQ,
     needsReview: needsReviewQ,
     q: searchQ,
   } = req.query;
@@ -181,12 +182,7 @@ adminRouter.get('/licenses', async (req, res) => {
     statusStr === 'pending' || statusStr === 'approved' || statusStr === 'rejected' ? statusStr : null;
 
   const importSourceStr = String(importSourceQ ?? '').trim();
-  const importSourceFilter =
-    importSourceStr === 'any'
-      ? 'not_null'
-      : importSourceStr.length > 0
-        ? importSourceStr
-        : null;
+  const registryInactiveOnly = String(importRegistryInactiveQ ?? '').toLowerCase() === 'true';
 
   const needsReviewFilter = String(needsReviewQ ?? '').toLowerCase() === 'true';
 
@@ -200,11 +196,18 @@ adminRouter.get('/licenses', async (req, res) => {
     whereParts.push(`status = $${pi++}`);
     countParams.push(statusFilter);
   }
-  if (importSourceFilter === 'not_null') {
+  if (importSourceStr === 'any') {
     whereParts.push('import_source IS NOT NULL');
-  } else if (importSourceFilter) {
+  } else if (importSourceStr === 'manual') {
+    whereParts.push('import_source IS NULL');
+  } else if (importSourceStr.length > 0) {
     whereParts.push(`import_source = $${pi++}`);
-    countParams.push(importSourceFilter);
+    countParams.push(importSourceStr);
+  }
+  if (registryInactiveOnly) {
+    whereParts.push('import_registry_inactive = TRUE');
+    whereParts.push(`import_source = $${pi++}`);
+    countParams.push('rpn_registry');
   }
   if (needsReviewFilter) {
     whereParts.push('import_needs_review = TRUE');
@@ -251,7 +254,8 @@ adminRouter.get('/licenses', async (req, res) => {
             created_at AS "createdAt",
             import_source AS "importSource",
             import_external_ref AS "importExternalRef",
-            import_needs_review AS "importNeedsReview"
+            import_needs_review AS "importNeedsReview",
+            import_registry_inactive AS "importRegistryInactive"
      FROM licenses
      ${whereSql}
      ORDER BY created_at DESC

@@ -5,7 +5,8 @@
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --dry-run
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --geocode
- *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --include-inactive
+ *
+ *   (Флаг --include-inactive устарел: неактивные по реестру импортируются по умолчанию и помечаются в БД.)
  *
  * Большие файлы: увеличьте лимит памяти Node, например:
  *   set NODE_OPTIONS=--max-old-space-size=8192
@@ -132,10 +133,10 @@ async function geocodeAddressYandex(address, apiKey) {
 
 /**
  * @param {unknown} entry
- * @param {{ includeInactive: boolean }} opts
  * @returns {null | {
  *   companyName: string,
  *   inn: string | null,
+ *   registryInactive: boolean,
  *   externalRef: string,
  *   sites: Array<{
  *     address: string | null,
@@ -149,10 +150,10 @@ async function geocodeAddressYandex(address, apiKey) {
  *   }>,
  * }}
  */
-function mapRegistryEntryToSites(entry, opts) {
+function mapRegistryEntryToSites(entry) {
   if (!entry || typeof entry !== 'object') return null;
-  const status = String(entry.status ?? '').toLowerCase();
-  if (!opts.includeInactive && status && status !== 'active') return null;
+  const statusRaw = String(entry.status ?? '').toLowerCase();
+  const registryInactive = Boolean(statusRaw && statusRaw !== 'active');
 
   const org = entry.subject?.data?.organization;
   if (!org || typeof org !== 'object') return null;
@@ -222,6 +223,7 @@ function mapRegistryEntryToSites(entry, opts) {
     companyName,
     inn: innRaw,
     innNorm,
+    registryInactive,
     externalRef,
     sites,
     primaryAddr,
@@ -278,11 +280,11 @@ async function insertLicenseBundle(client, payload, opts) {
       (company_name, inn, address, region, lat, lng, fkko_codes, activity_types,
        status, reward, owner_user_id, moderated_at, moderated_comment,
        file_original_name, file_stored_name,
-       import_source, import_external_ref, import_needs_review)
+       import_source, import_external_ref, import_needs_review, import_registry_inactive)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
        'approved', 100, NULL, NOW(), $9,
        NULL, NULL,
-       $10, $11, TRUE)
+       $10, $11, TRUE, $12)
      RETURNING id`,
     [
       payload.companyName,
@@ -296,6 +298,7 @@ async function insertLicenseBundle(client, payload, opts) {
       moderatedComment,
       IMPORT_SOURCE,
       payload.externalRef,
+      Boolean(payload.registryInactive),
     ],
   );
 
@@ -367,6 +370,12 @@ async function main() {
   const flat = flattenRootDocuments(root);
   console.log('Записей content (всего):', flat.length);
 
+  if (includeInactive) {
+    console.warn(
+      'Параметр --include-inactive устарел: неактивные записи реестра импортируются по умолчанию (import_registry_inactive).',
+    );
+  }
+
   const yandexKey = String(process.env.YANDEX_GEOCODER_API_KEY ?? '').trim();
   if (geocode && !yandexKey) {
     console.warn('Предупреждение: --geocode без YANDEX_GEOCODER_API_KEY — координаты не заполняются.');
@@ -385,7 +394,7 @@ async function main() {
   const innExpr = LICENSE_INN_NORMALIZED_EXPR;
 
   for (const entry of flat) {
-    const payload = mapRegistryEntryToSites(entry, { includeInactive });
+    const payload = mapRegistryEntryToSites(entry);
     if (!payload) {
       stats.skippedNoData += 1;
       continue;

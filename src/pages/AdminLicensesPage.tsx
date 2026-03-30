@@ -11,7 +11,13 @@ function getApiUrl(path: string): string {
   return base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
 }
 
-type AdminImportListFilter = 'all' | 'rpn_registry' | 'registry_any' | 'needs_review';
+type AdminImportListFilter =
+  | 'all'
+  | 'rpn_registry'
+  | 'registry_any'
+  | 'manual'
+  | 'registry_inactive'
+  | 'needs_review';
 
 interface LicenseItem {
   id: number;
@@ -29,6 +35,7 @@ interface LicenseItem {
   importSource?: string | null;
   importExternalRef?: string | null;
   importNeedsReview?: boolean;
+  importRegistryInactive?: boolean;
 }
 
 interface DuplicateLicenseRow {
@@ -128,6 +135,8 @@ export default function AdminLicensesPage(): JSX.Element {
     qs.set('offset', String(offset));
     if (importListFilter === 'rpn_registry') qs.set('importSource', 'rpn_registry');
     if (importListFilter === 'registry_any') qs.set('importSource', 'any');
+    if (importListFilter === 'manual') qs.set('importSource', 'manual');
+    if (importListFilter === 'registry_inactive') qs.set('importRegistryInactive', 'true');
     if (importListFilter === 'needs_review') qs.set('needsReview', 'true');
     if (listSearchQ) qs.set('q', listSearchQ);
     const res = await fetch(getApiUrl(`/api/admin/licenses?${qs}`), {
@@ -704,8 +713,10 @@ export default function AdminLicensesPage(): JSX.Element {
             onChange={(e) => setImportListFilter(e.target.value as AdminImportListFilter)}
           >
             <option value="all">Все записи</option>
-            <option value="rpn_registry">Импорт: реестр РПН (rpn_registry)</option>
+            <option value="rpn_registry">Импорт через парсер (реестр РПН)</option>
+            <option value="manual">Загрузка лицензии с сайта (PDF)</option>
             <option value="registry_any">Любой импорт из реестра</option>
+            <option value="registry_inactive">Неактивные в реестре</option>
             <option value="needs_review">Нужна перепроверка (импорт)</option>
           </select>
         </div>
@@ -740,6 +751,9 @@ export default function AdminLicensesPage(): JSX.Element {
                       >
                         Реестр
                       </span>
+                      {lic.importRegistryInactive ? (
+                        <div className="text-[11px] text-rose-800 font-medium">Неактивна (реестр)</div>
+                      ) : null}
                       {lic.importNeedsReview ? (
                         <div className="text-[11px] text-amber-800 font-medium">На перепроверку</div>
                       ) : null}

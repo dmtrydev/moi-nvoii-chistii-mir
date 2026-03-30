@@ -25,7 +25,8 @@ export async function fetchLicenseExtendedJson(client, id) {
             created_at AS "createdAt",
             import_source AS "importSource",
             import_external_ref AS "importExternalRef",
-            import_needs_review AS "importNeedsReview"
+            import_needs_review AS "importNeedsReview",
+            import_registry_inactive AS "importRegistryInactive"
      FROM licenses
      WHERE id = $1
        AND deleted_at IS NULL

@@ -982,12 +982,22 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                 </section>
               )}
 
-              {(item?.status || item?.reward || item?.rejectionNote || item?.fileStoredName) && (
+              {(item?.status ||
+                item?.reward ||
+                item?.rejectionNote ||
+                item?.fileStoredName ||
+                item?.importSource) && (
                 <section className="mt-10 rounded-2xl bg-app-bg p-6 sm:p-7 shadow-sm">
                   <h2 className="text-lg font-semibold text-ink">Модерация и документ</h2>
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-sm text-ink-muted">
+                      {item.importSource === 'rpn_registry' && item.importRegistryInactive ? (
+                        <div className="mb-3 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-amber-950 text-sm leading-snug">
+                          В реестре Росприроднадзора эта лицензия помечена как неактивная. Объект скрыт с публичной
+                          карты и из поиска по базе.
+                        </div>
+                      ) : null}
                       {item.status ? (
                         <>
                           Статус:{' '}

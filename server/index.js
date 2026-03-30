@@ -1265,6 +1265,7 @@ app.get('/api/license-sites', async (req, res) => {
       JOIN site_fkko_activities sfa ON sfa.site_id = s.id
       WHERE l.deleted_at IS NULL
         AND l.status = 'approved'
+        AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1)
         AND sfa.fkko_code = $2
         AND sfa.activity_type = ANY($3::text[])
@@ -1403,6 +1404,7 @@ app.get('/api/search/enterprises', async (req, res) => {
     const conditions = [
       "l.deleted_at IS NULL",
       "l.status = 'approved'",
+      "(l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)",
     ];
     const params = [];
     let idx = 1;
@@ -1482,6 +1484,7 @@ app.get('/api/licenses', async (req, res) => {
       JOIN site_fkko_activities sfa ON sfa.site_id = s.id
       WHERE l.deleted_at IS NULL
         AND l.status = 'approved'
+        AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1 OR l.region = $1)
         AND sfa.fkko_code = $2
         AND sfa.activity_type = ANY($3::text[])
@@ -1612,7 +1615,8 @@ app.get('/api/licenses/:id/extended', requireAuth, async (req, res) => {
               created_at AS "createdAt",
               import_source AS "importSource",
               import_external_ref AS "importExternalRef",
-              import_needs_review AS "importNeedsReview"
+              import_needs_review AS "importNeedsReview",
+              import_registry_inactive AS "importRegistryInactive"
        FROM licenses
        WHERE id = $1
          AND deleted_at IS NULL
@@ -1763,6 +1767,7 @@ app.get('/api/filters/fkko', async (_req, res) => {
        JOIN license_sites s ON s.id = sfa.site_id
        JOIN licenses l ON l.id = s.license_id
        WHERE l.deleted_at IS NULL AND l.status = 'approved'
+         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
        ORDER BY code ASC`,
       []
     );
@@ -1784,6 +1789,7 @@ app.get('/api/filters/activity-types', async (req, res) => {
              JOIN license_sites s ON s.id = sfa.site_id
              JOIN licenses l ON l.id = s.license_id
              WHERE l.deleted_at IS NULL AND l.status = 'approved'
+               AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
                AND sfa.fkko_code = $1
              ORDER BY activity ASC`;
       params = [fkko];
@@ -1793,6 +1799,7 @@ app.get('/api/filters/activity-types', async (req, res) => {
              JOIN license_sites s ON s.id = sfa.site_id
              JOIN licenses l ON l.id = s.license_id
              WHERE l.deleted_at IS NULL AND l.status = 'approved'
+               AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
              ORDER BY activity ASC`;
       params = [];
     }
