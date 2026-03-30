@@ -19,8 +19,6 @@ import { normalizeInn, LICENSE_INN_NORMALIZED_EXPR } from '../innUtils.js';
 import { normalizeFkkoCode } from '../fkkoServer.js';
 import { aggregateFkkoAndActivityFromSites } from '../licensePayloadNormalize.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const IMPORT_SOURCE = 'rpn_registry';
 
 /** Соответствие флагов XSD и подписей в UI (EnterpriseActivityStrip). */
