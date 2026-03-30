@@ -11,6 +11,8 @@ function getApiUrl(path: string): string {
   return base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
 }
 
+type AdminImportListFilter = 'all' | 'rpn_registry' | 'registry_any' | 'needs_review';
+
 interface LicenseItem {
   id: number;
   companyName: string;
@@ -24,6 +26,9 @@ interface LicenseItem {
   rejectionNote: string | null;
   deletedAt: string | null;
   createdAt: string;
+  importSource?: string | null;
+  importExternalRef?: string | null;
+  importNeedsReview?: boolean;
 }
 
 interface DuplicateLicenseRow {
@@ -70,6 +75,7 @@ export default function AdminLicensesPage(): JSX.Element {
 
   const [batchAiRunning, setBatchAiRunning] = useState(false);
   const [batchAiStatus, setBatchAiStatus] = useState('');
+  const [importListFilter, setImportListFilter] = useState<AdminImportListFilter>('all');
 
   async function fetchStats(): Promise<void> {
     const res = await fetch(getApiUrl('/api/admin/licenses/stats'), {
@@ -108,13 +114,16 @@ export default function AdminLicensesPage(): JSX.Element {
 
   async function fetchTablePage(forPage: number): Promise<void> {
     const offset = (forPage - 1) * PAGE_SIZE;
-    const res = await fetch(
-      getApiUrl(`/api/admin/licenses?limit=${PAGE_SIZE}&offset=${offset}`),
-      {
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
-        credentials: 'include',
-      },
-    );
+    const qs = new URLSearchParams();
+    qs.set('limit', String(PAGE_SIZE));
+    qs.set('offset', String(offset));
+    if (importListFilter === 'rpn_registry') qs.set('importSource', 'rpn_registry');
+    if (importListFilter === 'registry_any') qs.set('importSource', 'any');
+    if (importListFilter === 'needs_review') qs.set('needsReview', 'true');
+    const res = await fetch(getApiUrl(`/api/admin/licenses?${qs}`), {
+      headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+      credentials: 'include',
+    });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки объектов');
@@ -132,7 +141,7 @@ export default function AdminLicensesPage(): JSX.Element {
 
   useLayoutEffect(() => {
     setPage(1);
-  }, [accessToken]);
+  }, [accessToken, importListFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +160,7 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, page]);
+  }, [accessToken, page, importListFilter]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
@@ -351,6 +360,23 @@ export default function AdminLicensesPage(): JSX.Element {
       setBatchAiStatus('');
       setBatchAiRunning(false);
       await reload();
+    }
+  }
+
+  async function handleMarkImportReviewed(id: number): Promise<void> {
+    try {
+      const res = await fetch(getApiUrl(`/api/admin/licenses/${id}/import-mark-reviewed`), {
+        method: 'POST',
+        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((body as { message?: string }).message ?? 'Ошибка');
+      }
+      await reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка');
     }
   }
 
@@ -642,6 +668,19 @@ export default function AdminLicensesPage(): JSX.Element {
 
       {loading && <div className="glass-panel p-4 text-slate-600 text-sm">Загрузка...</div>}
       {error && <div className="glass-panel p-4 text-red-600 text-sm">{error}</div>}
+      <div className="glass-panel p-4 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
+        <span className="text-ink-muted shrink-0">Список объектов:</span>
+        <select
+          className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
+          value={importListFilter}
+          onChange={(e) => setImportListFilter(e.target.value as AdminImportListFilter)}
+        >
+          <option value="all">Все записи</option>
+          <option value="rpn_registry">Импорт: реестр РПН (rpn_registry)</option>
+          <option value="registry_any">Любой импорт из реестра</option>
+          <option value="needs_review">Нужна перепроверка (импорт)</option>
+        </select>
+      </div>
       <div className="glass-table-wrap">
         <table className="glass-table">
           <thead>
@@ -649,6 +688,7 @@ export default function AdminLicensesPage(): JSX.Element {
               <th className="px-3 py-2 text-left">ID</th>
               <th className="px-3 py-2 text-left">Организация</th>
               <th className="px-3 py-2 text-left">ИНН</th>
+              <th className="px-3 py-2 text-left">Источник</th>
               <th className="px-3 py-2 text-left">Статус</th>
               <th className="px-3 py-2 text-left">Награда</th>
               <th className="px-3 py-2 text-left">Создан</th>
@@ -662,6 +702,28 @@ export default function AdminLicensesPage(): JSX.Element {
                 <td className="px-3 py-1.5">{lic.id}</td>
                 <td className="px-3 py-1.5">{lic.companyName}</td>
                 <td className="px-3 py-1.5">{lic.inn ?? '—'}</td>
+                <td className="px-3 py-1.5 align-top">
+                  {lic.importSource ? (
+                    <div className="space-y-1">
+                      <span
+                        className="inline-flex px-2 py-0.5 rounded-lg bg-sky-100 text-sky-950 text-[11px] font-semibold"
+                        title={lic.importExternalRef ?? ''}
+                      >
+                        Реестр
+                      </span>
+                      {lic.importNeedsReview ? (
+                        <div className="text-[11px] text-amber-800 font-medium">На перепроверку</div>
+                      ) : null}
+                      {lic.importExternalRef ? (
+                        <div className="text-[10px] text-ink-muted break-all max-w-[140px]">
+                          {lic.importExternalRef}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className="px-3 py-1.5">
                   {lic.status === 'approved' ? 'Одобрено' : lic.status === 'rejected' ? 'Отклонено' : 'На проверке'}
                   {lic.status === 'rejected' && lic.rejectionNote ? (
@@ -702,6 +764,18 @@ export default function AdminLicensesPage(): JSX.Element {
                       >
                         Удалить
                       </button>
+                      {lic.importSource && lic.importNeedsReview ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleMarkImportReviewed(lic.id);
+                          }}
+                          className="glass-btn-soft !h-8 !text-[11px]"
+                          title="Снять пометку «нужна перепроверка»"
+                        >
+                          Проверено
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </td>

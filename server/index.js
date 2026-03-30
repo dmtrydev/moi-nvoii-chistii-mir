@@ -1609,7 +1609,10 @@ app.get('/api/licenses/:id/extended', requireAuth, async (req, res) => {
               moderated_comment AS "moderatedComment",
               file_original_name AS "fileOriginalName",
               file_stored_name AS "fileStoredName",
-              created_at AS "createdAt"
+              created_at AS "createdAt",
+              import_source AS "importSource",
+              import_external_ref AS "importExternalRef",
+              import_needs_review AS "importNeedsReview"
        FROM licenses
        WHERE id = $1
          AND deleted_at IS NULL

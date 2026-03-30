@@ -112,6 +112,10 @@ export interface LicenseData {
   // Оригинальный PDF пользователя (для скачивания администратором)
   fileOriginalName?: string | null;
   fileStoredName?: string | null;
+  /** Импорт из внешнего реестра (например rpn_registry); null — ручная загрузка */
+  importSource?: string | null;
+  importExternalRef?: string | null;
+  importNeedsReview?: boolean;
   /** Установлено /api/analyze-license при переданном Bearer, если ИНН уже есть в БД */
   innAlreadyRegistered?: boolean;
   /** Точные цитаты из документа для подсветки при фокусе на поле */

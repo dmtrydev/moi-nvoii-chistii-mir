@@ -112,11 +112,28 @@ adminRouter.get('/licenses/stats', async (_req, res) => {
 
 // Админский список лицензий (для управления объектами)
 adminRouter.get('/licenses', async (req, res) => {
-  const { includeDeleted = 'false', limit = 50, offset = 0, status: statusQ } = req.query;
+  const {
+    includeDeleted = 'false',
+    limit = 50,
+    offset = 0,
+    status: statusQ,
+    importSource: importSourceQ,
+    needsReview: needsReviewQ,
+  } = req.query;
   const showDeleted = String(includeDeleted).toLowerCase() === 'true';
   const statusStr = String(statusQ ?? '').toLowerCase();
   const statusFilter =
     statusStr === 'pending' || statusStr === 'approved' || statusStr === 'rejected' ? statusStr : null;
+
+  const importSourceStr = String(importSourceQ ?? '').trim();
+  const importSourceFilter =
+    importSourceStr === 'any'
+      ? 'not_null'
+      : importSourceStr.length > 0
+        ? importSourceStr
+        : null;
+
+  const needsReviewFilter = String(needsReviewQ ?? '').toLowerCase() === 'true';
 
   const whereParts = [];
   const countParams = [];
@@ -127,6 +144,15 @@ adminRouter.get('/licenses', async (req, res) => {
   if (statusFilter) {
     whereParts.push(`status = $${pi++}`);
     countParams.push(statusFilter);
+  }
+  if (importSourceFilter === 'not_null') {
+    whereParts.push('import_source IS NOT NULL');
+  } else if (importSourceFilter) {
+    whereParts.push(`import_source = $${pi++}`);
+    countParams.push(importSourceFilter);
+  }
+  if (needsReviewFilter) {
+    whereParts.push('import_needs_review = TRUE');
   }
   const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
@@ -159,7 +185,10 @@ adminRouter.get('/licenses', async (req, res) => {
             owner_user_id AS "ownerUserId",
             deleted_at AS "deletedAt",
             deleted_by AS "deletedBy",
-            created_at AS "createdAt"
+            created_at AS "createdAt",
+            import_source AS "importSource",
+            import_external_ref AS "importExternalRef",
+            import_needs_review AS "importNeedsReview"
      FROM licenses
      ${whereSql}
      ORDER BY created_at DESC
@@ -532,6 +561,41 @@ adminRouter.post('/licenses/batch-ai-approve', async (req, res) => {
   } catch (err) {
     console.error('batch-ai-approve:', err);
     return res.status(500).json({ message: 'Ошибка пакетной модерации' });
+  }
+});
+
+/** Снять флаг «нужна перепроверка» у записи, импортированной из внешнего реестра. */
+adminRouter.post('/licenses/:id/import-mark-reviewed', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ message: 'Некорректный id' });
+  }
+  try {
+    const { rows } = await query(
+      `UPDATE licenses
+       SET import_needs_review = FALSE
+       WHERE id = $1
+         AND deleted_at IS NULL
+         AND import_source IS NOT NULL
+       RETURNING id`,
+      [id],
+    );
+    if (!rows.length) {
+      return res.status(404).json({
+        message: 'Объект не найден, удалён или не является импортом из реестра',
+      });
+    }
+    await createAuditLog({
+      req,
+      action: 'LICENSE_IMPORT_MARK_REVIEWED',
+      entityType: 'LICENSE',
+      entityId: String(id),
+      severity: 'INFO',
+    });
+    return res.json({ ok: true, id: rows[0].id });
+  } catch (err) {
+    console.error('import-mark-reviewed:', err);
+    return res.status(500).json({ message: 'Ошибка обновления' });
   }
 });
 
