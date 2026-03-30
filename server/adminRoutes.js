@@ -16,6 +16,60 @@ import { runBatchAiApproveChunk } from './moderationBatch.js';
 
 const adminRouter = express.Router();
 
+const MAX_ADMIN_SEARCH_TOKENS = 12;
+const MAX_ADMIN_SEARCH_TOKEN_LEN = 80;
+
+function tokenizeAdminLicenseSearch(q) {
+  const s = String(q ?? '').trim();
+  if (!s) return [];
+  return s
+    .split(/\s+/u)
+    .map((t) => t.slice(0, MAX_ADMIN_SEARCH_TOKEN_LEN).toLowerCase())
+    .filter(Boolean)
+    .slice(0, MAX_ADMIN_SEARCH_TOKENS);
+}
+
+/** Подстрока безопасна для POSITION: без wildcard как у ILIKE */
+function sqlAdminLicenseTokenClause(paramPlaceholder) {
+  return `(
+    position(${paramPlaceholder} in lower(coalesce(company_name, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(inn, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(address, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(region, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(import_external_ref, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(import_source, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(file_original_name, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(file_stored_name, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(moderated_comment, ''))) > 0
+    OR position(${paramPlaceholder} in lower(coalesce(rejection_note, ''))) > 0
+    OR position(${paramPlaceholder} in lower(cast(id as text))) > 0
+    OR position(${paramPlaceholder} in lower(array_to_string(fkko_codes, ' '))) > 0
+    OR position(${paramPlaceholder} in lower(array_to_string(activity_types, ' '))) > 0
+    OR exists (
+      select 1 from license_sites s
+      where s.license_id = licenses.id
+        and (
+          position(${paramPlaceholder} in lower(coalesce(s.address, ''))) > 0
+          or position(${paramPlaceholder} in lower(coalesce(s.region, ''))) > 0
+          or position(${paramPlaceholder} in lower(coalesce(s.site_label, ''))) > 0
+          or position(${paramPlaceholder} in lower(array_to_string(s.fkko_codes, ' '))) > 0
+          or position(${paramPlaceholder} in lower(array_to_string(s.activity_types, ' '))) > 0
+        )
+    )
+    OR exists (
+      select 1 from license_sites s
+      inner join site_fkko_activities sfa on sfa.site_id = s.id
+      where s.license_id = licenses.id
+        and (
+          position(${paramPlaceholder} in lower(sfa.fkko_code)) > 0
+          or position(${paramPlaceholder} in lower(coalesce(sfa.waste_name, ''))) > 0
+          or position(${paramPlaceholder} in lower(coalesce(sfa.activity_type, ''))) > 0
+          or position(${paramPlaceholder} in lower(coalesce(sfa.hazard_class, ''))) > 0
+        )
+    )
+  )`;
+}
+
 adminRouter.use(requireRole('SUPERADMIN'));
 
 adminRouter.get('/stats/summary', async (req, res) => {
@@ -119,6 +173,7 @@ adminRouter.get('/licenses', async (req, res) => {
     status: statusQ,
     importSource: importSourceQ,
     needsReview: needsReviewQ,
+    q: searchQ,
   } = req.query;
   const showDeleted = String(includeDeleted).toLowerCase() === 'true';
   const statusStr = String(statusQ ?? '').toLowerCase();
@@ -154,6 +209,14 @@ adminRouter.get('/licenses', async (req, res) => {
   if (needsReviewFilter) {
     whereParts.push('import_needs_review = TRUE');
   }
+
+  const searchTokens = tokenizeAdminLicenseSearch(searchQ);
+  for (const tok of searchTokens) {
+    const ph = `$${pi++}`;
+    whereParts.push(sqlAdminLicenseTokenClause(ph));
+    countParams.push(tok);
+  }
+
   const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
   const { rows: countRows } = await query(

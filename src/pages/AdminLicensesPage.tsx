@@ -76,6 +76,15 @@ export default function AdminLicensesPage(): JSX.Element {
   const [batchAiRunning, setBatchAiRunning] = useState(false);
   const [batchAiStatus, setBatchAiStatus] = useState('');
   const [importListFilter, setImportListFilter] = useState<AdminImportListFilter>('all');
+  const [listSearchInput, setListSearchInput] = useState('');
+  const [listSearchQ, setListSearchQ] = useState('');
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setListSearchQ(listSearchInput.trim());
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [listSearchInput]);
 
   async function fetchStats(): Promise<void> {
     const res = await fetch(getApiUrl('/api/admin/licenses/stats'), {
@@ -120,6 +129,7 @@ export default function AdminLicensesPage(): JSX.Element {
     if (importListFilter === 'rpn_registry') qs.set('importSource', 'rpn_registry');
     if (importListFilter === 'registry_any') qs.set('importSource', 'any');
     if (importListFilter === 'needs_review') qs.set('needsReview', 'true');
+    if (listSearchQ) qs.set('q', listSearchQ);
     const res = await fetch(getApiUrl(`/api/admin/licenses?${qs}`), {
       headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
       credentials: 'include',
@@ -141,7 +151,7 @@ export default function AdminLicensesPage(): JSX.Element {
 
   useLayoutEffect(() => {
     setPage(1);
-  }, [accessToken, importListFilter]);
+  }, [accessToken, importListFilter, listSearchQ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,7 +170,7 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, page, importListFilter]);
+  }, [accessToken, page, importListFilter, listSearchQ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
@@ -668,18 +678,37 @@ export default function AdminLicensesPage(): JSX.Element {
 
       {loading && <div className="glass-panel p-4 text-slate-600 text-sm">Загрузка...</div>}
       {error && <div className="glass-panel p-4 text-red-600 text-sm">{error}</div>}
-      <div className="glass-panel p-4 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
-        <span className="text-ink-muted shrink-0">Список объектов:</span>
-        <select
-          className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
-          value={importListFilter}
-          onChange={(e) => setImportListFilter(e.target.value as AdminImportListFilter)}
-        >
-          <option value="all">Все записи</option>
-          <option value="rpn_registry">Импорт: реестр РПН (rpn_registry)</option>
-          <option value="registry_any">Любой импорт из реестра</option>
-          <option value="needs_review">Нужна перепроверка (импорт)</option>
-        </select>
+      <div className="glass-panel p-4 flex flex-col gap-3 text-sm">
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+            Поиск по базе
+          </label>
+          <input
+            type="search"
+            value={listSearchInput}
+            onChange={(e) => setListSearchInput(e.target.value)}
+            placeholder="Слова, ИНН, ID, ФККО, адрес, регион, номер лицензии..."
+            className="w-full max-w-2xl rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm text-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-[#5fd93a]/35"
+            autoComplete="off"
+          />
+          <p className="text-xs text-ink-muted max-w-2xl">
+            Несколько слов через пробел — должны встречаться все одновременно (в названии, ИНН, адресах площадок,
+            кодах ФККО, видах работ, комментариях и т.д.). Регистр не важен.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+          <span className="text-ink-muted shrink-0">Список объектов:</span>
+          <select
+            className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
+            value={importListFilter}
+            onChange={(e) => setImportListFilter(e.target.value as AdminImportListFilter)}
+          >
+            <option value="all">Все записи</option>
+            <option value="rpn_registry">Импорт: реестр РПН (rpn_registry)</option>
+            <option value="registry_any">Любой импорт из реестра</option>
+            <option value="needs_review">Нужна перепроверка (импорт)</option>
+          </select>
+        </div>
       </div>
       <div className="glass-table-wrap">
         <table className="glass-table">
