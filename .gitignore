@@ -37,3 +37,8 @@ dist-ssr
 
 # TypeScript
 *.tsbuildinfo
+
+# Крупные выгрузки реестра (GitHub лимит 100 MB) — заливать на VPS отдельно
+licenses.json
+*.json.bak
+server/data/*.json
