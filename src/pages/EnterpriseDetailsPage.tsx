@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { LicenseData } from '@/types';
+import type { FkkoEntry, LicenseData, LicenseSiteData } from '@/types';
 import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { useAuth } from '@/contexts/useAuth';
@@ -27,6 +27,92 @@ function hazardClassesFromFkko(codes: string[]): string[] {
   return [...set].sort((a, b) => Number(a) - Number(b));
 }
 
+function cloneForEdit(data: LicenseData): LicenseData {
+  return JSON.parse(JSON.stringify(data)) as LicenseData;
+}
+
+/** Площадки без записей ФККО разворачиваем в строки для удобного редактирования. */
+function ensureDraftSites(d: LicenseData): LicenseData {
+  const copy = cloneForEdit(d);
+  if (!copy.sites || copy.sites.length === 0) {
+    copy.sites = [
+      {
+        address: copy.address || '',
+        region: copy.region ?? null,
+        siteLabel: 'Основная площадка',
+        lat: copy.lat ?? null,
+        lng: copy.lng ?? null,
+        fkkoCodes: [...(copy.fkkoCodes || [])],
+        activityTypes: [...(copy.activityTypes || [])],
+        entries: [],
+      },
+    ];
+  }
+  copy.sites = copy.sites.map((s) => {
+    if (s.entries && s.entries.length > 0) return { ...s };
+    const fc = s.fkkoCodes || [];
+    const at = s.activityTypes || [];
+    if (fc.length > 0) {
+      return {
+        ...s,
+        entries: fc.map((code) => ({
+          fkkoCode: code,
+          wasteName: undefined,
+          hazardClass: undefined,
+          activityTypes: [...at],
+        })),
+      };
+    }
+    return {
+      ...s,
+      entries: [{ fkkoCode: '', wasteName: undefined, hazardClass: undefined, activityTypes: [''] }],
+    };
+  });
+  return copy;
+}
+
+function buildPatchBody(d: LicenseData): Record<string, unknown> {
+  const sitePayloads = (d.sites ?? []).map((s) => {
+    const base: Record<string, unknown> = {
+      siteLabel: s.siteLabel ?? null,
+      address: s.address ?? '',
+      region: s.region ?? null,
+      lat: s.lat ?? null,
+      lng: s.lng ?? null,
+    };
+    if (typeof s.id === 'number' && s.id > 0) {
+      base.id = s.id;
+    }
+    if (s.entries && s.entries.length > 0) {
+      base.entries = s.entries.map((e) => ({
+        fkkoCode: e.fkkoCode,
+        wasteName: e.wasteName ?? null,
+        hazardClass: e.hazardClass ?? null,
+        activityTypes: e.activityTypes,
+      }));
+    } else {
+      base.fkkoCodes = s.fkkoCodes ?? [];
+      base.activityTypes = s.activityTypes ?? [];
+    }
+    return base;
+  });
+
+  return {
+    companyName: d.companyName,
+    inn: d.inn,
+    address: d.address ?? '',
+    region: d.region ?? '',
+    lat: d.lat ?? null,
+    lng: d.lng ?? null,
+    fkkoCodes: d.fkkoCodes ?? [],
+    activityTypes: d.activityTypes ?? [],
+    sites: sitePayloads,
+  };
+}
+
+const inputClass =
+  'mt-1 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-[#5fd93a]/40';
+
 type DetailTab = 'about' | 'fkko';
 
 export default function EnterpriseDetailsPage(): JSX.Element {
@@ -35,6 +121,10 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<DetailTab>('about');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<LicenseData | null>(null);
+  const [patchLoading, setPatchLoading] = useState(false);
+  const [patchError, setPatchError] = useState('');
   const { accessToken, user } = useAuth();
 
   useEffect(() => {
@@ -81,28 +171,34 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     };
   }, [id, accessToken]);
 
+  const isAdmin = user?.role === 'SUPERADMIN';
+  const display = isAdmin && editing && draft ? draft : item;
+
   const mapPath = useMemo(() => {
-    if (!item?.id) return '/map';
+    const src = display;
+    if (!src?.id) return '/map';
     const params = new URLSearchParams();
-    const firstFkko = Array.isArray(item.fkkoCodes) && item.fkkoCodes.length > 0 ? item.fkkoCodes[0] : '';
-    const activities = Array.isArray(item.activityTypes) ? item.activityTypes.join(', ') : '';
+    const firstFkko = Array.isArray(src.fkkoCodes) && src.fkkoCodes.length > 0 ? src.fkkoCodes[0] : '';
+    const activities = Array.isArray(src.activityTypes) ? src.activityTypes.join(', ') : '';
     if (firstFkko) params.set('fkko', firstFkko);
     if (activities) params.set('vid', activities);
-    const sites = Array.isArray(item.sites) ? item.sites : [];
-    const firstSiteId = sites.length > 0 && typeof sites[0].id === 'number' ? sites[0].id : null;
+    const sitesList = Array.isArray(src.sites) ? src.sites : [];
+    const firstSiteId = sitesList.length > 0 && typeof sitesList[0].id === 'number' ? sitesList[0].id : null;
     if (firstSiteId != null) params.set('focusSite', String(firstSiteId));
     return `/map?${params.toString()}`;
-  }, [item]);
+  }, [display]);
 
-  const fkkoCodes = useMemo(() => (Array.isArray(item?.fkkoCodes) ? item.fkkoCodes : []), [item?.fkkoCodes]);
+  const fkkoCodes = useMemo(
+    () => (Array.isArray(display?.fkkoCodes) ? display.fkkoCodes : []),
+    [display?.fkkoCodes],
+  );
   const hazardClasses = useMemo(() => hazardClassesFromFkko(fkkoCodes), [fkkoCodes]);
   const activityList =
-    Array.isArray(item?.activityTypes) && item.activityTypes.length > 0
-      ? item.activityTypes.join(', ')
+    Array.isArray(display?.activityTypes) && display.activityTypes.length > 0
+      ? display.activityTypes.join(', ')
       : 'не указаны';
-  const sites = Array.isArray(item?.sites) ? item.sites : [];
+  const sites = Array.isArray(display?.sites) ? display.sites : [];
 
-  const isAdmin = user?.role === 'SUPERADMIN';
   const isOwner = user && item?.ownerUserId != null && Number(item.ownerUserId) === user.id;
 
   async function downloadPdf(): Promise<void> {
@@ -155,6 +251,56 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     window.location.reload();
   }
 
+  async function saveDraft(): Promise<void> {
+    if (!accessToken || !draft?.id) return;
+    setPatchLoading(true);
+    setPatchError('');
+    try {
+      const res = await fetch(getApiUrl(`/api/admin/licenses/${draft.id}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify(buildPatchBody(draft)),
+      });
+      const body = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(body?.message || `Ошибка ${res.status}`);
+      setItem(body as LicenseData);
+      setEditing(false);
+      setDraft(null);
+    } catch (e) {
+      setPatchError(e instanceof Error ? e.message : 'Ошибка сохранения');
+    } finally {
+      setPatchLoading(false);
+    }
+  }
+
+  function setDraftSite(siteIdx: number, patch: Partial<LicenseSiteData>): void {
+    setDraft((prev) => {
+      if (!prev?.sites) return prev;
+      const next = { ...prev, sites: [...prev.sites] };
+      const cur = next.sites[siteIdx];
+      if (!cur) return prev;
+      next.sites[siteIdx] = { ...cur, ...patch };
+      return next;
+    });
+  }
+
+  function setDraftEntry(siteIdx: number, entryIdx: number, patch: Partial<FkkoEntry>): void {
+    setDraft((prev) => {
+      if (!prev?.sites?.[siteIdx]?.entries) return prev;
+      const next = { ...prev, sites: [...prev.sites] };
+      const site = { ...next.sites[siteIdx], entries: [...(next.sites[siteIdx].entries ?? [])] };
+      const ent = site.entries[entryIdx];
+      if (!ent) return prev;
+      site.entries[entryIdx] = { ...ent, ...patch };
+      next.sites[siteIdx] = site;
+      return next;
+    });
+  }
+
   return (
     <div className="min-h-screen glass-bg text-ink page-enter">
       <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-10 pb-14">
@@ -171,10 +317,52 @@ export default function EnterpriseDetailsPage(): JSX.Element {
           >
             Показать на карте
           </Link>
+          {isAdmin && !editing ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!item) return;
+                setTab('about');
+                setDraft(ensureDraftSites(cloneForEdit(item)));
+                setPatchError('');
+                setEditing(true);
+              }}
+              className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold border border-black/[0.08] bg-white/80 text-ink hover:bg-white transition-colors shadow-sm"
+            >
+              Редактировать карточку
+            </button>
+          ) : null}
+          {isAdmin && editing && draft ? (
+            <>
+              <button
+                type="button"
+                disabled={patchLoading}
+                onClick={() => {
+                  void saveDraft();
+                }}
+                className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 shadow-sm"
+              >
+                {patchLoading ? 'Сохранение…' : 'Сохранить'}
+              </button>
+              <button
+                type="button"
+                disabled={patchLoading}
+                onClick={() => {
+                  setEditing(false);
+                  setDraft(null);
+                  setPatchError('');
+                }}
+                className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold border border-black/[0.08] bg-white/80 text-ink hover:bg-white disabled:opacity-50"
+              >
+                Отмена
+              </button>
+            </>
+          ) : null}
         </div>
 
         {loading && <p className="text-ink-muted">Загрузка карточки предприятия...</p>}
         {!loading && error && <p className="glass-danger">{error}</p>}
+        {patchError ? <p className="glass-danger mb-4 max-w-5xl mx-auto px-4 sm:px-6 lg:px-10">{patchError}</p> : null}
 
         {!loading && !error && item && (
           <div className="rounded-3xl bg-surface shadow-eco-card overflow-hidden">
@@ -187,14 +375,25 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               />
               <div className="relative">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1f5c14]">Предприятие</p>
-                <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight leading-tight max-w-3xl text-ink">
-                  {item.companyName || 'Организация'}
-                </h1>
-                {(sites.length > 0 || item.address) && (
+                {editing && draft ? (
+                  <div className="mt-3 max-w-3xl">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Название</label>
+                    <input
+                      className={`${inputClass} text-xl font-bold`}
+                      value={draft.companyName}
+                      onChange={(e) => setDraft({ ...draft, companyName: e.target.value })}
+                    />
+                  </div>
+                ) : (
+                  <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight leading-tight max-w-3xl text-ink">
+                    {display?.companyName || 'Организация'}
+                  </h1>
+                )}
+                {!(editing && draft) && (sites.length > 0 || display?.address) && (
                   <div className="mt-5 space-y-2 max-w-3xl">
                     {sites.length > 0
                       ? sites.map((s, i) => (
-                          <p key={s.id ?? i} className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
+                          <div key={s.id ?? i} className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
                             <svg
                               className="mt-0.5 h-4 w-4 shrink-0 text-[#3d9a2f]"
                               viewBox="0 0 24 24"
@@ -210,11 +409,18 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                               />
                               <circle cx="12" cy="10" r="2.5" />
                             </svg>
-                            <span>{s.address || 'Адрес не указан'}</span>
-                          </p>
+                            <div>
+                              <span>{s.address || 'Адрес не указан'}</span>
+                              {s.lat != null && s.lng != null && Number.isFinite(s.lat) && Number.isFinite(s.lng) ? (
+                                <p className="text-xs text-ink-muted tabular-nums mt-0.5">
+                                  Координаты: {Number(s.lat).toFixed(6)}, {Number(s.lng).toFixed(6)}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
                         ))
-                      : item.address && (
-                          <p className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
+                      : display?.address && (
+                          <div className="flex items-start gap-2 text-sm text-ink/90 leading-relaxed">
                             <svg
                               className="mt-0.5 h-4 w-4 shrink-0 text-[#3d9a2f]"
                               viewBox="0 0 24 24"
@@ -230,8 +436,18 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                               />
                               <circle cx="12" cy="10" r="2.5" />
                             </svg>
-                            <span>{item.address}</span>
-                          </p>
+                            <div>
+                              <span>{display.address}</span>
+                              {display.lat != null &&
+                              display.lng != null &&
+                              Number.isFinite(display.lat) &&
+                              Number.isFinite(display.lng) ? (
+                                <p className="text-xs text-ink-muted tabular-nums mt-0.5">
+                                  Координаты: {Number(display.lat).toFixed(6)}, {Number(display.lng).toFixed(6)}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
                         )}
                   </div>
                 )}
@@ -279,105 +495,395 @@ export default function EnterpriseDetailsPage(): JSX.Element {
             </div>
 
             <div className="p-6 sm:p-8 lg:p-10">
-              {tab === 'about' && (
-                <div className="space-y-8">
-                  <section aria-labelledby="activity-strip-label">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h2 id="activity-strip-label" className="text-base font-semibold text-ink">
-                          Виды деятельности
-                        </h2>
-                        <p className="mt-1 text-sm text-ink-muted max-w-xl">
-                          Круги подсвечены, если в данных есть соответствующий вид работ (по ключевым словам в списке).
-                        </p>
-                      </div>
-                      <EnterpriseActivityStrip activityTypes={item.activityTypes} variant="light" size="md" />
-                    </div>
-                    <p className="mt-4 text-sm text-ink rounded-2xl bg-app-bg px-5 py-4 shadow-sm">
-                      <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">Как в лицензии</span>
-                      <span className="block mt-2 leading-relaxed">{activityList}</span>
+              {tab === 'about' &&
+                (editing && draft ? (
+                  <div className="space-y-8">
+                    <p className="text-sm text-ink-muted">
+                      Поля карточки и площадок сохраняются на сервере. Коды ФККО — 11 цифр; виды работ — через запятую.
                     </p>
-                  </section>
-
-                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="rounded-2xl bg-app-bg p-5 shadow-sm">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">ИНН</h3>
-                      <p className="mt-3 font-mono text-xl font-semibold text-ink tabular-nums">
-                        {item.inn || '—'}
-                      </p>
-                    </div>
-                    {hazardClasses.length > 0 && (
-                      <div className="rounded-2xl bg-app-bg p-5 shadow-sm sm:col-span-2 lg:col-span-1">
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
-                          Классы опасности (по ФККО)
-                        </h3>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {hazardClasses.map((hc) => (
-                            <span
-                              key={hc}
-                              className="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-xl bg-accent-soft px-3 text-sm font-bold text-[#1f5c14]"
-                            >
-                              {hc}
-                            </span>
-                          ))}
-                        </div>
+                    <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">ИНН</label>
+                        <input
+                          className={inputClass}
+                          value={draft.inn}
+                          onChange={(e) => setDraft({ ...draft, inn: e.target.value })}
+                        />
                       </div>
-                    )}
-                  </section>
-
-                  <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">Адрес</h3>
-                    <p className="mt-3 text-sm text-ink leading-relaxed">{item.address || 'не указан'}</p>
-                  </section>
-
-                  {sites.length > 0 && (
-                    <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
-                        Площадки ({sites.length})
-                      </h3>
-                      <div className="mt-4 space-y-4">
-                        {sites.map((s, idx) => (
-                          <div key={s.id ?? idx} className="rounded-xl bg-surface p-4 shadow-eco-card">
-                            <p className="text-sm text-ink font-semibold">
-                              {s.siteLabel || `Площадка ${idx + 1}`}
-                            </p>
-                            <p className="mt-1 text-sm text-ink-muted leading-relaxed">
-                              {s.address || '—'}
-                            </p>
-                            {Array.isArray(s.entries) && s.entries.length > 0 ? (
-                              <div className="mt-3 space-y-2">
-                                {s.entries.map((entry, eIdx) => (
-                                  <div key={eIdx} className="rounded-xl bg-app-bg px-3 py-2.5">
-                                    <p className="text-xs text-[#1f5c14] font-mono font-medium">
-                                      {formatFkkoHuman(entry.fkkoCode)}
-                                      {entry.hazardClass ? ` — ${entry.hazardClass} класс` : ''}
-                                    </p>
-                                    {entry.wasteName && (
-                                      <p className="text-[11px] text-ink-muted mt-1 leading-tight">{entry.wasteName}</p>
-                                    )}
-                                    <p className="text-xs text-ink mt-1">
-                                      {entry.activityTypes.join(', ')}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <>
-                                <p className="mt-2 text-xs text-ink-muted">
-                                  Виды: {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
-                                </p>
-                                <p className="mt-1 text-xs text-ink-muted">
-                                  ФККО: {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        ))}
+                      <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Регион (лицензия)</label>
+                        <input
+                          className={inputClass}
+                          value={draft.region ?? ''}
+                          onChange={(e) => setDraft({ ...draft, region: e.target.value || undefined })}
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Адрес (строка лицензии)</label>
+                        <input
+                          className={inputClass}
+                          value={draft.address ?? ''}
+                          onChange={(e) => setDraft({ ...draft, address: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Широта (lat)</label>
+                        <input
+                          className={inputClass}
+                          type="number"
+                          step="any"
+                          value={draft.lat ?? ''}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              lat: e.target.value === '' ? undefined : Number(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Долгота (lng)</label>
+                        <input
+                          className={inputClass}
+                          type="number"
+                          step="any"
+                          value={draft.lng ?? ''}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              lng: e.target.value === '' ? undefined : Number(e.target.value),
+                            })
+                          }
+                        />
                       </div>
                     </section>
-                  )}
-                </div>
-              )}
+
+                    <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                          Площадки ({draft.sites?.length ?? 0})
+                        </h3>
+                        <button
+                          type="button"
+                          className="text-sm font-semibold text-[#1f5c14] hover:underline"
+                          onClick={() => {
+                            setDraft((prev) => {
+                              if (!prev) return prev;
+                              const ns = [...(prev.sites ?? [])];
+                              const n = ns.length + 1;
+                              ns.push({
+                                siteLabel: `Площадка ${n}`,
+                                address: '',
+                                region: null,
+                                lat: null,
+                                lng: null,
+                                fkkoCodes: [],
+                                activityTypes: [],
+                                entries: [
+                                  {
+                                    fkkoCode: '',
+                                    wasteName: undefined,
+                                    hazardClass: undefined,
+                                    activityTypes: [''],
+                                  },
+                                ],
+                              });
+                              return { ...prev, sites: ns };
+                            });
+                          }}
+                        >
+                          + Добавить площадку
+                        </button>
+                      </div>
+                      {(draft.sites ?? []).map((s, siteIdx) => (
+                        <div
+                          key={s.id ?? `new-${siteIdx}`}
+                          className="rounded-xl bg-surface p-4 shadow-eco-card space-y-3 border border-black/[0.06]"
+                        >
+                          <div className="flex flex-wrap justify-between gap-2">
+                            <span className="text-sm font-semibold text-ink">
+                              {typeof s.id === 'number' ? `Площадка id ${s.id}` : 'Новая площадка'}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-amber-700 hover:underline"
+                              onClick={() => {
+                                setDraft((prev) => {
+                                  if (!prev?.sites) return prev;
+                                  const ns = prev.sites.filter((_, j) => j !== siteIdx);
+                                  return { ...prev, sites: ns };
+                                });
+                              }}
+                            >
+                              Удалить площадку
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="sm:col-span-2">
+                              <label className="text-[10px] font-bold uppercase text-ink-muted">Подпись</label>
+                              <input
+                                className={inputClass}
+                                value={s.siteLabel ?? ''}
+                                onChange={(e) => setDraftSite(siteIdx, { siteLabel: e.target.value || null })}
+                              />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="text-[10px] font-bold uppercase text-ink-muted">Адрес</label>
+                              <input
+                                className={inputClass}
+                                value={s.address ?? ''}
+                                onChange={(e) => setDraftSite(siteIdx, { address: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold uppercase text-ink-muted">Регион</label>
+                              <input
+                                className={inputClass}
+                                value={s.region ?? ''}
+                                onChange={(e) => setDraftSite(siteIdx, { region: e.target.value || null })}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[10px] font-bold uppercase text-ink-muted">lat</label>
+                                <input
+                                  className={inputClass}
+                                  type="number"
+                                  step="any"
+                                  value={s.lat ?? ''}
+                                  onChange={(e) =>
+                                    setDraftSite(siteIdx, {
+                                      lat: e.target.value === '' ? null : Number(e.target.value),
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold uppercase text-ink-muted">lng</label>
+                                <input
+                                  className={inputClass}
+                                  type="number"
+                                  step="any"
+                                  value={s.lng ?? ''}
+                                  onChange={(e) =>
+                                    setDraftSite(siteIdx, {
+                                      lng: e.target.value === '' ? null : Number(e.target.value),
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold text-ink-muted uppercase">ФККО и виды на площадке</span>
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-[#1f5c14] hover:underline"
+                                onClick={() => {
+                                  setDraft((prev) => {
+                                    if (!prev?.sites?.[siteIdx]) return prev;
+                                    const next = { ...prev, sites: [...prev.sites] };
+                                    const site = { ...next.sites[siteIdx] };
+                                    const entries = [...(site.entries ?? [])];
+                                    entries.push({
+                                      fkkoCode: '',
+                                      wasteName: undefined,
+                                      hazardClass: undefined,
+                                      activityTypes: [''],
+                                    });
+                                    site.entries = entries;
+                                    next.sites[siteIdx] = site;
+                                    return next;
+                                  });
+                                }}
+                              >
+                                + Строка ФККО
+                              </button>
+                            </div>
+                            {(s.entries ?? []).map((entry, eIdx) => (
+                              <div
+                                key={eIdx}
+                                className="rounded-lg bg-app-bg p-3 grid grid-cols-1 sm:grid-cols-2 gap-2 border border-black/[0.04]"
+                              >
+                                <div>
+                                  <label className="text-[10px] text-ink-muted">Код ФККО (11 цифр)</label>
+                                  <input
+                                    className={inputClass}
+                                    value={entry.fkkoCode}
+                                    onChange={(e) =>
+                                      setDraftEntry(siteIdx, eIdx, { fkkoCode: e.target.value })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-ink-muted">Класс опасности</label>
+                                  <input
+                                    className={inputClass}
+                                    value={entry.hazardClass ?? ''}
+                                    onChange={(e) =>
+                                      setDraftEntry(siteIdx, eIdx, {
+                                        hazardClass: e.target.value || undefined,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="text-[10px] text-ink-muted">Наименование отхода</label>
+                                  <input
+                                    className={inputClass}
+                                    value={entry.wasteName ?? ''}
+                                    onChange={(e) =>
+                                      setDraftEntry(siteIdx, eIdx, {
+                                        wasteName: e.target.value || undefined,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="text-[10px] text-ink-muted">Виды работ (через запятую)</label>
+                                  <input
+                                    className={inputClass}
+                                    value={entry.activityTypes.join(', ')}
+                                    onChange={(e) =>
+                                      setDraftEntry(siteIdx, eIdx, {
+                                        activityTypes: e.target.value
+                                          .split(/[,;]+/)
+                                          .map((x) => x.trim())
+                                          .filter(Boolean),
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <button
+                                    type="button"
+                                    className="text-xs text-amber-700 hover:underline"
+                                    onClick={() => {
+                                      setDraft((prev) => {
+                                        if (!prev?.sites?.[siteIdx]?.entries) return prev;
+                                        const next = { ...prev, sites: [...prev.sites] };
+                                        const site = { ...next.sites[siteIdx] };
+                                        site.entries = (site.entries ?? []).filter((_, j) => j !== eIdx);
+                                        next.sites[siteIdx] = site;
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    Удалить строку
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </section>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    <section aria-labelledby="activity-strip-label">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h2 id="activity-strip-label" className="text-base font-semibold text-ink">
+                            Виды деятельности
+                          </h2>
+                          <p className="mt-1 text-sm text-ink-muted max-w-xl">
+                            Круги подсвечены, если в данных есть соответствующий вид работ (по ключевым словам в списке).
+                          </p>
+                        </div>
+                        <EnterpriseActivityStrip activityTypes={display?.activityTypes} variant="light" size="md" />
+                      </div>
+                      <p className="mt-4 text-sm text-ink rounded-2xl bg-app-bg px-5 py-4 shadow-sm">
+                        <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">Как в лицензии</span>
+                        <span className="block mt-2 leading-relaxed">{activityList}</span>
+                      </p>
+                    </section>
+
+                    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="rounded-2xl bg-app-bg p-5 shadow-sm">
+                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">ИНН</h3>
+                        <p className="mt-3 font-mono text-xl font-semibold text-ink tabular-nums">
+                          {display?.inn || '—'}
+                        </p>
+                      </div>
+                      {hazardClasses.length > 0 && (
+                        <div className="rounded-2xl bg-app-bg p-5 shadow-sm sm:col-span-2 lg:col-span-1">
+                          <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                            Классы опасности (по ФККО)
+                          </h3>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {hazardClasses.map((hc) => (
+                              <span
+                                key={hc}
+                                className="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-xl bg-accent-soft px-3 text-sm font-bold text-[#1f5c14]"
+                              >
+                                {hc}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">Адрес</h3>
+                      <p className="mt-3 text-sm text-ink leading-relaxed">{display?.address || 'не указан'}</p>
+                    </section>
+
+                    {sites.length > 0 && (
+                      <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
+                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                          Площадки ({sites.length})
+                        </h3>
+                        <div className="mt-4 space-y-4">
+                          {sites.map((s, idx) => (
+                            <div key={s.id ?? idx} className="rounded-xl bg-surface p-4 shadow-eco-card">
+                              <p className="text-sm text-ink font-semibold">
+                                {s.siteLabel || `Площадка ${idx + 1}`}
+                              </p>
+                              <p className="mt-1 text-sm text-ink-muted leading-relaxed">
+                                {s.address || '—'}
+                              </p>
+                              {s.lat != null && s.lng != null && Number.isFinite(s.lat) && Number.isFinite(s.lng) ? (
+                                <p className="mt-1 text-xs text-ink-muted tabular-nums">
+                                  Координаты: {Number(s.lat).toFixed(6)}, {Number(s.lng).toFixed(6)}
+                                </p>
+                              ) : null}
+                              {Array.isArray(s.entries) && s.entries.length > 0 ? (
+                                <div className="mt-3 space-y-2">
+                                  {s.entries.map((entry, eIdx) => (
+                                    <div key={eIdx} className="rounded-xl bg-app-bg px-3 py-2.5">
+                                      <p className="text-xs text-[#1f5c14] font-mono font-medium">
+                                        {formatFkkoHuman(entry.fkkoCode)}
+                                        {entry.hazardClass ? ` — ${entry.hazardClass} класс` : ''}
+                                      </p>
+                                      {entry.wasteName && (
+                                        <p className="text-[11px] text-ink-muted mt-1 leading-tight">{entry.wasteName}</p>
+                                      )}
+                                      <p className="text-xs text-ink mt-1">
+                                        {entry.activityTypes.join(', ')}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="mt-2 text-xs text-ink-muted">
+                                    Виды: {Array.isArray(s.activityTypes) && s.activityTypes.length ? s.activityTypes.join(', ') : '—'}
+                                  </p>
+                                  <p className="mt-1 text-xs text-ink-muted">
+                                    ФККО: {Array.isArray(s.fkkoCodes) && s.fkkoCodes.length ? s.fkkoCodes.map(formatFkkoHuman).join(', ') : '—'}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                ))}
 
               {tab === 'fkko' && (
                 <section>

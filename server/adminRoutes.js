@@ -3,7 +3,14 @@ import { query } from './db.js';
 import { getPool } from './db.js';
 import { requireRole } from './auth.js';
 import { createAuditLog } from './audit.js';
-import { LICENSE_INN_NORMALIZED_EXPR } from './innUtils.js';
+import { LICENSE_INN_NORMALIZED_EXPR, normalizeInn, DUPLICATE_INN_MESSAGE } from './innUtils.js';
+import { parseFkkoInput } from './fkkoServer.js';
+import {
+  parseActivityTypesInput,
+  normalizeAdminSitesWithIds,
+  aggregateFkkoAndActivityFromSites,
+} from './licensePayloadNormalize.js';
+import { fetchLicenseExtendedJson } from './licenseExtendedFetch.js';
 import { approveLicenseInTx, ApproveLicenseError } from './licenseApprove.js';
 import { runBatchAiApproveChunk } from './moderationBatch.js';
 
@@ -310,6 +317,205 @@ adminRouter.post('/licenses/resolve-duplicate-inns', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('resolve-duplicate-inns error:', err);
     return res.status(500).json({ message: 'Ошибка слияния дублей' });
+  } finally {
+    client.release();
+  }
+});
+
+function parseCoord(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function replaceSiteFkkoActivities(client, siteId, s) {
+  const entries =
+    Array.isArray(s.entries) && s.entries.length > 0
+      ? s.entries
+      : (s.fkkoCodes || []).map((code) => ({
+          fkkoCode: code,
+          wasteName: null,
+          hazardClass: null,
+          activityTypes: [...(s.activityTypes || [])],
+        }));
+  await client.query(`DELETE FROM site_fkko_activities WHERE site_id = $1`, [siteId]);
+  for (const entry of entries) {
+    for (const actType of entry.activityTypes) {
+      await client.query(
+        `INSERT INTO site_fkko_activities (site_id, fkko_code, waste_name, hazard_class, activity_type)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (site_id, fkko_code, activity_type) DO NOTHING`,
+        [siteId, entry.fkkoCode, entry.wasteName || null, entry.hazardClass || null, actType],
+      );
+    }
+  }
+}
+
+adminRouter.patch('/licenses/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ message: 'Некорректный id' });
+  }
+
+  const body = req.body ?? {};
+  const companyNameStr = String(body.companyName ?? '').trim();
+  if (!companyNameStr) {
+    return res.status(400).json({ message: 'companyName обязателен' });
+  }
+
+  let sitesArr = normalizeAdminSitesWithIds(Array.isArray(body.sites) ? body.sites : []);
+  if (sitesArr.length === 0) {
+    const rootFkko = parseFkkoInput(body.fkkoCodes);
+    const rootAct = parseActivityTypesInput(body.activityTypes);
+    if (rootFkko.length === 0) {
+      return res.status(400).json({
+        message: 'Хотя бы один код ФККО обязателен. Добавьте площадки с ФККО или укажите коды на карточке.',
+      });
+    }
+    sitesArr = [
+      {
+        clientId: null,
+        address: String(body.address ?? '').trim() || null,
+        region: body.region == null ? null : String(body.region).trim() || null,
+        siteLabel: 'Основная площадка',
+        lat: parseCoord(body.lat),
+        lng: parseCoord(body.lng),
+        fkkoCodes: rootFkko,
+        activityTypes: rootAct,
+        entries: [],
+      },
+    ];
+  }
+
+  const { fkkoArr, activityArr } = aggregateFkkoAndActivityFromSites(sitesArr);
+  if (fkkoArr.length === 0) {
+    return res.status(400).json({ message: 'Хотя бы один код ФККО обязателен.' });
+  }
+
+  const innStr = body.inn == null ? null : String(body.inn).trim() || null;
+  const addressStr = body.address == null ? null : String(body.address).trim() || null;
+  const regionStr = body.region == null ? null : String(body.region).trim() || null;
+  const latLic = parseCoord(body.lat);
+  const lngLic = parseCoord(body.lng);
+
+  const clientIds = sitesArr.map((s) => s.clientId).filter((x) => x != null);
+  if (clientIds.length !== new Set(clientIds).size) {
+    return res.status(400).json({ message: 'В запросе дублируется id площадки' });
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const beforeExtended = await fetchLicenseExtendedJson(client, id);
+    if (!beforeExtended) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Объект не найден' });
+    }
+
+    const innNorm = normalizeInn(innStr);
+    if (innNorm) {
+      const dup = await client.query(
+        `SELECT 1 FROM licenses
+         WHERE deleted_at IS NULL
+           AND id <> $1
+           AND ${LICENSE_INN_NORMALIZED_EXPR} = $2
+         LIMIT 1`,
+        [id, innNorm],
+      );
+      if (dup.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: DUPLICATE_INN_MESSAGE });
+      }
+    }
+
+    const existingSites = await client.query(`SELECT id FROM license_sites WHERE license_id = $1`, [id]);
+    const dbIds = existingSites.rows.map((r) => Number(r.id));
+    const keepIds = clientIds;
+    const toDelete = dbIds.filter((dbId) => !keepIds.includes(dbId));
+    if (toDelete.length > 0) {
+      await client.query(`DELETE FROM license_sites WHERE license_id = $1 AND id = ANY($2::bigint[])`, [
+        id,
+        toDelete,
+      ]);
+    }
+
+    for (let idx = 0; idx < sitesArr.length; idx++) {
+      const s = sitesArr[idx];
+      const fkkoArrS = s.fkkoCodes;
+      const actArrS = s.activityTypes;
+      const label = s.siteLabel || (idx === 0 ? 'Основная площадка' : null);
+      let siteId;
+      if (s.clientId) {
+        const own = await client.query(`SELECT license_id FROM license_sites WHERE id = $1`, [s.clientId]);
+        if (!own.rows.length || Number(own.rows[0].license_id) !== id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ message: 'Некорректный id площадки' });
+        }
+        await client.query(
+          `UPDATE license_sites
+           SET site_label = $2, address = $3, region = $4, lat = $5, lng = $6, fkko_codes = $7, activity_types = $8
+           WHERE id = $1`,
+          [s.clientId, label, s.address, s.region, s.lat, s.lng, fkkoArrS, actArrS],
+        );
+        siteId = s.clientId;
+      } else {
+        const ins = await client.query(
+          `INSERT INTO license_sites (license_id, site_label, address, region, lat, lng, fkko_codes, activity_types)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id`,
+          [id, label, s.address, s.region, s.lat, s.lng, fkkoArrS, actArrS],
+        );
+        siteId = Number(ins.rows[0].id);
+      }
+      await replaceSiteFkkoActivities(client, siteId, s);
+    }
+
+    await client.query(
+      `UPDATE licenses
+       SET company_name = $2,
+           inn = $3,
+           address = $4,
+           region = $5,
+           lat = $6,
+           lng = $7,
+           fkko_codes = $8,
+           activity_types = $9
+       WHERE id = $1
+         AND deleted_at IS NULL`,
+      [id, companyNameStr, innStr, addressStr, regionStr, latLic, lngLic, fkkoArr, activityArr],
+    );
+
+    const afterExtended = await fetchLicenseExtendedJson(client, id);
+    await client.query('COMMIT');
+
+    const auditBefore = {
+      companyName: beforeExtended.companyName,
+      inn: beforeExtended.inn,
+      sitesCount: Array.isArray(beforeExtended.sites) ? beforeExtended.sites.length : 0,
+    };
+    const auditAfter = {
+      companyName: afterExtended.companyName,
+      inn: afterExtended.inn,
+      sitesCount: Array.isArray(afterExtended.sites) ? afterExtended.sites.length : 0,
+    };
+
+    await createAuditLog({
+      req,
+      action: 'LICENSE_ADMIN_UPDATE',
+      entityType: 'LICENSE',
+      entityId: String(id),
+      severity: 'INFO',
+      changes: { before: auditBefore, after: auditAfter },
+      metadata: { licenseId: id },
+    });
+
+    return res.json(afterExtended);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('admin patch license error:', err);
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка сохранения' });
   } finally {
     client.release();
   }

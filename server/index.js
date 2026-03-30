@@ -17,6 +17,8 @@ import { createAuditLog } from './audit.js';
 import { rateLimit } from './rateLimit.js';
 import adminRouter from './adminRoutes.js';
 import { normalizeInn, LICENSE_INN_NORMALIZED_EXPR, DUPLICATE_INN_MESSAGE } from './innUtils.js';
+import { normalizeFkkoCode, extractFkkoCodesFromText, parseFkkoInput } from './fkkoServer.js';
+import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
 import authRouter from './authRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
 import userRouter from './userRoutes.js';
@@ -174,90 +176,6 @@ app.use('/api/', rateLimit({ name: 'global', windowMs: 60_000, max: 100 }));
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/support', supportRouter);
-
-function normalizeFkkoCode(v) {
-  // FKKO часто пишут с пробелами: "7 31 100 01 40 4"
-  // Для стабильного сравнения нормализуем до "73110001404".
-  return String(v ?? '')
-    .trim()
-    .replace(/[^\d]+/g, '');
-}
-
-function splitGluedDigitsToFkkoCodes(digitsOnly) {
-  const d = normalizeFkkoCode(digitsOnly);
-  if (!d) return [];
-  if (d.length === 11) return /^\d{11}$/.test(d) ? [d] : [];
-  if (d.length > 11 && d.length % 11 === 0) {
-    const out = [];
-    for (let i = 0; i < d.length; i += 11) {
-      const chunk = d.slice(i, i + 11);
-      if (/^\d{11}$/.test(chunk)) out.push(chunk);
-    }
-    return out;
-  }
-  const m = d.match(/\d{11}/g) ?? [];
-  return m.filter((x) => /^\d{11}$/.test(x));
-}
-
-function formatFkkoTokensToCodes(tokens) {
-  const t = Array.isArray(tokens) ? tokens.map((x) => String(x ?? '').trim()).filter(Boolean) : [];
-  if (t.length < 6) return [];
-  const out = [];
-  for (let i = 0; i + 5 < t.length; i += 6) {
-    const code = normalizeFkkoCode(t.slice(i, i + 6).join(' '));
-    if (/^\d{11}$/.test(code)) out.push(code);
-  }
-  return out;
-}
-
-function extractFkkoCodesFromText(v) {
-  const s = String(v ?? '').trim();
-  if (!s) return [];
-
-  // Универсально: берём все группы цифр и собираем по 6 сегментов (формат X XX XXX XX XX X).
-  // Это покрывает случаи, когда ИИ ошибочно вставляет запятые между каждым сегментом:
-  // "4, 71, 101, 01, 52, 1, 4, 06, 110, 01, 31, 3, ..."
-  const tokens = s.match(/\d+/g) ?? [];
-  const grouped = formatFkkoTokensToCodes(tokens);
-
-  // Если токенов < 6 или не получилось группировать — попробуем режим "коды разделены запятыми/точкой с запятой/переводом строки".
-  if (grouped.length === 0) {
-    const chunks = s.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean);
-    const out = [];
-    for (const ch of chunks) {
-      const digits = normalizeFkkoCode(ch);
-      if (!digits) continue;
-      if (/^\d{11}$/.test(digits)) {
-        out.push(digits);
-        continue;
-      }
-      out.push(...splitGluedDigitsToFkkoCodes(digits));
-    }
-    if (out.length > 0) return [...new Set(out)];
-    return [...new Set(splitGluedDigitsToFkkoCodes(s))];
-  }
-
-  // Дедуп + стабильный порядок
-  return [...new Set(grouped)];
-}
-
-function parseFkkoInput(v) {
-  if (v == null) return [];
-  if (Array.isArray(v)) {
-    return v
-      .map((x) => String(x ?? '').trim())
-      .filter(Boolean)
-      .map(normalizeFkkoCode)
-      .filter(Boolean);
-  }
-
-  const s = String(v).trim();
-  if (!s) return [];
-
-  // Принимаем как "7 31 100 01 40 4", так и список кодов.
-  // Также терпим ошибочный ввод/ответ ИИ вида "7, 31, 100, 01, 40, 4, 7, 31, 110, 01, 40, 4".
-  return extractFkkoCodesFromText(s);
-}
 
 // Геокодирование: используем только Яндекс Геокодер (лучше всего подходит для РФ/юр. адресов).
 const YANDEX_GEOCODER_API_KEY = String(process.env.YANDEX_GEOCODER_API_KEY ?? '').trim();
@@ -987,63 +905,6 @@ app.get('/api/geocode', async (req, res) => {
     return res.status(500).json({ message: err.message || 'Ошибка геокодирования' });
   }
 });
-
-function parseActivityTypesInput(v) {
-  if (v == null) return [];
-  if (Array.isArray(v)) {
-    return v.map((x) => String(x ?? '').trim()).filter(Boolean);
-  }
-  const s = String(v).trim();
-  if (!s) return [];
-  return s.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
-}
-
-function normalizeEntriesInput(v) {
-  if (!Array.isArray(v)) return [];
-  const out = [];
-  for (const e of v) {
-    const fkkoRaw = String(e?.fkkoCode ?? e?.fkko_code ?? '').trim();
-    const fkkoCode = normalizeFkkoCode(fkkoRaw);
-    if (!fkkoCode || !/^\d{11}$/.test(fkkoCode)) continue;
-    const wasteName = String(e?.wasteName ?? e?.waste_name ?? '').trim() || null;
-    const hazardClass = String(e?.hazardClass ?? e?.hazard_class ?? '').trim() || null;
-    const activityTypes = parseActivityTypesInput(e?.activityTypes ?? e?.activity_types);
-    if (activityTypes.length === 0) continue;
-    out.push({ fkkoCode, wasteName, hazardClass, activityTypes });
-  }
-  return out;
-}
-
-function normalizeSitesInput(v) {
-  if (!Array.isArray(v)) return [];
-  const out = [];
-  for (const it of v) {
-    const address = String(it?.address ?? '').trim();
-    const region = it?.region == null ? null : String(it.region).trim() || null;
-    const siteLabel = it?.siteLabel == null ? null : String(it.siteLabel).trim() || null;
-    const lat = it?.lat == null || it.lat === '' ? null : Number(it.lat);
-    const lng = it?.lng == null || it.lng === '' ? null : Number(it.lng);
-    const entries = normalizeEntriesInput(it?.entries);
-    const fkkoCodes = entries.length > 0
-      ? [...new Set(entries.map((e) => e.fkkoCode))]
-      : parseFkkoInput(it?.fkkoCodes);
-    const activityTypes = entries.length > 0
-      ? [...new Set(entries.flatMap((e) => e.activityTypes))]
-      : parseActivityTypesInput(it?.activityTypes);
-    if (!address && fkkoCodes.length === 0 && activityTypes.length === 0) continue;
-    out.push({
-      address: address || null,
-      region,
-      siteLabel,
-      lat: Number.isFinite(lat) ? lat : null,
-      lng: Number.isFinite(lng) ? lng : null,
-      fkkoCodes,
-      activityTypes,
-      entries,
-    });
-  }
-  return out;
-}
 
 app.post('/api/licenses', requireRole('USER'), async (req, res) => {
   try {
