@@ -25,11 +25,32 @@ interface LicenseItem {
   createdAt: string;
 }
 
+interface DuplicateLicenseRow {
+  id: number;
+  companyName: string;
+  inn: string | null;
+  status: string;
+  reward: number;
+  ownerUserId: number | null;
+  createdAt: string;
+}
+
+interface DuplicateGroup {
+  normalizedInn: string;
+  keepLicenseId: number;
+  licenses: DuplicateLicenseRow[];
+}
+
 export default function AdminLicensesPage(): JSX.Element {
   const { accessToken } = useAuth();
   const [items, setItems] = useState<LicenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [dupModalOpen, setDupModalOpen] = useState(false);
+  const [dupGroups, setDupGroups] = useState<DuplicateGroup[]>([]);
+  const [dupScanLoading, setDupScanLoading] = useState(false);
+  const [dupResolveLoading, setDupResolveLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +148,62 @@ export default function AdminLicensesPage(): JSX.Element {
     }
   }
 
+  async function handleCheckDuplicateInns(): Promise<void> {
+    setDupScanLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/licenses/duplicate-groups'), {
+        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((body as { message?: string }).message ?? 'Ошибка проверки дублей');
+      }
+      const groups = Array.isArray((body as { groups?: DuplicateGroup[] }).groups)
+        ? (body as { groups: DuplicateGroup[] }).groups
+        : [];
+      setDupGroups(groups);
+      setDupModalOpen(true);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка проверки дублей');
+    } finally {
+      setDupScanLoading(false);
+    }
+  }
+
+  async function handleResolveDuplicates(deductEcoCoins: boolean): Promise<void> {
+    const msg = deductEcoCoins
+      ? 'Удалить все дубли по ИНН (оставить запись с минимальным ID) и списать экокоины за одобренные лишние копии?'
+      : 'Удалить все дубли по ИНН (оставить запись с минимальным ID) без списания экокоинов?';
+    if (!window.confirm(msg)) return;
+
+    setDupResolveLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/licenses/resolve-duplicate-inns'), {
+        method: 'POST',
+        headers: {
+          Authorization: accessToken ? `Bearer ${accessToken}` : '',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ deductEcoCoins }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((body as { message?: string }).message ?? 'Ошибка слияния дублей');
+      }
+      const message = (body as { message?: string }).message ?? 'Готово';
+      alert(message);
+      setDupModalOpen(false);
+      setDupGroups([]);
+      await reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка слияния дублей');
+    } finally {
+      setDupResolveLoading(false);
+    }
+  }
+
   async function handleDelete(id: number): Promise<void> {
     if (!window.confirm('Удалить объект? Его маркер пропадёт с карты.')) return;
     try {
@@ -150,9 +227,106 @@ export default function AdminLicensesPage(): JSX.Element {
   return (
     <div className="space-y-4">
       <div className="glass-panel p-5">
-        <div className="glass-kicker">Moderation</div>
-        <h1 className="glass-title mt-1">Объекты (лицензии)</h1>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <div className="glass-kicker">Moderation</div>
+            <h1 className="glass-title mt-1">Объекты (лицензии)</h1>
+          </div>
+          <button
+            type="button"
+            disabled={dupScanLoading}
+            onClick={() => {
+              void handleCheckDuplicateInns();
+            }}
+            className="glass-btn-soft !h-10 !px-4 whitespace-nowrap shrink-0"
+          >
+            {dupScanLoading ? 'Проверка…' : 'Проверить дубли по ИНН'}
+          </button>
+        </div>
       </div>
+
+      {dupModalOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dup-modal-title"
+        >
+          <div className="glass-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl">
+            <h2 id="dup-modal-title" className="glass-title">
+              Дубли по ИНН
+            </h2>
+            {!dupGroups.length ? (
+              <p className="mt-3 text-sm text-ink-muted">Дублей по ИНН не найдено.</p>
+            ) : (
+              <>
+                <p className="mt-3 text-sm text-ink-muted">
+                  Для каждой группы остаётся запись с минимальным ID (первая по времени подачи). Остальные будут
+                  помечены как удалённые и скрыты с карты.
+                </p>
+                <div className="mt-4 space-y-4">
+                  {dupGroups.map((g) => (
+                    <div key={g.normalizedInn} className="rounded-xl border border-black/[0.08] bg-app-bg/40 p-3">
+                      <div className="text-sm font-semibold text-ink">
+                        ИНН {g.normalizedInn}
+                        <span className="font-normal text-ink-muted">
+                          {' '}
+                          — оставить ID {g.keepLicenseId}
+                        </span>
+                      </div>
+                      <ul className="mt-2 space-y-1 text-sm text-ink-muted list-disc list-inside">
+                        {g.licenses.map((lic) => (
+                          <li key={lic.id}>
+                            <span className="text-ink font-medium">ID {lic.id}</span>
+                            {lic.id === g.keepLicenseId ? ' (оставляем)' : ' (будет удалён)'} — {lic.companyName};{' '}
+                            {lic.status === 'approved' ? 'одобрено' : lic.status === 'rejected' ? 'отклонено' : 'на проверке'}; владелец{' '}
+                            {lic.ownerUserId ?? '—'}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 flex flex-col sm:flex-row flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={dupResolveLoading}
+                    onClick={() => {
+                      void handleResolveDuplicates(false);
+                    }}
+                    className="glass-btn-soft !h-10 !px-4"
+                  >
+                    Удалить дубли, не списывать экокоины
+                  </button>
+                  <button
+                    type="button"
+                    disabled={dupResolveLoading}
+                    onClick={() => {
+                      void handleResolveDuplicates(true);
+                    }}
+                    className="glass-btn-dark !h-10 !px-4 !bg-[#7f1d1d] !border-[#7f1d1d] hover:!bg-[#991b1b]"
+                  >
+                    Удалить дубли и списать экокоины
+                  </button>
+                </div>
+              </>
+            )}
+            <div className="mt-4">
+              <button
+                type="button"
+                disabled={dupResolveLoading}
+                onClick={() => {
+                  setDupModalOpen(false);
+                  setDupGroups([]);
+                }}
+                className="glass-btn-soft !h-9 !px-4"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {!!pendingItems.length && (
         <div className="glass-panel p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

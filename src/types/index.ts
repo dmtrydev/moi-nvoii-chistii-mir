@@ -112,6 +112,8 @@ export interface LicenseData {
   // Оригинальный PDF пользователя (для скачивания администратором)
   fileOriginalName?: string | null;
   fileStoredName?: string | null;
+  /** Установлено /api/analyze-license при переданном Bearer, если ИНН уже есть в БД */
+  innAlreadyRegistered?: boolean;
   /** Точные цитаты из документа для подсветки при фокусе на поле */
   foundTexts?: LicenseDataFoundTexts;
 }

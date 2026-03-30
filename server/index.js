@@ -17,6 +17,7 @@ import { authMiddleware, requireRole, requireAuth } from './auth.js';
 import { createAuditLog } from './audit.js';
 import { rateLimit } from './rateLimit.js';
 import adminRouter from './adminRoutes.js';
+import { normalizeInn, LICENSE_INN_NORMALIZED_EXPR, DUPLICATE_INN_MESSAGE } from './innUtils.js';
 import authRouter from './authRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
 import userRouter from './userRoutes.js';
@@ -49,6 +50,17 @@ async function ensureDatabaseSchema() {
 
     const dashboardSql = await fsPromises.readFile(dashboardMigrationPath, 'utf8');
     await query(dashboardSql);
+
+    const innUniquePath = path.join(__dirname, 'db', 'migrations', 'license-inn-unique-index.sql');
+    try {
+      const innUniqueSql = await fsPromises.readFile(innUniquePath, 'utf8');
+      await query(innUniqueSql);
+    } catch (innIdxErr) {
+      console.warn(
+        'license-inn-unique-index skipped (если в БД ещё есть дубли ИНН — сначала объедините их в админке):',
+        innIdxErr instanceof Error ? innIdxErr.message : innIdxErr,
+      );
+    }
 
     console.log('DB schema initialized/ensured');
   } catch (err) {
@@ -1002,6 +1014,22 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
       fileStoredName: storedFileName,
     };
 
+    if (req.user?.id) {
+      const innNormAnalyze = normalizeInn(inn);
+      if (innNormAnalyze) {
+        const dupCheck = await query(
+          `SELECT 1 FROM licenses
+           WHERE deleted_at IS NULL
+             AND ${LICENSE_INN_NORMALIZED_EXPR} = $1
+           LIMIT 1`,
+          [innNormAnalyze],
+        );
+        result.innAlreadyRegistered = dupCheck.rows.length > 0;
+      } else {
+        result.innAlreadyRegistered = false;
+      }
+    }
+
     return res.json(result);
   } catch (err) {
     console.error('analyze-license error:', err);
@@ -1145,10 +1173,26 @@ app.post('/api/licenses', requireRole('USER'), async (req, res) => {
     const fileOriginalNameStr = fileOriginalName ? String(fileOriginalName).trim() : null;
     const fileStoredNameStr = fileStoredName ? String(fileStoredName).trim() : null;
 
+    const innNorm = normalizeInn(innStr);
+
     const pool = getPool();
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      if (innNorm) {
+        const dup = await client.query(
+          `SELECT 1 FROM licenses
+           WHERE deleted_at IS NULL
+             AND ${LICENSE_INN_NORMALIZED_EXPR} = $1
+           LIMIT 1`,
+          [innNorm],
+        );
+        if (dup.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: DUPLICATE_INN_MESSAGE });
+        }
+      }
 
       const inserted = await client.query(
         `INSERT INTO licenses

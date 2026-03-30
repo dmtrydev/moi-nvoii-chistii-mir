@@ -38,15 +38,22 @@ function isNetworkError(err: unknown): boolean {
   return /failed to fetch|network error|load failed/i.test(msg);
 }
 
-async function analyzeLicense(file: File): Promise<LicenseData> {
+const DUPLICATE_INN_MESSAGE =
+  'Организация с этим ИНН уже зарегистрирована. Дубликаты лицензий по одному ИНН не допускаются.';
+
+async function analyzeLicense(file: File, accessToken: string | null): Promise<LicenseData> {
   const formData = new FormData();
   formData.append('file', file);
   const url = getApiUrl('/api/analyze-license');
+
+  const headers: HeadersInit = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
+      headers,
       body: formData,
     });
   } catch (err) {
@@ -74,6 +81,9 @@ async function analyzeLicense(file: File): Promise<LicenseData> {
   const data = (await res.json()) as LicenseData;
   if (!data.companyName && !data.address) {
     throw new Error('Не удалось извлечь данные из лицензии');
+  }
+  if (data.innAlreadyRegistered) {
+    throw new Error(DUPLICATE_INN_MESSAGE);
   }
   return data;
 }
@@ -162,7 +172,7 @@ export default function UploadPage(): JSX.Element {
       setErrorMessage('');
       setStep('analyzing');
       try {
-        let data = await analyzeLicense(file);
+        let data = await analyzeLicense(file, accessToken);
         const coords = await getGeocode(data.address);
         if (coords) {
           data = { ...data, lat: coords.lat, lng: coords.lng };
@@ -174,7 +184,7 @@ export default function UploadPage(): JSX.Element {
         setStep('error');
       }
     },
-    [step, isPdfFile]
+    [step, isPdfFile, accessToken]
   );
 
   const onDrop = useCallback(

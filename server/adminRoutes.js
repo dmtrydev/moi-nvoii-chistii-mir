@@ -3,6 +3,7 @@ import { query } from './db.js';
 import { getPool } from './db.js';
 import { requireRole } from './auth.js';
 import { createAuditLog } from './audit.js';
+import { LICENSE_INN_NORMALIZED_EXPR } from './innUtils.js';
 
 const adminRouter = express.Router();
 
@@ -104,6 +105,158 @@ adminRouter.get('/licenses', async (req, res) => {
   );
 
   res.json({ items: rows.rows });
+});
+
+const INN_EXPR = LICENSE_INN_NORMALIZED_EXPR;
+
+adminRouter.get('/licenses/duplicate-groups', async (_req, res) => {
+  try {
+    const { rows: groups } = await query(
+      `SELECT ${INN_EXPR} AS inn_norm,
+              array_agg(id ORDER BY id) AS ids
+       FROM licenses
+       WHERE deleted_at IS NULL
+         AND length(${INN_EXPR}) IN (10, 12)
+       GROUP BY ${INN_EXPR}
+       HAVING COUNT(*) > 1`,
+      [],
+    );
+
+    const out = [];
+    for (const g of groups) {
+      const ids = g.ids;
+      if (!ids?.length) continue;
+      const detail = await query(
+        `SELECT id,
+                company_name AS "companyName",
+                inn,
+                status,
+                reward,
+                owner_user_id AS "ownerUserId",
+                created_at AS "createdAt"
+         FROM licenses
+         WHERE id = ANY($1::int[])
+         ORDER BY id ASC`,
+        [ids],
+      );
+      out.push({
+        normalizedInn: g.inn_norm,
+        keepLicenseId: ids[0],
+        licenses: detail.rows,
+      });
+    }
+
+    return res.json({ groups: out });
+  } catch (err) {
+    console.error('duplicate-groups error:', err);
+    return res.status(500).json({ message: 'Ошибка построения отчёта по дублям' });
+  }
+});
+
+adminRouter.post('/licenses/resolve-duplicate-inns', async (req, res) => {
+  const deductEcoCoins = Boolean(req.body?.deductEcoCoins);
+  const adminId = req.user?.id ?? null;
+
+  const pool = getPool();
+  const client = await pool.connect();
+  let removedCount = 0;
+  let clawbackTotal = 0;
+  const removedLicenseIds = [];
+
+  try {
+    await client.query('BEGIN');
+
+    const { rows: groups } = await client.query(
+      `SELECT ${INN_EXPR} AS inn_norm,
+              array_agg(id ORDER BY id) AS ids
+       FROM licenses
+       WHERE deleted_at IS NULL
+         AND length(${INN_EXPR}) IN (10, 12)
+       GROUP BY ${INN_EXPR}
+       HAVING COUNT(*) > 1`,
+    );
+
+    for (const g of groups) {
+      const ids = g.ids;
+      if (!ids || ids.length < 2) continue;
+      const removeIds = ids.slice(1);
+
+      for (const rid of removeIds) {
+        const licRes = await client.query(
+          `SELECT id, status, owner_user_id AS "ownerUserId"
+           FROM licenses
+           WHERE id = $1 AND deleted_at IS NULL
+           LIMIT 1`,
+          [rid],
+        );
+        if (!licRes.rows.length) continue;
+
+        const row = licRes.rows[0];
+        if (deductEcoCoins && row.status === 'approved') {
+          const txRes = await client.query(
+            `SELECT user_id AS "userId", amount
+             FROM transactions
+             WHERE license_id = $1
+             LIMIT 1`,
+            [rid],
+          );
+          if (txRes.rows.length) {
+            const { userId, amount } = txRes.rows[0];
+            const amt = Number(amount);
+            await client.query(
+              `UPDATE users
+               SET eco_coins = GREATEST(0, eco_coins - $2)
+               WHERE id = $1`,
+              [userId, amt],
+            );
+            await client.query(`DELETE FROM transactions WHERE license_id = $1`, [rid]);
+            clawbackTotal += amt;
+          }
+        }
+
+        await client.query(
+          `UPDATE licenses
+           SET deleted_at = NOW(), deleted_by = $2
+           WHERE id = $1 AND deleted_at IS NULL`,
+          [rid, adminId],
+        );
+        removedCount += 1;
+        removedLicenseIds.push(rid);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    await createAuditLog({
+      req,
+      action: 'LICENSE_DEDUP_MERGE',
+      entityType: 'LICENSE',
+      entityId: removedLicenseIds.length ? String(removedLicenseIds[0]) : 'none',
+      severity: 'INFO',
+      metadata: {
+        removedCount,
+        removedLicenseIds,
+        deductEcoCoins,
+        clawbackTotal,
+      },
+    });
+
+    return res.json({
+      message:
+        removedCount > 0
+          ? `Удалено дублей: ${removedCount}${deductEcoCoins && clawbackTotal > 0 ? `. Списано экокоинов: ${clawbackTotal}` : ''}`
+          : 'Дублей по ИНН не найдено',
+      removedCount,
+      deductEcoCoins,
+      clawbackTotal,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('resolve-duplicate-inns error:', err);
+    return res.status(500).json({ message: 'Ошибка слияния дублей' });
+  } finally {
+    client.release();
+  }
 });
 
 adminRouter.post('/licenses/:id/approve', async (req, res) => {
