@@ -53,6 +53,10 @@ export default function AdminLicensesPage(): JSX.Element {
   const [dupScanLoading, setDupScanLoading] = useState(false);
   const [dupResolveLoading, setDupResolveLoading] = useState(false);
 
+  const [batchAiDryRun, setBatchAiDryRun] = useState(false);
+  const [batchAiRunning, setBatchAiRunning] = useState(false);
+  const [batchAiStatus, setBatchAiStatus] = useState('');
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -202,6 +206,92 @@ export default function AdminLicensesPage(): JSX.Element {
       alert(e instanceof Error ? e.message : 'Ошибка слияния дублей');
     } finally {
       setDupResolveLoading(false);
+    }
+  }
+
+  async function handleBatchAiApproveAll(): Promise<void> {
+    const dryRun = batchAiDryRun;
+    const intro = dryRun
+      ? 'Пробный прогон ИИ по всем заявкам «на проверке» (без изменений в БД). Продолжить?'
+      : 'По очереди будут обработаны все заявки «на проверке»: проверка дубля ИНН, затем ИИ по PDF и данным; при approve — одобрение и начисление экокоинов, при reject — отклонение с пометкой [ИИ]. Это может занять несколько минут и расходует лимиты Timeweb AI. Продолжить?';
+    if (!window.confirm(intro)) return;
+
+    setBatchAiRunning(true);
+    let cursor = 0;
+    const acc = {
+      approved: 0,
+      rejected: 0,
+      skipped: 0,
+      wouldApprove: 0,
+      wouldReject: 0,
+      errors: 0,
+    };
+    let chunks = 0;
+    let more = true;
+    let emptyQueue = false;
+    try {
+      while (more) {
+        chunks += 1;
+        setBatchAiStatus(`Партия ${chunks}…`);
+        const res = await fetch(getApiUrl('/api/admin/licenses/batch-ai-approve'), {
+          method: 'POST',
+          headers: {
+            Authorization: accessToken ? `Bearer ${accessToken}` : '',
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ cursor, batchSize: 10, dryRun }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((body as { message?: string }).message ?? `Ошибка партии ${chunks}`);
+        }
+        const data = body as {
+          summary?: {
+            approved?: number;
+            rejected?: number;
+            skipped?: number;
+            wouldApprove?: number;
+            wouldReject?: number;
+          };
+          nextCursor?: number | null;
+          results?: { action?: string }[];
+        };
+        if (chunks === 1 && (data.results?.length ?? 0) === 0) {
+          emptyQueue = true;
+          alert('Нет заявок со статусом «на проверке».');
+          more = false;
+          break;
+        }
+        const s = data.summary ?? {};
+        acc.approved += Number(s.approved ?? 0);
+        acc.rejected += Number(s.rejected ?? 0);
+        acc.skipped += Number(s.skipped ?? 0);
+        acc.wouldApprove += Number(s.wouldApprove ?? 0);
+        acc.wouldReject += Number(s.wouldReject ?? 0);
+        for (const r of data.results ?? []) {
+          if (r.action === 'error') acc.errors += 1;
+        }
+        const next = data.nextCursor;
+        if (next == null || next === undefined) {
+          more = false;
+        } else {
+          cursor = next;
+        }
+      }
+
+      if (!emptyQueue) {
+        const summaryText = dryRun
+          ? `Пробный прогон завершён (${chunks} партий). Условно одобрить: ${acc.wouldApprove}, условно отклонить: ${acc.wouldReject}, пропуски: ${acc.skipped}.`
+          : `Готово (${chunks} партий). Одобрено: ${acc.approved}, отклонено: ${acc.rejected}, пропущено: ${acc.skipped}, ошибок записи: ${acc.errors}.`;
+        alert(summaryText);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка пакетной модерации');
+    } finally {
+      setBatchAiStatus('');
+      setBatchAiRunning(false);
+      await reload();
     }
   }
 
@@ -356,6 +446,32 @@ export default function AdminLicensesPage(): JSX.Element {
               <h2 className="glass-title mt-1">Очередь модерации</h2>
             </div>
             <div className="text-sm text-ink-muted">Всего: {pendingItems.length}</div>
+          </div>
+
+          <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 p-3 rounded-xl bg-app-bg/50 border border-black/[0.06]">
+            <button
+              type="button"
+              disabled={batchAiRunning}
+              onClick={() => {
+                void handleBatchAiApproveAll();
+              }}
+              className="glass-btn-dark !h-10 !px-4"
+            >
+              {batchAiRunning ? 'Обработка ИИ…' : 'Проверить и одобрить партиями (ИИ)'}
+            </button>
+            <label className="flex items-center gap-2 text-sm text-ink-muted cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={batchAiDryRun}
+                disabled={batchAiRunning}
+                onChange={(e) => setBatchAiDryRun(e.target.checked)}
+                className="rounded border-black/20"
+              />
+              Пробный прогон (без изменений в БД)
+            </label>
+            {batchAiStatus ? (
+              <span className="text-sm text-ink font-medium">{batchAiStatus}</span>
+            ) : null}
           </div>
 
           <div className="mt-4 space-y-3">

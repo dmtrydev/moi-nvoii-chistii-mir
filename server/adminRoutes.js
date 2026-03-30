@@ -4,6 +4,8 @@ import { getPool } from './db.js';
 import { requireRole } from './auth.js';
 import { createAuditLog } from './audit.js';
 import { LICENSE_INN_NORMALIZED_EXPR } from './innUtils.js';
+import { approveLicenseInTx, ApproveLicenseError } from './licenseApprove.js';
+import { runBatchAiApproveChunk } from './moderationBatch.js';
 
 const adminRouter = express.Router();
 
@@ -259,6 +261,20 @@ adminRouter.post('/licenses/resolve-duplicate-inns', async (req, res) => {
   }
 });
 
+adminRouter.post('/licenses/batch-ai-approve', async (req, res) => {
+  try {
+    const cursor = Number(req.body?.cursor ?? 0) || 0;
+    const batchSize = Number(req.body?.batchSize ?? 10);
+    const dryRun = Boolean(req.body?.dryRun);
+    const pool = getPool();
+    const out = await runBatchAiApproveChunk(pool, { cursor, batchSize, dryRun, req });
+    return res.json(out);
+  } catch (err) {
+    console.error('batch-ai-approve:', err);
+    return res.status(500).json({ message: 'Ошибка пакетной модерации' });
+  }
+});
+
 adminRouter.post('/licenses/:id/approve', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) {
@@ -269,65 +285,20 @@ adminRouter.post('/licenses/:id/approve', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const beforeResult = await client.query(
-      `SELECT id,
-              status,
-              reward,
-              owner_user_id AS "ownerUserId",
-              rejection_note AS "rejectionNote"
-       FROM licenses
-       WHERE id = $1
-       LIMIT 1`,
-      [id],
-    );
-    if (!beforeResult.rows.length) {
+    let approveResult;
+    try {
+      approveResult = await approveLicenseInTx(client, id, req.user?.id ?? null);
+    } catch (e) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Объект не найден' });
+      if (e instanceof ApproveLicenseError) {
+        if (e.code === 'NOT_FOUND') return res.status(404).json({ message: e.message });
+        if (e.code === 'ALREADY_APPROVED' || e.code === 'NOT_PENDING') {
+          return res.status(400).json({ message: e.message });
+        }
+        return res.status(400).json({ message: e.message });
+      }
+      throw e;
     }
-    const before = beforeResult.rows[0];
-    if (before.status === 'approved') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Лицензия уже одобрена' });
-    }
-    if (!before.ownerUserId) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'У лицензии нет владельца для начисления экокоинов' });
-    }
-
-    const updated = await client.query(
-      `UPDATE licenses
-       SET status = 'approved',
-           moderated_by = $2,
-           moderated_at = NOW(),
-           moderated_comment = COALESCE(moderated_comment, ''),
-           rejection_note = NULL
-       WHERE id = $1
-       RETURNING id,
-                 status,
-                 reward,
-                 owner_user_id AS "ownerUserId",
-                 moderated_at AS "moderatedAt",
-                 moderated_by AS "moderatedBy"`,
-      [id, req.user?.id ?? null],
-    );
-
-    const txInsert = await client.query(
-      `INSERT INTO transactions (user_id, license_id, amount, type)
-       VALUES ($1, $2, $3, 'LICENSE_REWARD')
-       ON CONFLICT (license_id) DO NOTHING
-       RETURNING id`,
-      [before.ownerUserId, id, Number(before.reward ?? 100)],
-    );
-
-    if (txInsert.rowCount > 0) {
-      await client.query(
-        `UPDATE users
-         SET eco_coins = eco_coins + $2
-         WHERE id = $1`,
-        [before.ownerUserId, Number(before.reward ?? 100)],
-      );
-    }
-
     await client.query('COMMIT');
     await createAuditLog({
       req,
@@ -335,12 +306,12 @@ adminRouter.post('/licenses/:id/approve', async (req, res) => {
       entityType: 'LICENSE',
       entityId: String(id),
       severity: 'INFO',
-      changes: { before, after: updated.rows[0] },
-      metadata: { rewardGranted: txInsert.rowCount > 0 },
+      changes: { before: approveResult.before, after: approveResult.after },
+      metadata: { rewardGranted: approveResult.rewardGranted },
     });
     return res.json({
-      message: txInsert.rowCount > 0 ? 'Лицензия одобрена, экокоины начислены' : 'Лицензия одобрена',
-      license: updated.rows[0],
+      message: approveResult.rewardGranted ? 'Лицензия одобрена, экокоины начислены' : 'Лицензия одобрена',
+      license: approveResult.after,
     });
   } catch (err) {
     await client.query('ROLLBACK');

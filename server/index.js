@@ -11,7 +11,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
-import { PDFParse } from 'pdf-parse';
 import { query, getPool } from './db.js';
 import { authMiddleware, requireRole, requireAuth } from './auth.js';
 import { createAuditLog } from './audit.js';
@@ -22,6 +21,8 @@ import authRouter from './authRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
 import userRouter from './userRoutes.js';
 import supportRouter from './supportRoutes.js';
+import { extractTextFromPdf } from './pdfText.js';
+import { TIMEWEB_BASE, callTimewebAiJson, isTimewebAiConfigured } from './aiClient.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -359,13 +360,6 @@ async function scanFileWithVirusTotal(buffer, filename) {
   throw new Error('VirusTotal: анализ занял слишком много времени');
 }
 
-// Timeweb Cloud AI (OpenAI-совместимый endpoint)
-const TIMEWEB_ACCESS_ID = process.env.TIMEWEB_ACCESS_ID;
-const TIMEWEB_BEARER_TOKEN = process.env.TIMEWEB_BEARER_TOKEN || TIMEWEB_ACCESS_ID;
-const TIMEWEB_BASE = TIMEWEB_ACCESS_ID
-  ? `https://agent.timeweb.cloud/api/v1/cloud-ai/agents/${TIMEWEB_ACCESS_ID}/v1`
-  : null;
-
 // Проверка, что API доступен (для отладки и прокси)
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'analyze-license' });
@@ -432,16 +426,6 @@ function guessRegionFromAddress(address) {
   return first.length <= 80 ? first : '';
 }
 
-async function extractTextFromPdf(buffer) {
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const result = await parser.getText();
-    return result?.text ?? '';
-  } finally {
-    await parser.destroy();
-  }
-}
-
 const PYTHON_SCRIPT = path.join(__dirname, 'scripts', 'extract_tables.py');
 
 function extractTablesFromPdf(filePath) {
@@ -459,57 +443,6 @@ function extractTablesFromPdf(filePath) {
       }
     });
   });
-}
-
-function extractHeaderText(fullText) {
-  const lines = fullText.split('\n');
-  const headerLines = [];
-  const pageBreakRe = /^--\s*\d+\s+of\s+\d+\s*--$/;
-  const fkkoLineRe = /\d\s+\d{2}\s+\d{3}\s+\d{2}\s+\d{2}\s+\d|\d{11}/;
-  const tableHeaderRe = /Наименование вида|Код отхода/i;
-
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    if (!trimmed || pageBreakRe.test(trimmed)) continue;
-    headerLines.push(trimmed);
-    if (/^(9|10)\.\s/.test(trimmed) || /лицензируемый вид деятельности/i.test(trimmed)) {
-      for (let j = i + 1; j < Math.min(i + 15, lines.length); j++) {
-        const next = lines[j].trim();
-        if (!next || pageBreakRe.test(next)) continue;
-        if (fkkoLineRe.test(next) || tableHeaderRe.test(next)) break;
-        headerLines.push(next);
-      }
-      break;
-    }
-  }
-  return headerLines.join('\n').slice(0, 4000);
-}
-
-async function callTimewebAi(systemPrompt, userContent, maxTokens = 4000) {
-  const chatRes = await fetch(`${TIMEWEB_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${TIMEWEB_BEARER_TOKEN}`,
-      'x-proxy-source': process.env.TIMEWEB_PROXY_SOURCE || '',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      temperature: 0.1,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!chatRes.ok) {
-    const errText = await chatRes.text();
-    throw new Error(`AI ${chatRes.status}: ${errText.slice(0, 200)}`);
-  }
-  const completion = await chatRes.json();
-  const raw = completion.choices?.[0]?.message?.content?.trim() ?? '';
-  return JSON.parse(raw);
 }
 
 const CHUNK_ENTRIES_PROMPT = `Извлеки из фрагмента таблицы лицензии записи ФККО.
@@ -914,7 +847,7 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
 
       if (TIMEWEB_BASE && headerSlice.length > 50) {
         try {
-          const headerAi = await callTimewebAi(
+          const headerAi = await callTimewebAiJson(
             'Ты извлекаешь структурированные данные из текста лицензии. Отвечай СТРОГО валидным JSON без markdown.',
             `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${headerSlice}`,
             4000,
@@ -941,7 +874,7 @@ app.post('/api/analyze-license', upload.single('file'), async (req, res) => {
 
       if (TIMEWEB_BASE) {
         try {
-          const ai = await callTimewebAi(
+          const ai = await callTimewebAiJson(
             'Ты извлекаешь структурированные данные из текста лицензии на обращение с отходами. Отвечай СТРОГО валидным JSON без markdown-обрамления.',
             `${EXTRACT_PROMPT}\n\nТекст документа:\n\n${text.slice(0, 15000)}`,
             8000,
@@ -2031,7 +1964,7 @@ function startServer(tryPort) {
       console.log(`(порт ${port} был занят, использован ${tryPort})`);
       console.log(`В .env укажите: VITE_API_URL=http://localhost:${tryPort}`);
     }
-    if (!TIMEWEB_ACCESS_ID) {
+    if (!isTimewebAiConfigured()) {
       console.warn('TIMEWEB_ACCESS_ID не задан — анализ лицензий через Timeweb недоступен.');
     }
     if (!process.env.JWT_ACCESS_SECRET) {
