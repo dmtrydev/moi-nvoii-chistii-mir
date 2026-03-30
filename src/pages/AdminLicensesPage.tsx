@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
@@ -42,9 +42,24 @@ interface DuplicateGroup {
   licenses: DuplicateLicenseRow[];
 }
 
+interface LicenseStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  rejectedByAi: number;
+}
+
+const PAGE_SIZE = 25;
+const PENDING_QUEUE_LIMIT = 200;
+
 export default function AdminLicensesPage(): JSX.Element {
   const { accessToken } = useAuth();
   const [items, setItems] = useState<LicenseItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [stats, setStats] = useState<LicenseStats | null>(null);
+  const [pendingItems, setPendingItems] = useState<LicenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,9 +68,71 @@ export default function AdminLicensesPage(): JSX.Element {
   const [dupScanLoading, setDupScanLoading] = useState(false);
   const [dupResolveLoading, setDupResolveLoading] = useState(false);
 
-  const [batchAiDryRun, setBatchAiDryRun] = useState(false);
   const [batchAiRunning, setBatchAiRunning] = useState(false);
   const [batchAiStatus, setBatchAiStatus] = useState('');
+
+  async function fetchStats(): Promise<void> {
+    const res = await fetch(getApiUrl('/api/admin/licenses/stats'), {
+      headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+      credentials: 'include',
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((body as { message?: string }).message ?? 'Ошибка статистики');
+    }
+    const d = body as LicenseStats;
+    setStats({
+      total: Number(d.total) || 0,
+      pending: Number(d.pending) || 0,
+      approved: Number(d.approved) || 0,
+      rejected: Number(d.rejected) || 0,
+      rejectedByAi: Number(d.rejectedByAi) || 0,
+    });
+  }
+
+  async function fetchPendingQueue(): Promise<void> {
+    const res = await fetch(
+      getApiUrl(`/api/admin/licenses?status=pending&limit=${PENDING_QUEUE_LIMIT}&offset=0`),
+      {
+        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        credentials: 'include',
+      },
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки очереди');
+    }
+    const data = body as { items?: LicenseItem[] };
+    setPendingItems(Array.isArray(data.items) ? data.items : []);
+  }
+
+  async function fetchTablePage(forPage: number): Promise<void> {
+    const offset = (forPage - 1) * PAGE_SIZE;
+    const res = await fetch(
+      getApiUrl(`/api/admin/licenses?limit=${PAGE_SIZE}&offset=${offset}`),
+      {
+        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        credentials: 'include',
+      },
+    );
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки объектов');
+    }
+    const data = body as { items?: LicenseItem[]; total?: number };
+    const list = Array.isArray(data.items) ? data.items : [];
+    const t = Number(data.total) ?? 0;
+    setItems(list);
+    setTotal(t);
+    const maxPage = Math.max(1, Math.ceil(t / PAGE_SIZE) || 1);
+    if (forPage > maxPage) {
+      setPage(maxPage);
+    }
+  }
+
+  useLayoutEffect(() => {
+    setPage(1);
+  }, [accessToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,20 +140,7 @@ export default function AdminLicensesPage(): JSX.Element {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(getApiUrl('/api/admin/licenses?limit=100'), {
-          headers: {
-            Authorization: accessToken ? `Bearer ${accessToken}` : '',
-          },
-          credentials: 'include',
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки объектов');
-        }
-        if (!cancelled) {
-          const data = body as { items?: LicenseItem[] };
-          setItems(Array.isArray(data.items) ? data.items : []);
-        }
+        await Promise.all([fetchStats(), fetchPendingQueue(), fetchTablePage(page)]);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка');
       } finally {
@@ -87,26 +151,15 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [accessToken, page]);
 
-  const pendingItems = items.filter((lic) => lic.status === 'pending' && !lic.deletedAt);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
   async function reload(): Promise<void> {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(getApiUrl('/api/admin/licenses?limit=100'), {
-        headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
-        },
-        credentials: 'include',
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки объектов');
-      }
-      const data = body as { items?: LicenseItem[] };
-      setItems(Array.isArray(data.items) ? data.items : []);
+      await Promise.all([fetchStats(), fetchPendingQueue(), fetchTablePage(page)]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка');
     } finally {
@@ -129,6 +182,17 @@ export default function AdminLicensesPage(): JSX.Element {
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка одобрения');
     }
+  }
+
+  async function handleManualApproveRejected(id: number): Promise<void> {
+    if (
+      !window.confirm(
+        'Заявка была отклонена (в том числе автоматически по ИИ). Одобрить вручную и опубликовать объект?',
+      )
+    ) {
+      return;
+    }
+    await handleApprove(id);
   }
 
   async function handleReject(id: number): Promise<void> {
@@ -210,11 +274,13 @@ export default function AdminLicensesPage(): JSX.Element {
   }
 
   async function handleBatchAiApproveAll(): Promise<void> {
-    const dryRun = batchAiDryRun;
-    const intro = dryRun
-      ? 'Пробный прогон ИИ по всем заявкам «на проверке» (без изменений в БД). Продолжить?'
-      : 'По очереди будут обработаны все заявки «на проверке»: проверка дубля ИНН, затем ИИ по PDF и данным; при approve — одобрение и начисление экокоинов, при reject — отклонение с пометкой [ИИ]. Это может занять несколько минут и расходует лимиты Timeweb AI. Продолжить?';
-    if (!window.confirm(intro)) return;
+    if (
+      !window.confirm(
+        'По очереди будут обработаны все заявки «на проверке»: проверка дубля ИНН, затем ИИ по PDF и данным; при одобрении — публикация и начисление экокоинов, при отклонении — статус «отклонено» с пометкой [ИИ]. Это может занять несколько минут и расходует лимиты Timeweb AI. Продолжить?',
+      )
+    ) {
+      return;
+    }
 
     setBatchAiRunning(true);
     let cursor = 0;
@@ -222,8 +288,6 @@ export default function AdminLicensesPage(): JSX.Element {
       approved: 0,
       rejected: 0,
       skipped: 0,
-      wouldApprove: 0,
-      wouldReject: 0,
       errors: 0,
     };
     let chunks = 0;
@@ -240,7 +304,7 @@ export default function AdminLicensesPage(): JSX.Element {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-          body: JSON.stringify({ cursor, batchSize: 10, dryRun }),
+          body: JSON.stringify({ cursor, batchSize: 10, dryRun: false }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -251,8 +315,6 @@ export default function AdminLicensesPage(): JSX.Element {
             approved?: number;
             rejected?: number;
             skipped?: number;
-            wouldApprove?: number;
-            wouldReject?: number;
           };
           nextCursor?: number | null;
           results?: { action?: string }[];
@@ -267,8 +329,6 @@ export default function AdminLicensesPage(): JSX.Element {
         acc.approved += Number(s.approved ?? 0);
         acc.rejected += Number(s.rejected ?? 0);
         acc.skipped += Number(s.skipped ?? 0);
-        acc.wouldApprove += Number(s.wouldApprove ?? 0);
-        acc.wouldReject += Number(s.wouldReject ?? 0);
         for (const r of data.results ?? []) {
           if (r.action === 'error') acc.errors += 1;
         }
@@ -281,10 +341,9 @@ export default function AdminLicensesPage(): JSX.Element {
       }
 
       if (!emptyQueue) {
-        const summaryText = dryRun
-          ? `Пробный прогон завершён (${chunks} партий). Условно одобрить: ${acc.wouldApprove}, условно отклонить: ${acc.wouldReject}, пропуски: ${acc.skipped}.`
-          : `Готово (${chunks} партий). Одобрено: ${acc.approved}, отклонено: ${acc.rejected}, пропущено: ${acc.skipped}, ошибок записи: ${acc.errors}.`;
-        alert(summaryText);
+        alert(
+          `Готово (${chunks} партий). Одобрено: ${acc.approved}, отклонено: ${acc.rejected}, пропущено: ${acc.skipped}, ошибок записи: ${acc.errors}.`,
+        );
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка пакетной модерации');
@@ -309,7 +368,7 @@ export default function AdminLicensesPage(): JSX.Element {
       if (!res.ok) {
         throw new Error((body as { message?: string }).message ?? 'Ошибка удаления');
       }
-      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, deletedAt: (body as LicenseItem).deletedAt } : x)));
+      await reload();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка удаления');
     }
@@ -322,6 +381,33 @@ export default function AdminLicensesPage(): JSX.Element {
           <div>
             <div className="glass-kicker">Moderation</div>
             <h1 className="glass-title mt-1">Объекты (лицензии)</h1>
+            {stats ? (
+              <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-bg border border-black/[0.06] text-ink">
+                  <span className="text-ink-muted">Всего</span>
+                  <span className="font-semibold tabular-nums">{stats.total}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-soft/80 border border-[#1f5c14]/15 text-[#1f5c14]">
+                  <span className="opacity-90">На проверке</span>
+                  <span className="font-semibold tabular-nums">{stats.pending}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-bg border border-black/[0.06]">
+                  <span className="text-ink-muted">Одобрено</span>
+                  <span className="font-semibold tabular-nums text-ink">{stats.approved}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-bg border border-black/[0.06]">
+                  <span className="text-ink-muted">Отклонено</span>
+                  <span className="font-semibold tabular-nums text-ink">{stats.rejected}</span>
+                </span>
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200/80 bg-amber-50 text-amber-950"
+                  title="Отклонено пакетной проверкой ИИ; можно одобрить вручную в таблице ниже"
+                >
+                  <span className="opacity-90">Отклонено ИИ</span>
+                  <span className="font-semibold tabular-nums">{stats.rejectedByAi}</span>
+                </span>
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
@@ -445,7 +531,12 @@ export default function AdminLicensesPage(): JSX.Element {
               <div className="glass-kicker">Заявки на проверку</div>
               <h2 className="glass-title mt-1">Очередь модерации</h2>
             </div>
-            <div className="text-sm text-ink-muted">Всего: {pendingItems.length}</div>
+            <div className="text-sm text-ink-muted text-right">
+              <div>Всего на проверке: {stats?.pending ?? pendingItems.length}</div>
+              {pendingItems.length >= PENDING_QUEUE_LIMIT && (stats?.pending ?? 0) > PENDING_QUEUE_LIMIT ? (
+                <div className="text-[11px] text-amber-700 mt-1">В списке ниже — первые {PENDING_QUEUE_LIMIT} заявок</div>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 p-3 rounded-xl bg-app-bg/50 border border-black/[0.06]">
@@ -459,16 +550,6 @@ export default function AdminLicensesPage(): JSX.Element {
             >
               {batchAiRunning ? 'Обработка ИИ…' : 'Проверить и одобрить партиями (ИИ)'}
             </button>
-            <label className="flex items-center gap-2 text-sm text-ink-muted cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={batchAiDryRun}
-                disabled={batchAiRunning}
-                onChange={(e) => setBatchAiDryRun(e.target.checked)}
-                className="rounded border-black/20"
-              />
-              Пробный прогон (без изменений в БД)
-            </label>
             {batchAiStatus ? (
               <span className="text-sm text-ink font-medium">{batchAiStatus}</span>
             ) : null}
@@ -595,6 +676,17 @@ export default function AdminLicensesPage(): JSX.Element {
                 <td className="px-3 py-1.5">
                   {!lic.deletedAt ? (
                     <div className="flex flex-wrap gap-2 items-center">
+                      {lic.status === 'rejected' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleManualApproveRejected(lic.id);
+                          }}
+                          className="glass-btn-dark !h-8 !text-[11px]"
+                        >
+                          Одобрить вручную
+                        </button>
+                      ) : null}
                       <Link
                         to={`/admin/licenses/${lic.id}`}
                         className="glass-btn-soft !h-8 !text-[11px]"
@@ -625,6 +717,35 @@ export default function AdminLicensesPage(): JSX.Element {
           </tbody>
         </table>
       </div>
+
+      {!loading && total > 0 ? (
+        <div className="glass-panel p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-ink">
+          <div className="text-ink-muted">
+            Записей: <span className="font-semibold text-ink tabular-nums">{total}</span>
+            {' · '}
+            Страница <span className="font-semibold text-ink tabular-nums">{page}</span> из{' '}
+            <span className="font-semibold text-ink tabular-nums">{totalPages}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="glass-btn-soft !h-9 !px-4 !text-xs"
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="glass-btn-soft !h-9 !px-4 !text-xs"
+            >
+              Вперёд
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

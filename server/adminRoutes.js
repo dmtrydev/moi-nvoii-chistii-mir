@@ -73,11 +73,65 @@ adminRouter.get('/logs', async (req, res) => {
   res.json({ items: rows.rows });
 });
 
+// Сводная статистика по объектам (не удалённые)
+adminRouter.get('/licenses/stats', async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+         COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+         COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
+         COUNT(*) FILTER (
+           WHERE status = 'rejected' AND rejection_note ~ '^\\[ИИ\\]'
+         )::int AS "rejectedByAi"
+       FROM licenses
+       WHERE deleted_at IS NULL`,
+      [],
+    );
+    const s = rows[0] ?? {};
+    return res.json({
+      total: s.total ?? 0,
+      pending: s.pending ?? 0,
+      approved: s.approved ?? 0,
+      rejected: s.rejected ?? 0,
+      rejectedByAi: s.rejectedByAi ?? 0,
+    });
+  } catch (err) {
+    console.error('licenses/stats error:', err);
+    return res.status(500).json({ message: 'Ошибка статистики' });
+  }
+});
+
 // Админский список лицензий (для управления объектами)
 adminRouter.get('/licenses', async (req, res) => {
-  const { includeDeleted = 'false', limit = 50, offset = 0 } = req.query;
+  const { includeDeleted = 'false', limit = 50, offset = 0, status: statusQ } = req.query;
   const showDeleted = String(includeDeleted).toLowerCase() === 'true';
+  const statusStr = String(statusQ ?? '').toLowerCase();
+  const statusFilter =
+    statusStr === 'pending' || statusStr === 'approved' || statusStr === 'rejected' ? statusStr : null;
 
+  const whereParts = [];
+  const countParams = [];
+  let pi = 1;
+  if (!showDeleted) {
+    whereParts.push('deleted_at IS NULL');
+  }
+  if (statusFilter) {
+    whereParts.push(`status = $${pi++}`);
+    countParams.push(statusFilter);
+  }
+  const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  const { rows: countRows } = await query(
+    `SELECT COUNT(*)::int AS c FROM licenses ${whereSql}`,
+    countParams,
+  );
+  const total = countRows[0]?.c ?? 0;
+
+  const listParams = [...countParams, Number(limit), Number(offset)];
+  const limIdx = pi++;
+  const offIdx = pi;
   const rows = await query(
     `SELECT id,
             company_name AS "companyName",
@@ -100,13 +154,13 @@ adminRouter.get('/licenses', async (req, res) => {
             deleted_by AS "deletedBy",
             created_at AS "createdAt"
      FROM licenses
-     ${showDeleted ? '' : 'WHERE deleted_at IS NULL'}
+     ${whereSql}
      ORDER BY created_at DESC
-     LIMIT $1 OFFSET $2`,
-    [Number(limit), Number(offset)],
+     LIMIT $${limIdx} OFFSET $${offIdx}`,
+    listParams,
   );
 
-  res.json({ items: rows.rows });
+  res.json({ items: rows.rows, total });
 });
 
 const INN_EXPR = LICENSE_INN_NORMALIZED_EXPR;
@@ -307,7 +361,10 @@ adminRouter.post('/licenses/:id/approve', async (req, res) => {
       entityId: String(id),
       severity: 'INFO',
       changes: { before: approveResult.before, after: approveResult.after },
-      metadata: { rewardGranted: approveResult.rewardGranted },
+      metadata: {
+        rewardGranted: approveResult.rewardGranted,
+        ...(approveResult.manualOverrideFromRejected ? { manualOverrideFromRejected: true } : {}),
+      },
     });
     return res.json({
       message: approveResult.rewardGranted ? 'Лицензия одобрена, экокоины начислены' : 'Лицензия одобрена',
