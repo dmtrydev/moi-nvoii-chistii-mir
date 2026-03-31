@@ -42,3 +42,6 @@ dist-ssr
 licenses.json
 *.json.bak
 server/data/*.json
+
+DEPLOY.md
+DEPLOY_VPS.md
