@@ -401,6 +401,19 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               Редактировать карточку
             </button>
           ) : null}
+          {isAdmin ? (
+            <button
+              type="button"
+              disabled={!item?.id}
+              onClick={() => {
+                void markCurrentAsRecheck().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
+              }}
+              className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+              title="Отправить объект на перепроверку"
+            >
+              Перепроверка
+            </button>
+          ) : null}
           {isAdmin && editing && draft ? (
             <>
               <button
@@ -1049,18 +1062,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                           className="px-5 py-2.5 rounded-2xl glass-btn-dark text-sm font-semibold"
                         >
                           Скачать файл (PDF)
-                        </button>
-                      ) : null}
-
-                      {isAdmin ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void markCurrentAsRecheck().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
-                          }}
-                          className="px-5 py-2.5 rounded-2xl border border-black/[0.08] bg-white/80 text-ink text-sm font-semibold hover:bg-white transition-colors shadow-sm"
-                        >
-                          Перепроверка
                         </button>
                       ) : null}
 
