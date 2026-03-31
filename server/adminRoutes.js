@@ -745,9 +745,6 @@ adminRouter.post('/licenses/:id/recheck', async (req, res) => {
   }
 
   const before = existing.rows[0];
-  if (before.status === 'approved') {
-    return res.status(400).json({ message: 'Одобренный объект нельзя отправить на перепроверку' });
-  }
   if (before.status === 'recheck') {
     return res.json({ message: 'Объект уже на перепроверке', license: before });
   }

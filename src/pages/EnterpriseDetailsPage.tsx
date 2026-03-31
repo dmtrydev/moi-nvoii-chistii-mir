@@ -1052,7 +1052,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                         </button>
                       ) : null}
 
-                      {isAdmin && item.status !== 'approved' && item.status !== 'recheck' ? (
+                      {isAdmin ? (
                         <button
                           type="button"
                           onClick={() => {
