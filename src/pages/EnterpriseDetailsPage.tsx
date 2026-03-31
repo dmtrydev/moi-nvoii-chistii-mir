@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import type { FkkoEntry, LicenseData, LicenseSiteData } from '@/types';
 import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
@@ -115,8 +115,16 @@ const inputClass =
 
 type DetailTab = 'about' | 'fkko';
 
+function moderationStatusLabel(status: string | null | undefined): string {
+  if (status === 'approved') return 'Одобрена';
+  if (status === 'recheck') return 'На перепроверке';
+  if (status === 'rejected') return 'Отклонена';
+  return 'На проверке';
+}
+
 export default function EnterpriseDetailsPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const [item, setItem] = useState<LicenseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -128,6 +136,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   /** Ключ вида `license` или `site-0` во время запроса к /api/geocode */
   const [geocodeTarget, setGeocodeTarget] = useState<string | null>(null);
   const { accessToken, user } = useAuth();
+  const fromAdminList = typeof (location.state as { from?: unknown } | null)?.from === 'string'
+    ? ((location.state as { from?: string }).from ?? '/admin/licenses')
+    : '/admin/licenses';
 
   useEffect(() => {
     const numId = Number(id);
@@ -253,6 +264,18 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     window.location.reload();
   }
 
+  async function markCurrentAsRecheck(): Promise<void> {
+    if (!accessToken || !item?.id) return;
+    const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/recheck`), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      credentials: 'include',
+    });
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    if (!res.ok) throw new Error(body.message ?? 'Не удалось отправить на перепроверку');
+    window.location.reload();
+  }
+
   async function applyGeocodeToDraft(kind: 'license' | 'site', siteIdx?: number): Promise<void> {
     if (!draft) return;
     setPatchError('');
@@ -352,10 +375,10 @@ export default function EnterpriseDetailsPage(): JSX.Element {
       <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-10 pb-14">
         <div className="mb-8 flex flex-wrap gap-3">
           <Link
-            to="/"
+            to={isAdmin ? fromAdminList : '/'}
             className="glass-btn-soft inline-flex items-center justify-center h-11 px-5 text-sm font-medium"
           >
-            На главную
+            {isAdmin ? 'Назад к списку' : 'На главную'}
           </Link>
           <Link
             to={mapPath}
@@ -1001,9 +1024,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                       {item.status ? (
                         <>
                           Статус:{' '}
-                          <span className="font-semibold text-ink">
-                            {item.status === 'pending' ? 'На проверке' : item.status === 'approved' ? 'Одобрена' : 'Отклонена'}
-                          </span>
+                          <span className="font-semibold text-ink">{moderationStatusLabel(item.status)}</span>
                         </>
                       ) : (
                         <span>Статус не указан</span>
@@ -1031,7 +1052,19 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                         </button>
                       ) : null}
 
-                      {isAdmin && item.status === 'pending' ? (
+                      {isAdmin && item.status !== 'approved' && item.status !== 'recheck' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void markCurrentAsRecheck().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
+                          }}
+                          className="px-5 py-2.5 rounded-2xl border border-black/[0.08] bg-white/80 text-ink text-sm font-semibold hover:bg-white transition-colors shadow-sm"
+                        >
+                          Перепроверка
+                        </button>
+                      ) : null}
+
+                      {isAdmin && (item.status === 'pending' || item.status === 'recheck') ? (
                         <>
                           <button
                             type="button"

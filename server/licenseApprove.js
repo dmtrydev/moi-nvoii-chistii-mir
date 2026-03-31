@@ -28,8 +28,11 @@ export async function approveLicenseInTx(client, licenseId, adminId) {
   if (before.status === 'approved') {
     throw new ApproveLicenseError('ALREADY_APPROVED', 'Лицензия уже одобрена');
   }
-  if (before.status !== 'pending' && before.status !== 'rejected') {
-    throw new ApproveLicenseError('NOT_PENDING', 'Лицензия не в статусе «на проверке» или «отклонено»');
+  if (before.status !== 'pending' && before.status !== 'rejected' && before.status !== 'recheck') {
+    throw new ApproveLicenseError(
+      'NOT_PENDING',
+      'Лицензия не в статусе «на проверке», «на перепроверке» или «отклонено»',
+    );
   }
   if (!before.ownerUserId) {
     throw new ApproveLicenseError('NO_OWNER', 'У лицензии нет владельца для начисления экокоинов');

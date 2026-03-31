@@ -141,6 +141,7 @@ adminRouter.get('/licenses/stats', async (_req, res) => {
       `SELECT
          COUNT(*)::int AS total,
          COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+         COUNT(*) FILTER (WHERE status = 'recheck')::int AS recheck,
          COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
          COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
          COUNT(*) FILTER (
@@ -154,6 +155,7 @@ adminRouter.get('/licenses/stats', async (_req, res) => {
     return res.json({
       total: s.total ?? 0,
       pending: s.pending ?? 0,
+      recheck: s.recheck ?? 0,
       approved: s.approved ?? 0,
       rejected: s.rejected ?? 0,
       rejectedByAi: s.rejectedByAi ?? 0,
@@ -179,7 +181,12 @@ adminRouter.get('/licenses', async (req, res) => {
   const showDeleted = String(includeDeleted).toLowerCase() === 'true';
   const statusStr = String(statusQ ?? '').toLowerCase();
   const statusFilter =
-    statusStr === 'pending' || statusStr === 'approved' || statusStr === 'rejected' ? statusStr : null;
+    statusStr === 'pending' ||
+    statusStr === 'recheck' ||
+    statusStr === 'approved' ||
+    statusStr === 'rejected'
+      ? statusStr
+      : null;
 
   const importSourceStr = String(importSourceQ ?? '').trim();
   const registryInactiveOnly = String(importRegistryInactiveQ ?? '').toLowerCase() === 'true';
@@ -714,6 +721,65 @@ adminRouter.post('/licenses/:id/approve', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+adminRouter.post('/licenses/:id/recheck', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ message: 'Некорректный id' });
+  }
+
+  const existing = await query(
+    `SELECT id,
+            status,
+            rejection_note AS "rejectionNote",
+            moderated_comment AS "moderatedComment"
+     FROM licenses
+     WHERE id = $1
+       AND deleted_at IS NULL
+     LIMIT 1`,
+    [id],
+  );
+  if (!existing.rows.length) {
+    return res.status(404).json({ message: 'Объект не найден' });
+  }
+
+  const before = existing.rows[0];
+  if (before.status === 'approved') {
+    return res.status(400).json({ message: 'Одобренный объект нельзя отправить на перепроверку' });
+  }
+  if (before.status === 'recheck') {
+    return res.json({ message: 'Объект уже на перепроверке', license: before });
+  }
+
+  const updated = await query(
+    `UPDATE licenses
+     SET status = 'recheck',
+         moderated_by = $2,
+         moderated_at = NOW(),
+         moderated_comment = COALESCE(moderated_comment, ''),
+         rejection_note = NULL
+     WHERE id = $1
+     RETURNING id,
+               status,
+               reward,
+               rejection_note AS "rejectionNote",
+               moderated_comment AS "moderatedComment",
+               moderated_at AS "moderatedAt",
+               moderated_by AS "moderatedBy"`,
+    [id, req.user?.id ?? null],
+  );
+
+  await createAuditLog({
+    req,
+    action: 'LICENSE_MARK_RECHECK',
+    entityType: 'LICENSE',
+    entityId: String(id),
+    severity: 'INFO',
+    changes: { before, after: updated.rows[0] },
+  });
+
+  return res.json({ message: 'Объект отправлен на перепроверку', license: updated.rows[0] });
 });
 
 adminRouter.post('/licenses/:id/reject', async (req, res) => {

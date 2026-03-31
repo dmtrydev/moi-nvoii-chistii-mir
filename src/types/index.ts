@@ -102,7 +102,7 @@ export interface LicenseData {
   sites?: LicenseSiteData[];
   addressAliases?: Record<string, string>;
   // Поля moderation / оплаты
-  status?: 'pending' | 'approved' | 'rejected' | string;
+  status?: 'pending' | 'recheck' | 'approved' | 'rejected' | string;
   reward?: number;
   rejectionNote?: string | null;
   moderatedComment?: string | null;

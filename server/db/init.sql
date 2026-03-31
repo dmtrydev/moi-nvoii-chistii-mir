@@ -35,6 +35,22 @@ ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_external_ref TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_needs_review BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_inactive BOOLEAN NOT NULL DEFAULT FALSE;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    INNER JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'licenses'
+      AND c.conname = 'licenses_status_check'
+  ) THEN
+    ALTER TABLE licenses
+      ADD CONSTRAINT licenses_status_check
+      CHECK (status IN ('pending', 'recheck', 'approved', 'rejected'));
+  END IF;
+END
+$$;
+
 CREATE INDEX IF NOT EXISTS idx_licenses_import_source
   ON licenses (import_source)
   WHERE import_source IS NOT NULL;

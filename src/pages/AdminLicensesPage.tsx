@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
 import { formatFkkoHuman } from '@/utils/fkko';
 
@@ -27,7 +27,7 @@ interface LicenseItem {
   address: string | null;
   fkkoCodes?: string[] | null;
   activityTypes?: string[] | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'recheck' | 'approved' | 'rejected';
   reward: number;
   rejectionNote: string | null;
   deletedAt: string | null;
@@ -57,6 +57,7 @@ interface DuplicateGroup {
 interface LicenseStats {
   total: number;
   pending: number;
+  recheck: number;
   approved: number;
   rejected: number;
   rejectedByAi: number;
@@ -64,12 +65,40 @@ interface LicenseStats {
 
 const PAGE_SIZE = 25;
 const PENDING_QUEUE_LIMIT = 200;
+type AdminStatusFilter = 'all' | 'pending' | 'recheck' | 'approved' | 'rejected';
+
+function parseImportListFilter(v: string | null): AdminImportListFilter {
+  if (
+    v === 'all' ||
+    v === 'rpn_registry' ||
+    v === 'registry_any' ||
+    v === 'manual' ||
+    v === 'registry_inactive' ||
+    v === 'needs_review'
+  ) {
+    return v;
+  }
+  return 'all';
+}
+
+function parseStatusFilter(v: string | null): AdminStatusFilter {
+  if (v === 'all' || v === 'pending' || v === 'recheck' || v === 'approved' || v === 'rejected') {
+    return v;
+  }
+  return 'all';
+}
 
 export default function AdminLicensesPage(): JSX.Element {
   const { accessToken } = useAuth();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
+  const initialImportFilter = parseImportListFilter(searchParams.get('listFilter'));
+  const initialStatusFilter = parseStatusFilter(searchParams.get('status'));
+  const initialSearchQ = searchParams.get('q') ?? '';
   const [items, setItems] = useState<LicenseItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [stats, setStats] = useState<LicenseStats | null>(null);
   const [pendingItems, setPendingItems] = useState<LicenseItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,9 +111,32 @@ export default function AdminLicensesPage(): JSX.Element {
 
   const [batchAiRunning, setBatchAiRunning] = useState(false);
   const [batchAiStatus, setBatchAiStatus] = useState('');
-  const [importListFilter, setImportListFilter] = useState<AdminImportListFilter>('all');
-  const [listSearchInput, setListSearchInput] = useState('');
-  const [listSearchQ, setListSearchQ] = useState('');
+  const [importListFilter, setImportListFilter] = useState<AdminImportListFilter>(initialImportFilter);
+  const [statusFilter, setStatusFilter] = useState<AdminStatusFilter>(initialStatusFilter);
+  const [listSearchInput, setListSearchInput] = useState(initialSearchQ);
+  const [listSearchQ, setListSearchQ] = useState(initialSearchQ);
+  const didInitFiltersRef = useRef(false);
+
+  function setListUrlState(next: {
+    page?: number;
+    listFilter?: AdminImportListFilter;
+    status?: AdminStatusFilter;
+    q?: string;
+  }): void {
+    const p = new URLSearchParams(searchParams);
+    const nextPage = Math.max(1, next.page ?? page);
+    const nextListFilter = next.listFilter ?? importListFilter;
+    const nextStatus = next.status ?? statusFilter;
+    const nextQ = next.q ?? listSearchQ;
+    p.set('page', String(nextPage));
+    if (nextListFilter === 'all') p.delete('listFilter');
+    else p.set('listFilter', nextListFilter);
+    if (nextStatus === 'all') p.delete('status');
+    else p.set('status', nextStatus);
+    if (nextQ.trim()) p.set('q', nextQ.trim());
+    else p.delete('q');
+    setSearchParams(p, { replace: true });
+  }
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -92,6 +144,18 @@ export default function AdminLicensesPage(): JSX.Element {
     }, 400);
     return () => window.clearTimeout(t);
   }, [listSearchInput]);
+
+  useEffect(() => {
+    const urlPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
+    const urlListFilter = parseImportListFilter(searchParams.get('listFilter'));
+    const urlStatus = parseStatusFilter(searchParams.get('status'));
+    const urlQ = searchParams.get('q') ?? '';
+    if (page !== urlPage) setPage(urlPage);
+    if (importListFilter !== urlListFilter) setImportListFilter(urlListFilter);
+    if (statusFilter !== urlStatus) setStatusFilter(urlStatus);
+    if (listSearchInput !== urlQ) setListSearchInput(urlQ);
+    if (listSearchQ !== urlQ) setListSearchQ(urlQ);
+  }, [searchParams]);
 
   async function fetchStats(): Promise<void> {
     const res = await fetch(getApiUrl('/api/admin/licenses/stats'), {
@@ -106,6 +170,7 @@ export default function AdminLicensesPage(): JSX.Element {
     setStats({
       total: Number(d.total) || 0,
       pending: Number(d.pending) || 0,
+      recheck: Number(d.recheck) || 0,
       approved: Number(d.approved) || 0,
       rejected: Number(d.rejected) || 0,
       rejectedByAi: Number(d.rejectedByAi) || 0,
@@ -138,6 +203,7 @@ export default function AdminLicensesPage(): JSX.Element {
     if (importListFilter === 'manual') qs.set('importSource', 'manual');
     if (importListFilter === 'registry_inactive') qs.set('importRegistryInactive', 'true');
     if (importListFilter === 'needs_review') qs.set('needsReview', 'true');
+    if (statusFilter !== 'all') qs.set('status', statusFilter);
     if (listSearchQ) qs.set('q', listSearchQ);
     const res = await fetch(getApiUrl(`/api/admin/licenses?${qs}`), {
       headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
@@ -159,8 +225,13 @@ export default function AdminLicensesPage(): JSX.Element {
   }
 
   useLayoutEffect(() => {
+    if (!didInitFiltersRef.current) {
+      didInitFiltersRef.current = true;
+      return;
+    }
     setPage(1);
-  }, [accessToken, importListFilter, listSearchQ]);
+    setListUrlState({ page: 1 });
+  }, [importListFilter, statusFilter, listSearchQ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,7 +250,7 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, page, importListFilter, listSearchQ]);
+  }, [accessToken, page, importListFilter, statusFilter, listSearchQ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
@@ -437,6 +508,10 @@ export default function AdminLicensesPage(): JSX.Element {
                   <span className="font-semibold tabular-nums">{stats.pending}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-bg border border-black/[0.06]">
+                  <span className="text-ink-muted">На перепроверке</span>
+                  <span className="font-semibold tabular-nums text-ink">{stats.recheck}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-bg border border-black/[0.06]">
                   <span className="text-ink-muted">Одобрено</span>
                   <span className="font-semibold tabular-nums text-ink">{stats.approved}</span>
                 </span>
@@ -519,7 +594,14 @@ export default function AdminLicensesPage(): JSX.Element {
                               <li key={lic.id}>
                                 <span className="text-ink font-medium">ID {lic.id}</span>
                                 {lic.id === g.keepLicenseId ? ' (оставляем)' : ' (будет удалён)'} — {lic.companyName};{' '}
-                                {lic.status === 'approved' ? 'одобрено' : lic.status === 'rejected' ? 'отклонено' : 'на проверке'}; владелец{' '}
+                                {lic.status === 'approved'
+                                  ? 'одобрено'
+                                  : lic.status === 'recheck'
+                                    ? 'на перепроверке'
+                                    : lic.status === 'rejected'
+                                      ? 'отклонено'
+                                      : 'на проверке'}
+                                ; владелец{' '}
                                 {lic.ownerUserId ?? '—'}
                               </li>
                             ))}
@@ -673,7 +755,11 @@ export default function AdminLicensesPage(): JSX.Element {
                         Отклонить
                       </button>
 
-                      <Link to={`/admin/licenses/${lic.id}`} className="glass-btn-soft !h-9 !px-4">
+                      <Link
+                        to={`/admin/licenses/${lic.id}`}
+                        state={{ from: `${location.pathname}${location.search}` }}
+                        className="glass-btn-soft !h-9 !px-4"
+                      >
                         Открыть карточку
                       </Link>
                     </div>
@@ -706,7 +792,18 @@ export default function AdminLicensesPage(): JSX.Element {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
-          <span className="text-ink-muted shrink-0">Список объектов:</span>
+          <span className="text-ink-muted shrink-0">Фильтры:</span>
+          <select
+            className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as AdminStatusFilter)}
+          >
+            <option value="all">Все статусы</option>
+            <option value="pending">На проверке</option>
+            <option value="recheck">На перепроверке</option>
+            <option value="approved">Одобрено</option>
+            <option value="rejected">Отклонено</option>
+          </select>
           <select
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
             value={importListFilter}
@@ -768,7 +865,13 @@ export default function AdminLicensesPage(): JSX.Element {
                   )}
                 </td>
                 <td className="px-3 py-1.5">
-                  {lic.status === 'approved' ? 'Одобрено' : lic.status === 'rejected' ? 'Отклонено' : 'На проверке'}
+                  {lic.status === 'approved'
+                    ? 'Одобрено'
+                    : lic.status === 'recheck'
+                      ? 'На перепроверке'
+                      : lic.status === 'rejected'
+                        ? 'Отклонено'
+                        : 'На проверке'}
                   {lic.status === 'rejected' && lic.rejectionNote ? (
                     <div className="text-[11px] text-red-600 mt-1">{lic.rejectionNote}</div>
                   ) : null}
@@ -792,8 +895,20 @@ export default function AdminLicensesPage(): JSX.Element {
                           Одобрить вручную
                         </button>
                       ) : null}
+                      {lic.status === 'recheck' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleApprove(lic.id);
+                          }}
+                          className="glass-btn-dark !h-8 !text-[11px]"
+                        >
+                          Одобрить
+                        </button>
+                      ) : null}
                       <Link
                         to={`/admin/licenses/${lic.id}`}
+                        state={{ from: `${location.pathname}${location.search}` }}
                         className="glass-btn-soft !h-8 !text-[11px]"
                       >
                         Открыть карточку
@@ -847,7 +962,13 @@ export default function AdminLicensesPage(): JSX.Element {
             <button
               type="button"
               disabled={page <= 1 || loading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() =>
+                setPage((p) => {
+                  const next = Math.max(1, p - 1);
+                  setListUrlState({ page: next });
+                  return next;
+                })
+              }
               className="glass-btn-soft !h-9 !px-4 !text-xs"
             >
               Назад
@@ -855,7 +976,13 @@ export default function AdminLicensesPage(): JSX.Element {
             <button
               type="button"
               disabled={page >= totalPages || loading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() =>
+                setPage((p) => {
+                  const next = Math.min(totalPages, p + 1);
+                  setListUrlState({ page: next });
+                  return next;
+                })
+              }
               className="glass-btn-soft !h-9 !px-4 !text-xs"
             >
               Вперёд

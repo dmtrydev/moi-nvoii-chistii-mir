@@ -273,7 +273,13 @@ export default function UserDashboardPage(): JSX.Element {
                         </Link>
                       </td>
                       <td className="px-4 py-2">
-                        {item.status === 'approved' ? 'Одобрена' : item.status === 'rejected' ? 'Отклонена' : 'На проверке'}
+                        {item.status === 'approved'
+                          ? 'Одобрена'
+                          : item.status === 'recheck'
+                            ? 'На перепроверке'
+                            : item.status === 'rejected'
+                              ? 'Отклонена'
+                              : 'На проверке'}
                         {item.status === 'rejected' && item.rejectionNote ? (
                           <div className="text-xs glass-danger mt-1">{item.rejectionNote}</div>
                         ) : null}
