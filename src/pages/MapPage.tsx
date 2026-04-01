@@ -215,7 +215,6 @@ export default function MapPage(): JSX.Element {
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
   const [menuVisible, setMenuVisible] = useState(true);
-  const [regions, setRegions] = useState<string[]>([]);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [filterValidationError, setFilterValidationError] = useState<string>('');
@@ -230,18 +229,14 @@ export default function MapPage(): JSX.Element {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([
-      fetch(getApiUrl('/api/filters/regions')).then((r) => (r.ok ? r.json() : { regions: [] })),
-      fetch(getApiUrl('/api/filters/fkko')).then((r) => (r.ok ? r.json() : { fkko: [] })),
-    ])
-      .then(([regData, fkkoData]) => {
+    fetch(getApiUrl('/api/filters/fkko'))
+      .then((r) => (r.ok ? r.json() : { fkko: [] }))
+      .then((fkkoData) => {
         if (!alive) return;
-        setRegions(Array.isArray(regData.regions) ? regData.regions : []);
         setFkkoOptions(Array.isArray(fkkoData.fkko) ? fkkoData.fkko : []);
       })
       .catch(() => {
         if (!alive) return;
-        setRegions([]);
         setFkkoOptions([]);
       });
     return () => {
@@ -280,12 +275,11 @@ export default function MapPage(): JSX.Element {
   }, [filterFkko]);
 
   const regionOptions = useMemo(() => {
-    const merged = [...RUSSIAN_REGION_SUGGESTIONS, ...regions];
-    const normalized = merged
+    const normalized = RUSSIAN_REGION_SUGGESTIONS
       .map((r) => String(r).trim())
       .filter(Boolean);
     return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
-  }, [regions]);
+  }, []);
 
   const fkkoHintOptions = useMemo<AutocompleteOption[]>(() => {
     const seen = new Set<string>();
