@@ -15,6 +15,7 @@ import { approveLicenseInTx, ApproveLicenseError } from './licenseApprove.js';
 import { runBatchAiApproveChunk } from './moderationBatch.js';
 
 const adminRouter = express.Router();
+const requireSuperadminOnly = requireRole('SUPERADMIN');
 
 const MAX_ADMIN_SEARCH_TOKENS = 12;
 const MAX_ADMIN_SEARCH_TOKEN_LEN = 80;
@@ -70,7 +71,7 @@ function sqlAdminLicenseTokenClause(paramPlaceholder) {
   )`;
 }
 
-adminRouter.use(requireRole('SUPERADMIN'));
+adminRouter.use(requireRole('MODERATOR'));
 
 adminRouter.get('/stats/summary', async (req, res) => {
   const { from, to } = req.query;
@@ -132,6 +133,72 @@ adminRouter.get('/logs', async (req, res) => {
   );
 
   res.json({ items: rows.rows });
+});
+
+adminRouter.get('/users', requireSuperadminOnly, async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT id,
+              email,
+              full_name AS "fullName",
+              role,
+              is_active AS "isActive",
+              created_at AS "createdAt"
+       FROM users
+       ORDER BY created_at DESC`,
+      [],
+    );
+    return res.json({ items: rows });
+  } catch (err) {
+    console.error('admin users list error:', err);
+    return res.status(500).json({ message: 'Ошибка загрузки пользователей' });
+  }
+});
+
+adminRouter.patch('/users/:id/role', requireSuperadminOnly, async (req, res) => {
+  const id = Number(req.params.id);
+  const nextRole = String(req.body?.role ?? '').trim().toUpperCase();
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ message: 'Некорректный id пользователя' });
+  }
+  if (nextRole !== 'USER' && nextRole !== 'MODERATOR') {
+    return res.status(400).json({ message: 'Разрешены роли только USER и MODERATOR' });
+  }
+  if (Number(req.user?.id) === id) {
+    return res.status(400).json({ message: 'Нельзя менять роль самому себе' });
+  }
+
+  const beforeResult = await query(
+    `SELECT id, email, role
+     FROM users
+     WHERE id = $1
+     LIMIT 1`,
+    [id],
+  );
+  if (!beforeResult.rows.length) {
+    return res.status(404).json({ message: 'Пользователь не найден' });
+  }
+  const before = beforeResult.rows[0];
+
+  const updated = await query(
+    `UPDATE users
+     SET role = $2,
+         updated_at = NOW()
+     WHERE id = $1
+     RETURNING id, email, full_name AS "fullName", role, is_active AS "isActive", created_at AS "createdAt"`,
+    [id, nextRole],
+  );
+
+  await createAuditLog({
+    req,
+    action: 'USER_ROLE_UPDATE',
+    entityType: 'USER',
+    entityId: String(id),
+    severity: 'INFO',
+    changes: { before, after: { id: updated.rows[0].id, role: updated.rows[0].role } },
+  });
+
+  return res.json({ user: updated.rows[0] });
 });
 
 // Сводная статистика по объектам (не удалённые)
@@ -899,6 +966,42 @@ adminRouter.delete('/licenses/:id', async (req, res) => {
   });
 
   res.json(updated.rows[0]);
+});
+
+adminRouter.delete('/licenses/:id/hard', requireSuperadminOnly, async (req, res) => {
+  const id = Number(req.params.id);
+  const confirm = String(req.body?.confirm ?? '').trim();
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ message: 'Некорректный id' });
+  }
+  if (confirm !== 'DELETE') {
+    return res.status(400).json({ message: 'Подтвердите удаление кодом DELETE' });
+  }
+
+  const existing = await query(
+    `SELECT id, company_name AS "companyName", status, deleted_at AS "deletedAt"
+     FROM licenses
+     WHERE id = $1
+     LIMIT 1`,
+    [id],
+  );
+  if (!existing.rows.length) {
+    return res.status(404).json({ message: 'Объект не найден' });
+  }
+  const before = existing.rows[0];
+
+  await query(`DELETE FROM licenses WHERE id = $1`, [id]);
+
+  await createAuditLog({
+    req,
+    action: 'LICENSE_HARD_DELETE',
+    entityType: 'LICENSE',
+    entityId: String(id),
+    severity: 'WARNING',
+    changes: { before, after: null },
+  });
+
+  return res.json({ ok: true, id });
 });
 
 export default adminRouter;

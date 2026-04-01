@@ -7,6 +7,7 @@ import AdminLayout from '@/pages/AdminLayout';
 import AdminDashboardPage from '@/pages/AdminDashboardPage';
 import AdminLicensesPage from '@/pages/AdminLicensesPage';
 import AdminLogsPage from '@/pages/AdminLogsPage';
+import AdminUsersPage from '@/pages/AdminUsersPage';
 import ForbiddenPage from '@/pages/ForbiddenPage';
 import EnterpriseDetailsPage from '@/pages/EnterpriseDetailsPage';
 import FkkoDirectoryPage from '@/pages/FkkoDirectoryPage';
@@ -53,7 +54,7 @@ export default function App(): JSX.Element {
           <Route
             path="/admin"
             element={
-              <RequireRole minRole="SUPERADMIN">
+              <RequireRole minRole="MODERATOR">
                 <AdminLayout />
               </RequireRole>
             }
@@ -63,6 +64,14 @@ export default function App(): JSX.Element {
             <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
             <Route path="logs" element={<AdminLogsPage />} />
             <Route path="support" element={<SupportChatPage />} />
+            <Route
+              path="users"
+              element={
+                <RequireRole minRole="SUPERADMIN">
+                  <AdminUsersPage />
+                </RequireRole>
+              }
+            />
           </Route>
         </Routes>
       </BrowserRouter>

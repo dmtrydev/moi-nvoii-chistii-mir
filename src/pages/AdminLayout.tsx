@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/useAuth';
 export default function AdminLayout(): JSX.Element {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const isAdmin = user?.role === 'SUPERADMIN';
+  const isModeratorOrAbove = user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN';
+  const isSuperAdmin = user?.role === 'SUPERADMIN';
 
   const mainLinks = [
     { to: '/dashboard', label: 'Панель' },
@@ -46,7 +47,7 @@ export default function AdminLayout(): JSX.Element {
               );
             })}
           </nav>
-          {isAdmin && (
+          {isModeratorOrAbove && (
             <div className="space-y-2">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/50">Администрирование</div>
               <nav className="flex flex-col gap-1.5">
@@ -62,6 +63,14 @@ export default function AdminLayout(): JSX.Element {
                     </Link>
                   );
                 })}
+                {isSuperAdmin ? (
+                  <Link
+                    to="/admin/users"
+                    className={`glass-nav-item ${location.pathname.startsWith('/admin/users') ? 'is-active' : ''}`}
+                  >
+                    Пользователи
+                  </Link>
+                ) : null}
               </nav>
             </div>
           )}

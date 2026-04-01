@@ -184,8 +184,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     };
   }, [id, accessToken]);
 
-  const isAdmin = user?.role === 'SUPERADMIN';
-  const display = isAdmin && editing && draft ? draft : item;
+  const canModerate = user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN';
+  const isSuperAdmin = user?.role === 'SUPERADMIN';
+  const display = canModerate && editing && draft ? draft : item;
 
   const mapPath = useMemo(() => {
     const src = display;
@@ -274,6 +275,31 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     if (!res.ok) throw new Error(body.message ?? 'Не удалось отправить на перепроверку');
     window.location.reload();
+  }
+
+  async function hardDeleteCurrent(): Promise<void> {
+    if (!accessToken || !item?.id || !isSuperAdmin) return;
+    const first = window.confirm(
+      'Полностью удалить карточку из БД? Данные нельзя восстановить. Это действие только для SUPERADMIN.',
+    );
+    if (!first) return;
+    const token = window.prompt('Введите DELETE для подтверждения:') ?? '';
+    if (token !== 'DELETE') {
+      alert('Подтверждение не пройдено: нужно ввести DELETE');
+      return;
+    }
+    const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/hard`), {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ confirm: 'DELETE' }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    if (!res.ok) throw new Error(body.message ?? 'Не удалось удалить из БД');
+    window.location.href = '/admin/licenses';
   }
 
   async function applyGeocodeToDraft(kind: 'license' | 'site', siteIdx?: number): Promise<void> {
@@ -375,10 +401,10 @@ export default function EnterpriseDetailsPage(): JSX.Element {
       <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-10 pb-14">
         <div className="mb-8 flex flex-wrap gap-3">
           <Link
-            to={isAdmin ? fromAdminList : '/'}
+            to={canModerate ? fromAdminList : '/'}
             className="glass-btn-soft inline-flex items-center justify-center h-11 px-5 text-sm font-medium"
           >
-            {isAdmin ? 'Назад к списку' : 'На главную'}
+            {canModerate ? 'Назад к списку' : 'На главную'}
           </Link>
           <Link
             to={mapPath}
@@ -386,7 +412,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
           >
             Показать на карте
           </Link>
-          {isAdmin && !editing ? (
+          {canModerate && !editing ? (
             <button
               type="button"
               onClick={() => {
@@ -401,7 +427,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               Редактировать карточку
             </button>
           ) : null}
-          {isAdmin ? (
+          {canModerate ? (
             <button
               type="button"
               disabled={!item?.id}
@@ -414,7 +440,20 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               Перепроверка
             </button>
           ) : null}
-          {isAdmin && editing && draft ? (
+          {isSuperAdmin ? (
+            <button
+              type="button"
+              disabled={!item?.id}
+              onClick={() => {
+                void hardDeleteCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
+              }}
+              className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold text-white bg-[#7f1d1d] hover:bg-[#991b1b] transition-colors shadow-sm disabled:opacity-50"
+              title="Полное удаление карточки из БД"
+            >
+              Удалить из БД
+            </button>
+          ) : null}
+          {canModerate && editing && draft ? (
             <>
               <button
                 type="button"
@@ -1053,7 +1092,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {(isAdmin || isOwner) && item.fileStoredName ? (
+                      {(canModerate || isOwner) && item.fileStoredName ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -1065,7 +1104,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                         </button>
                       ) : null}
 
-                      {isAdmin && (item.status === 'pending' || item.status === 'recheck') ? (
+                      {canModerate && (item.status === 'pending' || item.status === 'recheck') ? (
                         <>
                           <button
                             type="button"
