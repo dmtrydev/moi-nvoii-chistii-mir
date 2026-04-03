@@ -115,7 +115,7 @@ export default function AdminUsersPage(): JSX.Element {
                     ) : row.id === user?.id ? (
                       <span className="text-xs text-ink-muted">Текущий пользователь</span>
                     ) : (
-                      <div className="flex gap-2">
+                      row.role === 'MODERATOR' ? (
                         <button
                           type="button"
                           disabled={savingId === row.id}
@@ -124,8 +124,9 @@ export default function AdminUsersPage(): JSX.Element {
                           }}
                           className="glass-btn-soft !h-8 !text-[11px]"
                         >
-                          Сделать USER
+                          Снять модератора
                         </button>
+                      ) : (
                         <button
                           type="button"
                           disabled={savingId === row.id}
@@ -134,9 +135,9 @@ export default function AdminUsersPage(): JSX.Element {
                           }}
                           className="glass-btn-dark !h-8 !text-[11px]"
                         >
-                          Сделать MODERATOR
+                          Сделать модератором
                         </button>
-                      </div>
+                      )
                     )}
                   </td>
                 </tr>

@@ -823,32 +823,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-bold text-ink-muted uppercase">ФККО и виды на площадке</span>
-                              <button
-                                type="button"
-                                className="text-xs font-semibold text-[#1f5c14] hover:underline"
-                                onClick={() => {
-                                  setDraft((prev) => {
-                                    if (!prev?.sites?.[siteIdx]) return prev;
-                                    const next = { ...prev, sites: [...prev.sites] };
-                                    const site = { ...next.sites[siteIdx] };
-                                    const entries = [...(site.entries ?? [])];
-                                    entries.push({
-                                      fkkoCode: '',
-                                      wasteName: undefined,
-                                      hazardClass: undefined,
-                                      activityTypes: [''],
-                                    });
-                                    site.entries = entries;
-                                    next.sites[siteIdx] = site;
-                                    return next;
-                                  });
-                                }}
-                              >
-                                + Строка ФККО
-                              </button>
-                            </div>
+                            <span className="block text-xs font-bold text-ink-muted uppercase">
+                              ФККО и виды на площадке
+                            </span>
                             {(s.entries ?? []).map((entry, eIdx) => (
                               <div
                                 key={eIdx}
@@ -923,6 +900,31 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                                 </div>
                               </div>
                             ))}
+                            <div className="flex justify-end pt-1">
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-[#1f5c14] hover:underline"
+                                onClick={() => {
+                                  setDraft((prev) => {
+                                    if (!prev?.sites?.[siteIdx]) return prev;
+                                    const next = { ...prev, sites: [...prev.sites] };
+                                    const site = { ...next.sites[siteIdx] };
+                                    const entries = [...(site.entries ?? [])];
+                                    entries.push({
+                                      fkkoCode: '',
+                                      wasteName: undefined,
+                                      hazardClass: undefined,
+                                      activityTypes: [''],
+                                    });
+                                    site.entries = entries;
+                                    next.sites[siteIdx] = site;
+                                    return next;
+                                  });
+                                }}
+                              >
+                                + Строка ФККО
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
