@@ -1,4 +1,16 @@
 import type { LicenseData } from '@/types';
+import activitySborActive from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-active.svg';
+import activitySborInactive from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-inactive.svg';
+import activityTransportActive from '@/assets/home-landing/activity-strip/enterprise-activity-transport-active.svg';
+import activityTransportInactive from '@/assets/home-landing/activity-strip/enterprise-activity-transport-inactive.svg';
+import activityProcessingActive from '@/assets/home-landing/activity-strip/enterprise-activity-processing-active.svg';
+import activityProcessingInactive from '@/assets/home-landing/activity-strip/enterprise-activity-processing-inactive.svg';
+import activityUtilizationActive from '@/assets/home-landing/activity-strip/enterprise-activity-utilization-active.svg';
+import activityUtilizationInactive from '@/assets/home-landing/activity-strip/enterprise-activity-utilization-inactive.svg';
+import activityNeutralizationActive from '@/assets/home-landing/activity-strip/enterprise-activity-neutralization-active.svg';
+import activityNeutralizationInactive from '@/assets/home-landing/activity-strip/enterprise-activity-neutralization-inactive.svg';
+import activityPlacementActive from '@/assets/home-landing/activity-strip/enterprise-activity-placement-active.svg';
+import activityPlacementInactive from '@/assets/home-landing/activity-strip/enterprise-activity-placement-inactive.svg';
 
 type StripVariant = 'light' | 'dark';
 type StripSize = 'sm' | 'md';
@@ -6,64 +18,44 @@ type StripSize = 'sm' | 'md';
 const ACTIVITY_SLOTS: {
   label: string;
   keywords: string[];
-  Icon: () => JSX.Element;
+  iconActive: string;
+  iconInactive: string;
 }[] = [
   {
     label: 'Сбор',
     keywords: ['сбор'],
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M8 6V4h8v2M5 6h14l-1.2 12.1A2 2 0 0 1 15.8 20H8.2a2 2 0 0 1-1.99-1.9L5 6Z" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M10 11v5M14 11v5" strokeLinecap="round" />
-      </svg>
-    ),
+    iconActive: activitySborActive,
+    iconInactive: activitySborInactive,
   },
   {
     label: 'Транспортирование',
     keywords: ['транспорт'],
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M14 18V6H4v12M14 10h3l3 4v4h-4M6 18a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM16 18a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    iconActive: activityTransportActive,
+    iconInactive: activityTransportInactive,
   },
   {
     label: 'Обработка',
     keywords: ['обработк'],
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M5.6 18.4l2.1-2.1M12 21v-3M18.4 18.4l-2.1-2.1M21 12h-3M18.4 5.6l-2.1 2.1" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="3.5" />
-      </svg>
-    ),
+    iconActive: activityProcessingActive,
+    iconInactive: activityProcessingInactive,
   },
   {
     label: 'Утилизация',
     keywords: ['утилиз'],
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M12 3v18M7 7l5-4 5 4M7 17l5 4 5-4" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    iconActive: activityUtilizationActive,
+    iconInactive: activityUtilizationInactive,
   },
   {
     label: 'Обезвреживание',
     keywords: ['обезвреж', 'нейтрали', 'уничтож'],
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M12 22c4.97 0 9-3.58 9-8s-4.03-8-9-8-9 3.58-9 8c0 2.03.78 3.9 2.1 5.4L12 22Z" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M9.5 10.5h5M12 8v5" strokeLinecap="round" />
-      </svg>
-    ),
+    iconActive: activityNeutralizationActive,
+    iconInactive: activityNeutralizationInactive,
   },
   {
     label: 'Размещение',
     keywords: ['размещ', 'захорон', 'полигон', 'зхр', 'склад'],
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M4 20h16M6 20V10l6-4 6 4v10M9 20v-6h6v6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    iconActive: activityPlacementActive,
+    iconInactive: activityPlacementInactive,
   },
 ];
 
@@ -101,7 +93,7 @@ export function EnterpriseActivityStrip({
       role="list"
       aria-labelledby={labelledBy}
     >
-      {ACTIVITY_SLOTS.map(({ label, keywords, Icon }) => {
+      {ACTIVITY_SLOTS.map(({ label, keywords, iconActive, iconInactive }) => {
         const active = activitySlotActive(activityTypes, keywords);
         return (
           <span
@@ -123,8 +115,13 @@ export function EnterpriseActivityStrip({
                   : 'border-white/10 bg-white/[0.06] text-white/25',
             ].join(' ')}
           >
-            <span className={iconDim}>
-              <Icon />
+            <span className={`${iconDim} flex items-center justify-center`}>
+              <img
+                src={active ? iconActive : iconInactive}
+                alt=""
+                className="h-full w-full object-contain pointer-events-none"
+                draggable={false}
+              />
             </span>
           </span>
         );

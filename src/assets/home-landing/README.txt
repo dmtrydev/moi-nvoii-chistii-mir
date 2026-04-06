@@ -35,5 +35,31 @@ vid-chevron-open.svg     (тёмный #2b3335, открытый список)
 --- Фон главной ---
 hero-background.png
 
+--- Полоска видов обращения (карточки «Подходящие предприятия», EnterpriseActivityStrip) ---
+Папка: src/assets/home-landing/activity-strip/
+
+На каждый из 6 слотов — ДВА файла: активный (зелёный кружок) и неактивный (серый фон).
+Подменяйте файлы с теми же именами; viewBox лучше 24×24 как в заглушках.
+
+  enterprise-activity-sbor-active.svg          — Сбор
+  enterprise-activity-sbor-inactive.svg
+
+  enterprise-activity-transport-active.svg     — Транспортирование
+  enterprise-activity-transport-inactive.svg
+
+  enterprise-activity-processing-active.svg   — Обработка
+  enterprise-activity-processing-inactive.svg
+
+  enterprise-activity-utilization-active.svg   — Утилизация
+  enterprise-activity-utilization-inactive.svg
+
+  enterprise-activity-neutralization-active.svg — Обезвреживание
+  enterprise-activity-neutralization-inactive.svg
+
+  enterprise-activity-placement-active.svg     — Размещение (в т.ч. «Захоронение» по ключевым словам в данных)
+  enterprise-activity-placement-inactive.svg
+
+Логика «есть вид в данных → active» задаётся в EnterpriseActivityStrip.tsx (keywords), не в именах файлов.
+
 --- Старые экспорты (не используются в коде) ---
 legacy-export-*.svg
