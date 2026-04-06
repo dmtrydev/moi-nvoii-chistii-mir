@@ -14,6 +14,11 @@ interface AutocompleteInputProps {
   inputClassName?: string;
   maxItems?: number;
   noResultsText?: string;
+  /** Replaces default liquid-dropdown panel classes when set. */
+  dropdownClassName?: string;
+  listClassName?: string;
+  optionClassName?: (args: { index: number; highlighted: boolean }) => string;
+  emptyClassName?: string;
 }
 
 export function AutocompleteInput({
@@ -24,6 +29,10 @@ export function AutocompleteInput({
   inputClassName = '',
   maxItems = 8,
   noResultsText = 'Ничего не найдено',
+  dropdownClassName,
+  listClassName,
+  optionClassName,
+  emptyClassName,
 }: AutocompleteInputProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -76,6 +85,10 @@ export function AutocompleteInput({
     setHighlightedIndex(-1);
   };
 
+  const panelClass =
+    dropdownClassName ?? 'liquid-dropdown absolute z-40 mt-1 w-full overflow-hidden rounded-xl';
+  const ulClass = listClassName ?? 'max-h-64 overflow-y-auto py-1';
+
   return (
     <div ref={rootRef} className="relative">
       <input
@@ -120,25 +133,27 @@ export function AutocompleteInput({
       />
 
       {isOpen && (
-        <div className="liquid-dropdown absolute z-40 mt-1 w-full overflow-hidden rounded-xl">
+        <div className={panelClass}>
           {filteredOptions.length > 0 ? (
-            <ul className="max-h-64 overflow-y-auto py-1">
-              {filteredOptions.map((option, idx) => (
-                <li key={`${option.value}-${idx}`}>
-                  <button
-                    type="button"
-                    onClick={() => choose(option.value)}
-                  className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
-                      idx === highlightedIndex ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                </li>
-              ))}
+            <ul className={ulClass}>
+              {filteredOptions.map((option, idx) => {
+                const highlighted = idx === highlightedIndex;
+                const optCls =
+                  optionClassName?.({ index: idx, highlighted }) ??
+                  `block w-full px-3 py-2 text-left text-sm transition-colors ${
+                    highlighted ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg'
+                  }`;
+                return (
+                  <li key={`${option.value}-${idx}`}>
+                    <button type="button" onClick={() => choose(option.value)} className={optCls}>
+                      {option.label}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
-            <div className="px-3 py-2 text-sm text-ink-muted">{noResultsText}</div>
+            <div className={emptyClassName ?? 'px-3 py-2 text-sm text-ink-muted'}>{noResultsText}</div>
           )}
         </div>
       )}

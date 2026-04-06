@@ -15,7 +15,7 @@ function getApiUrl(path: string): string {
 interface UserLicense {
   id: number;
   companyName: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'recheck';
   reward: number;
   region: string | null;
   rejectionNote: string | null;

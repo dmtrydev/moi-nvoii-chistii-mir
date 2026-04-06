@@ -5,6 +5,9 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'Segoe UI', 'Helvetica', 'Arial', 'sans-serif'],
+        /** Soyuz Grotesk Bold + запасной Manrope (пока нет WOFF2 в /public/fonts/) */
+        display: ['Soyuz Grotesk', 'Manrope', 'Inter', 'system-ui', 'sans-serif'],
+        nunito: ['Nunito', 'Inter', 'system-ui', 'sans-serif'],
         manrope: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
         'adorable-partners-680812-framer-app-DM-sans-medium':
           'var(--adorable-partners-680812-framer-app-DM-sans-medium-font-family)',

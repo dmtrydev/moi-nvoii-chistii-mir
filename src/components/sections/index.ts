@@ -1,5 +1,4 @@
 export { HeaderSection } from '@/components/sections/HeaderSection';
-export { HeroBannerSection } from '@/components/sections/HeroBannerSection';
 export { PlanetSection } from '@/components/sections/PlanetSection';
 export { MissionStatementSection } from '@/components/sections/MissionStatementSection';
 export { EcoSolutionsSection } from '@/components/sections/EcoSolutionsSection';

@@ -78,6 +78,10 @@
   --text-font-weight: 400;
   --text-letter-spacing: 0;
   --text-line-height: 1.5;
+
+  /* Типографика макета: Soyuz Grotesk Bold (H1, H3, H4) + Nunito SemiBold (H2, H5, H6) */
+  --font-display: 'Soyuz Grotesk', 'Manrope', system-ui, sans-serif;
+  --font-heading-nunito: 'Nunito', system-ui, sans-serif;
 }
 
 :root {
@@ -87,12 +91,65 @@
   --reveal-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
+/* Soyuz Grotesk Bold: положите SoyuzGrotesk-Bold.woff2 в /public/fonts/ (опционально otf/ttf как запас). */
+@font-face {
+  font-family: 'Soyuz Grotesk';
+  src:
+    local('Soyuz Grotesk Bold'),
+    local('SoyuzGrotesk-Bold'),
+    url('/fonts/SoyuzGrotesk-Bold.woff2') format('woff2'),
+    url('/fonts/SoyuzGrotesk-Bold.otf') format('opentype'),
+    url('/fonts/SoyuzGrotesk-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer components {
+  /**
+   * Кнопка «Найти» на главной: три градиента (default / hover / active) из макета.
+   * Иконка: один SVG или отдельные find-button-search-*.svg — см. assets/home-landing/README.txt
+   */
+  .home-find-button {
+    box-shadow:
+      0 13px 31.5px rgba(193, 223, 100, 0.4),
+      inset 0 0 20px rgba(255, 255, 255, 0.74);
+    background: linear-gradient(128deg, rgb(219, 236, 168) 0%, rgb(188, 220, 87) 100%);
+    transition:
+      background 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .home-find-button:hover:not(:disabled):not(:active) {
+    background: linear-gradient(208deg, rgb(219, 236, 168) 0%, rgb(188, 220, 87) 100%);
+    box-shadow:
+      0 13px 31.5px rgba(193, 223, 100, 0.4),
+      inset 0 0 32.4px rgba(255, 255, 255, 0.84);
+  }
+
+  .home-find-button:active:not(:disabled) {
+    background: linear-gradient(
+      208deg,
+      rgba(219, 236, 168, 0.7) 0%,
+      rgba(188, 220, 87, 0.7) 100%
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-find-button {
+    transition: none;
+  }
+}
+
 @layer base {
-  html,
-  body {
-    overflow-x: hidden;
+  /* Только горизонталь: hidden на вложенных блоках даёт overflow-y:auto и обрезает выпадающие списки */
+  html {
+    overflow-x: clip;
   }
   body {
+    overflow-x: clip;
+    overflow-y: auto;
     font-family: 'Inter', system-ui, 'Segoe UI', Helvetica, sans-serif;
     background-color: var(--eco-app-bg);
     color: var(--eco-ink);
@@ -137,6 +194,44 @@
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Макет «Шрифты»: H1/H3/H4 — Soyuz Grotesk Bold; H2/H5/H6 — Nunito SemiBold (600) */
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 48px;
+    line-height: 1.1;
+  }
+  h2 {
+    font-family: var(--font-heading-nunito);
+    font-weight: 600;
+    font-size: 20px;
+    line-height: normal;
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 1.1;
+  }
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.15;
+  }
+  h5 {
+    font-family: var(--font-heading-nunito);
+    font-weight: 600;
+    font-size: 18px;
+    line-height: normal;
+  }
+  h6 {
+    font-family: var(--font-heading-nunito);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: normal;
   }
 }
 
@@ -828,6 +923,17 @@
 
 .animate-spin {
   animation: var(--animate-spin);
+}
+
+/** Подсветка иконки «Найти» на главной (макет Framer / image-glow). */
+.animate-image-glow {
+  animation: image-glow 1.85s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-image-glow {
+    animation: none;
+  }
 }
 
 @keyframes spin {

@@ -1,0 +1,50 @@
+# Деплой на VDS через VPS (ProxyJump). Триггер: вручную или push в master.
+#
+# Нужные GitHub Secrets:
+#   SSH_PRIVATE_KEY — приватный ключ, чей публичный ключ добавлен в
+#     /root/.ssh/authorized_keys на VPS и на VDS (или два ключа — см. ниже).
+#   SSH_KNOWN_HOSTS (опционально) — вывод ssh-keyscan для VPS и VDS, например:
+#     ssh-keyscan -H 91.198.220.125
+#     ssh-keyscan -H 10.0.0.2   # выполнить на VPS, т.к. с runner до 10.0.0.2 нет маршрута
+#
+# Если на VPS fail2ban/ufw режут SSH: либо разрешить диапазоны GitHub Actions
+# (https://api.github.com/meta), либо использовать self-hosted runner на VPS.
+
+name: Deploy to VDS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH (VPS → VDS)
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            chmod 644 ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H 91.198.220.125 >> ~/.ssh/known_hosts 2>/dev/null
+            # Второй хост недоступен с runner напрямую — без секрета SSH_KNOWN_HOSTS
+            # проверка ключа VDS отключена (лучше заполнить SSH_KNOWN_HOSTS).
+            EXTRA_OPTS='-o StrictHostKeyChecking=no'
+          fi
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes ${EXTRA_OPTS:-} \
+            -J root@91.198.220.125 \
+            root@10.0.0.2 \
+            'set -euo pipefail; cd /opt/moinoviichistiimir && git fetch origin && git pull --ff-only && docker compose up -d --build'
