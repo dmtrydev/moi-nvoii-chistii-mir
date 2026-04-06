@@ -184,8 +184,15 @@ export function HomeLanding(): JSX.Element {
 
           <div className="relative mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16">
             {validationError && (
-              <div className="mt-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                {validationError}
+              <div
+                role="alert"
+                className="relative z-0 mt-6 rounded-[32.5px] bg-[#ffffff4c] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
+              >
+                <div className="relative z-[2] px-6 py-5 sm:px-8 lg:px-9">
+                  <p className="font-nunito font-semibold text-[#5e6567] text-base leading-normal sm:text-lg">
+                    {validationError}
+                  </p>
+                </div>
               </div>
             )}
 
