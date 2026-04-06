@@ -7,6 +7,8 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import type { AutocompleteOption } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
 import heroBackground from '@/assets/home-landing/hero-background.png';
+import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-icon.svg';
+import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
 import { FilterPanelSection } from '@/components/home-landing/FilterPanelSection';
 import { FrameScreen } from '@/components/home-landing/FrameScreen';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
@@ -298,24 +300,40 @@ export function HomeLanding(): JSX.Element {
                                     </span>
                                   )}
 
-                                  <div className="ml-auto flex items-center gap-4">
+                                  <div className="ml-auto flex items-center gap-5">
                                     <Link
                                       to={toMapPath()}
-                                      className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                      className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
                                     >
-                                      На карте
-                                      <svg className="h-5 w-5 -rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                        <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                                      </svg>
+                                      <span className="relative z-[2] inline-flex items-center gap-2.5">
+                                        <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                                          На карте
+                                        </span>
+                                        <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                                          <img
+                                            className="h-[21px] w-[21px] object-contain pointer-events-none"
+                                            alt=""
+                                            src={homeResultsMapCtaIcon}
+                                          />
+                                        </span>
+                                      </span>
                                     </Link>
                                     <Link
                                       to={detailsPath}
-                                      className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                      className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
                                     >
-                                      Карточка предприятия
-                                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                        <path d="M7 17L17 7M17 7H7M17 7v10" strokeLinecap="round" strokeLinejoin="round" />
-                                      </svg>
+                                      <span className="relative z-[2] inline-flex items-center gap-2.5">
+                                        <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                                          Карточка предприятия
+                                        </span>
+                                        <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                                          <img
+                                            className="h-[21px] w-[21px] object-contain pointer-events-none"
+                                            alt=""
+                                            src={homeResultsEnterpriseCtaIcon}
+                                          />
+                                        </span>
+                                      </span>
                                     </Link>
                                   </div>
                                 </div>
