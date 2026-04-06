@@ -25,6 +25,7 @@ export function MultiSelectDropdown({
   optionIcon,
   renderCheckbox,
   triggerAlign = 'center',
+  formatOptionLabel,
 }: {
   options: string[];
   selected: string[];
@@ -56,6 +57,8 @@ export function MultiSelectDropdown({
   renderCheckbox?: (checked: boolean) => ReactNode;
   /** `start` — подпись и шеврон с отступом сверху как в Figma. */
   triggerAlign?: 'center' | 'start';
+  /** Подпись опции в списке и в кнопке (например ФККО: код + название группы). */
+  formatOptionLabel?: (option: string) => string;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -69,9 +72,11 @@ export function MultiSelectDropdown({
   const selectedLabel = useMemo(() => {
     const s = selected.map(normalize).filter(Boolean);
     if (s.length === 0) return '';
-    if (s.length <= 2) return s.join(', ');
-    return `${s.slice(0, 2).join(', ')} и ещё ${s.length - 2}`;
-  }, [selected]);
+    const fmt = formatOptionLabel ?? ((x: string) => x);
+    const labels = s.map(fmt);
+    if (labels.length <= 2) return labels.join(', ');
+    return `${labels.slice(0, 2).join(', ')} и ещё ${labels.length - 2}`;
+  }, [selected, formatOptionLabel]);
 
   const hasSelection = Boolean(selectedLabel);
 
@@ -148,6 +153,7 @@ export function MultiSelectDropdown({
             {normalizedOptions.map((opt, index) => {
               const checked = selectedSet.has(opt);
               const isLast = index === normalizedOptions.length - 1;
+              const labelText = formatOptionLabel ? formatOptionLabel(opt) : opt;
               const defaultOptCls = [
                 'block w-full px-3 py-2 text-left text-sm transition-colors',
                 checked ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg',
@@ -203,7 +209,7 @@ export function MultiSelectDropdown({
                           checked ? 'text-[#2b3335]' : 'text-[#828583]',
                         ].join(' ')}
                       >
-                        {opt}
+                        {labelText}
                       </span>
                     </span>
                   </button>
@@ -236,7 +242,7 @@ export function MultiSelectDropdown({
                           labelCls,
                         ].join(' ')}
                       >
-                        {opt}
+                        {labelText}
                       </span>
                     </span>
                   </button>
@@ -270,7 +276,7 @@ export function MultiSelectDropdown({
                         />
                       </svg>
                     </span>
-                    <span>{opt}</span>
+                    <span>{labelText}</span>
                   </span>
                 </button>
               );

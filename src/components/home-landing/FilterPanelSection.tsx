@@ -2,9 +2,11 @@ import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
 import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-icon.svg';
 import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
-import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
+import { formatFkkoHuman } from '@/utils/fkko';
+import { getFkkoGroupName } from '@/constants/fkko';
 
 const POLY_IMG =
   "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
@@ -31,12 +33,9 @@ const filterFieldShell =
   'relative w-full h-full rounded-[10px] border border-black/[0.06] bg-white shadow-sm transition-[background-color,box-shadow,backdrop-filter,border-color] duration-200 ease-out hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)] focus-within:border-transparent focus-within:bg-[#ffffffa6] focus-within:backdrop-blur-[10px] focus-within:shadow-none focus-within:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
 
 /** Оболочка без собственного scroll — прокрутка только у внутреннего списка (полоса скрыта, no-scrollbar), иначе двойной скролл. */
-/** ФККО / регион: список вниз от поля (как ожидается у автодополнения). */
+/** Выпадающие списки фильтра: вниз от поля (ФККО, вид обращения, регион). */
 const glassDropdownPanelDown =
   'absolute z-50 top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
-/** Вид обращения: список вверх от поля — не перекрывает заголовок фильтра и не уходит под блок результатов. */
-const glassDropdownPanelUp =
-  'absolute z-50 bottom-full left-0 w-full mb-0 bg-[#ffffff73] rounded-[10px_10px_0px_0px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pt-2.5';
 
 const fkkoOptionCls = ({ highlighted }: { index: number; highlighted: boolean }): string =>
   [
@@ -67,8 +66,8 @@ function vidTriggerClass(isOpen: boolean): string {
   if (isOpen) {
     return [
       vidTriggerBase,
-      /* Список сверху — скругления снизу у триггера, стык с панелью */
-      'rounded-[0px_0px_10px_10px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[\'\'] before:absolute before:inset-0 before:p-px before:rounded-[0px_0px_10px_10px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none',
+      /* Список снизу — скругления сверху у триггера, стык с панелью */
+      'rounded-[10px_10px_0px_0px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[\'\'] before:absolute before:inset-0 before:p-px before:rounded-[10px_10px_0px_0px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none',
     ].join(' ');
   }
   return [
@@ -84,10 +83,16 @@ const vidLabelClass = ({ isOpen, hasSelection }: { isOpen: boolean; hasSelection
     isOpen || hasSelection ? 'text-[#2b3335]' : 'text-[#828583]',
   ].join(' ');
 
+function fkkoOptionLabel(code: string): string {
+  return `${formatFkkoHuman(code)} — ${getFkkoGroupName(code)}`;
+}
+
 export interface FilterPanelSectionProps {
-  filterFkko: string;
-  onFilterFkkoChange: (v: string) => void;
-  fkkoHintOptions: AutocompleteOption[];
+  /** Выбранные коды ФККО (11 цифр каждый). */
+  filterFkko: string[];
+  onFilterFkkoChange: (v: string[]) => void;
+  /** Каталог кодов для списка (11 цифр). */
+  fkkoOptions: string[];
   filterVid: string[];
   onFilterVidChange: (v: string[]) => void;
   activityTypeOptions: string[];
@@ -103,7 +108,7 @@ export interface FilterPanelSectionProps {
 export function FilterPanelSection({
   filterFkko,
   onFilterFkkoChange,
-  fkkoHintOptions,
+  fkkoOptions,
   filterVid,
   onFilterVidChange,
   activityTypeOptions,
@@ -169,19 +174,29 @@ export function FilterPanelSection({
         <div className="relative z-[2] grid grid-cols-1 gap-4 overflow-visible md:grid-cols-2 xl:grid-cols-4">
       {/* FKKO */}
       <div className="relative z-10 min-h-[60px] w-full">
-        <div className={filterFieldShell}>
-          <AutocompleteInput
-            value={filterFkko}
+        <div className="relative h-full min-h-[60px] w-full">
+          <MultiSelectDropdown
+            options={fkkoOptions}
+            selected={filterFkko}
             onChange={onFilterFkkoChange}
-            options={fkkoHintOptions}
             placeholder="ФККО"
-            inputClassName={`relative z-[2] ${filterInputBase}`}
-            maxItems={10}
-            noResultsText="Начните вводить код ФККО"
-            dropdownClassName={glassDropdownPanelDown}
-            listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
-            optionClassName={fkkoOptionCls}
-            emptyClassName="px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]"
+            buttonClassName={vidTriggerClass}
+            labelClassName={vidLabelClass}
+            formatOptionLabel={fkkoOptionLabel}
+            renderChevron={(open) => (
+              <img
+                className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                alt=""
+                src={vidChevronClosed}
+              />
+            )}
+            renderCheckbox={(checked) =>
+              checked ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />
+            }
+            dropdownPanelClassName={glassDropdownPanelDown}
+            dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
+            optionButtonClassName={vidOptionCls}
+            maxHeightClassName=""
           />
         </div>
       </div>
@@ -206,7 +221,7 @@ export function FilterPanelSection({
             renderCheckbox={(checked) =>
               checked ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />
             }
-            dropdownPanelClassName={glassDropdownPanelUp}
+            dropdownPanelClassName={glassDropdownPanelDown}
             dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
             optionButtonClassName={vidOptionCls}
             maxHeightClassName=""

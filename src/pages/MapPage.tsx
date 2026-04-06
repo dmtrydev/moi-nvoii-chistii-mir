@@ -13,16 +13,16 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import type { LicenseData } from '@/types';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { formatFkkoHuman } from '@/utils/fkko';
+import { formatFkkoHuman, fkkoCodesToQueryParam, normalizeFkkoCodeList, parseFkkoCodesFromQuery } from '@/utils/fkko';
 import { LicenseResultCard } from '@/components/licenses/LicenseResultCard';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
-import { AutocompleteInput, type AutocompleteOption } from '@/components/ui/AutocompleteInput';
+import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { getFkkoGroupName } from '@/constants/fkko';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 
-const INITIAL_FKKO = '';
+const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
 
@@ -244,12 +244,13 @@ export default function MapPage(): JSX.Element {
     };
   }, []);
 
+  const fkkoCatalogCodes = useMemo(() => normalizeFkkoCodeList(fkkoOptions), [fkkoOptions]);
+
   useEffect(() => {
     const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
-    const fkkoDigits = filterFkko.replace(/[^\d]+/g, '');
-    const fkkoParam = /^\d{11}$/.test(fkkoDigits) ? fkkoDigits : '';
+    const fkkoParam = fkkoCodesToQueryParam(filterFkko);
     const url = fkkoParam
-      ? getApiUrl(`/api/filters/activity-types?fkko=${fkkoParam}`)
+      ? getApiUrl(`/api/filters/activity-types?fkko=${encodeURIComponent(fkkoParam)}`)
       : getApiUrl('/api/filters/activity-types');
     let alive = true;
     fetch(url)
@@ -280,24 +281,6 @@ export default function MapPage(): JSX.Element {
       .filter(Boolean);
     return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
   }, []);
-
-  const fkkoHintOptions = useMemo<AutocompleteOption[]>(() => {
-    const seen = new Set<string>();
-    const items: AutocompleteOption[] = [];
-    fkkoOptions.forEach((codeRaw) => {
-      const raw = String(codeRaw).trim();
-      if (!raw || seen.has(raw)) return;
-      seen.add(raw);
-      const formatted = formatFkkoHuman(raw);
-      const groupName = getFkkoGroupName(raw);
-      items.push({
-        value: formatted,
-        label: `${formatted} - ${groupName}`,
-        searchText: `${formatted} ${raw} ${groupName}`.toLowerCase(),
-      });
-    });
-    return items;
-  }, [fkkoOptions]);
   // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
 
   useEffect(() => {
@@ -305,7 +288,7 @@ export default function MapPage(): JSX.Element {
     const f = searchParams.get('fkko');
     const v = searchParams.get('vid');
     if (r != null) setFilterRegion(r);
-    if (f != null) setFilterFkko(f);
+    if (f != null) setFilterFkko(parseFkkoCodesFromQuery(f));
     if (v != null) {
       const parsed = String(v)
         .split(/[,;]+/)
@@ -357,10 +340,13 @@ export default function MapPage(): JSX.Element {
   const runSearch = useCallback(
     async (overrides?: { region?: string; fkko?: string; vid?: string }): Promise<void> => {
       const region = (overrides?.region ?? filterRegion).trim();
-      const fkko = (overrides?.fkko ?? filterFkko).trim();
+      const fkkoStr =
+        overrides?.fkko != null
+          ? fkkoCodesToQueryParam(parseFkkoCodesFromQuery(overrides.fkko))
+          : fkkoCodesToQueryParam(filterFkko);
       const vid = (overrides?.vid ?? vidQuery).trim();
 
-      if (!fkko || !vid) {
+      if (!fkkoStr || !vid) {
         if (!overrides) setFilterValidationError('Заполните обязательные фильтры: ФККО и вид обращения.');
         return;
       }
@@ -368,7 +354,7 @@ export default function MapPage(): JSX.Element {
 
       const qs = new URLSearchParams();
       if (region) qs.set('region', region);
-      qs.set('fkko', fkko);
+      qs.set('fkko', fkkoStr);
       qs.set('vid', vid);
 
       setHasSearched(true);
@@ -514,14 +500,14 @@ export default function MapPage(): JSX.Element {
             )}
             <div>
               <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">ФККО *</p>
-              <AutocompleteInput
-                value={filterFkko}
+              <MultiSelectDropdown
+                options={fkkoCatalogCodes}
+                selected={filterFkko}
                 onChange={setFilterFkko}
-                options={fkkoHintOptions}
-                placeholder="7 31 100 01 40 4 или выберите из списка"
-                inputClassName={mapField}
-                maxItems={10}
-                noResultsText="Начните вводить код ФККО"
+                placeholder="Выберите коды ФККО"
+                buttonClassName={mapField}
+                maxHeightClassName="max-h-64"
+                formatOptionLabel={(code) => `${formatFkkoHuman(code)} — ${getFkkoGroupName(code)}`}
               />
             </div>
             <div>
@@ -597,7 +583,7 @@ export default function MapPage(): JSX.Element {
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
                   const r = filterRegion.trim();
                   const mapParams = new URLSearchParams({
-                    fkko: filterFkko.trim(),
+                    fkko: fkkoCodesToQueryParam(filterFkko),
                     vid: vidQuery.trim(),
                   });
                   if (r) mapParams.set('region', r);

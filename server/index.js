@@ -1238,15 +1238,16 @@ app.post('/api/licenses/:id/coords', async (req, res) => {
 app.get('/api/license-sites', async (req, res) => {
   try {
     const region = String(req.query.region ?? '').trim();
-    const fkko = normalizeFkkoCode(String(req.query.fkko ?? '').trim());
+    const fkkoRaw = String(req.query.fkko ?? '').trim();
+    const fkkoList = [...new Set(parseFkkoInput(fkkoRaw).filter((c) => /^\d{11}$/.test(c)))];
     const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
     const vids = vidRaw ? vidRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
 
-    if (!fkko || vids.length === 0) {
+    if (!fkkoList.length || vids.length === 0) {
       return res.status(400).json({ message: 'Фильтры обязательны: код ФККО и вид обращения.' });
     }
 
-    const params = [region, fkko, vids];
+    const params = [region, fkkoList, vids];
     const sql = `
       SELECT DISTINCT
         s.id AS "siteId",
@@ -1267,7 +1268,7 @@ app.get('/api/license-sites', async (req, res) => {
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1)
-        AND sfa.fkko_code = $2
+        AND sfa.fkko_code = ANY($2::text[])
         AND sfa.activity_type = ANY($3::text[])
       ORDER BY s.id DESC
       LIMIT 200
@@ -1451,7 +1452,8 @@ app.get('/api/search/enterprises', async (req, res) => {
 app.get('/api/licenses', async (req, res) => {
   try {
     const region = String(req.query.region ?? '').trim();
-    const fkko = normalizeFkkoCode(String(req.query.fkko ?? '').trim());
+    const fkkoRaw = String(req.query.fkko ?? '').trim();
+    const fkkoList = [...new Set(parseFkkoInput(fkkoRaw).filter((c) => /^\d{11}$/.test(c)))];
     const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
     const vids = vidRaw
       ? vidRaw
@@ -1460,13 +1462,13 @@ app.get('/api/licenses', async (req, res) => {
           .filter(Boolean)
       : [];
 
-    if (!fkko || vids.length === 0) {
+    if (!fkkoList.length || vids.length === 0) {
       return res.status(400).json({
         message: 'Фильтры обязательны: код ФККО и вид обращения.',
       });
     }
 
-    const params = [region, fkko, vids];
+    const params = [region, fkkoList, vids];
     const sql = `
       SELECT DISTINCT
              l.id,
@@ -1486,7 +1488,7 @@ app.get('/api/licenses', async (req, res) => {
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1 OR l.region = $1)
-        AND sfa.fkko_code = $2
+        AND sfa.fkko_code = ANY($2::text[])
         AND sfa.activity_type = ANY($3::text[])
       ORDER BY l.created_at DESC
       LIMIT 200
@@ -1781,18 +1783,19 @@ app.get('/api/filters/fkko', async (_req, res) => {
 
 app.get('/api/filters/activity-types', async (req, res) => {
   try {
-    const fkko = normalizeFkkoCode(String(req.query.fkko ?? '').trim());
+    const fkkoRaw = String(req.query.fkko ?? '').trim();
+    const fkkoList = [...new Set(parseFkkoInput(fkkoRaw).filter((c) => /^\d{11}$/.test(c)))];
     let sql, params;
-    if (fkko && /^\d{11}$/.test(fkko)) {
+    if (fkkoList.length > 0) {
       sql = `SELECT DISTINCT sfa.activity_type AS activity
              FROM site_fkko_activities sfa
              JOIN license_sites s ON s.id = sfa.site_id
              JOIN licenses l ON l.id = s.license_id
              WHERE l.deleted_at IS NULL AND l.status = 'approved'
                AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
-               AND sfa.fkko_code = $1
+               AND sfa.fkko_code = ANY($1::text[])
              ORDER BY activity ASC`;
-      params = [fkko];
+      params = [fkkoList];
     } else {
       sql = `SELECT DISTINCT sfa.activity_type AS activity
              FROM site_fkko_activities sfa

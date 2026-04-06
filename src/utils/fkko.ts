@@ -77,3 +77,27 @@ export function formatFkkoHuman(codeDigits: string): string {
   return s;
 }
 
+/** Уникальные валидные 11-значные коды из списка строк. */
+export function normalizeFkkoCodeList(codes: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of codes) {
+    const d = normalizeFkkoDigits(String(x));
+    if (/^\d{11}$/.test(d) && !seen.has(d)) {
+      seen.add(d);
+      out.push(d);
+    }
+  }
+  return out;
+}
+
+/** Парсинг параметра fkko из URL/запроса (одна строка, один или несколько кодов). */
+export function parseFkkoCodesFromQuery(s: string): string[] {
+  return normalizeFkkoCodeList(parseFkkoCodesFromText(s));
+}
+
+/** Сериализация массива кодов в строку для query (через запятую). */
+export function fkkoCodesToQueryParam(codes: string[]): string {
+  return normalizeFkkoCodeList(codes).join(',');
+}
+

@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { LicenseData } from '@/types';
-import { formatFkkoHuman } from '@/utils/fkko';
+import { formatFkkoHuman, fkkoCodesToQueryParam, normalizeFkkoCodeList } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
-import type { AutocompleteOption } from '@/components/ui/AutocompleteInput';
-import { getFkkoGroupName } from '@/constants/fkko';
 import heroBackground from '@/assets/home-landing/hero-background.png';
 import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-icon.svg';
 import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
@@ -14,7 +12,7 @@ import { FrameScreen } from '@/components/home-landing/FrameScreen';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
 import { TopNavigationSection } from '@/components/home-landing/TopNavigationSection';
 
-const INITIAL_FKKO = '';
+const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -54,6 +52,8 @@ export function HomeLanding(): JSX.Element {
     };
   }, []);
 
+  const fkkoCatalogCodes = useMemo(() => normalizeFkkoCodeList(fkkoOptions), [fkkoOptions]);
+
   useEffect(() => {
     const defaults = [
       'Сбор',
@@ -64,10 +64,9 @@ export function HomeLanding(): JSX.Element {
       'Обработка',
       'Захоронение',
     ];
-    const fkkoDigits = filterFkko.replace(/[^\d]+/g, '');
-    const fkkoParam = /^\d{11}$/.test(fkkoDigits) ? fkkoDigits : '';
+    const fkkoParam = fkkoCodesToQueryParam(filterFkko);
     const url = fkkoParam
-      ? getApiUrl(`/api/filters/activity-types?fkko=${fkkoParam}`)
+      ? getApiUrl(`/api/filters/activity-types?fkko=${encodeURIComponent(fkkoParam)}`)
       : getApiUrl('/api/filters/activity-types');
     let alive = true;
     fetch(url)
@@ -94,24 +93,6 @@ export function HomeLanding(): JSX.Element {
     };
   }, [filterFkko]);
 
-  const fkkoHintOptions = useMemo<AutocompleteOption[]>(() => {
-    const seen = new Set<string>();
-    const opts: AutocompleteOption[] = [];
-    fkkoOptions.forEach((codeRaw) => {
-      const raw = String(codeRaw).trim();
-      if (!raw || seen.has(raw)) return;
-      seen.add(raw);
-      const formatted = formatFkkoHuman(raw);
-      const groupName = getFkkoGroupName(raw);
-      opts.push({
-        value: formatted,
-        label: `${formatted} - ${groupName}`,
-        searchText: `${formatted} ${raw} ${groupName}`.toLowerCase(),
-      });
-    });
-    return opts;
-  }, [fkkoOptions]);
-
   const regionOptions = useMemo(() => {
     const normalized = RUSSIAN_REGION_SUGGESTIONS.map((r) => String(r).trim()).filter(Boolean);
     return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -134,7 +115,7 @@ export function HomeLanding(): JSX.Element {
 
   const runSearch = useCallback(async (): Promise<void> => {
     const r = filterRegion.trim();
-    const f = filterFkko.trim();
+    const f = fkkoCodesToQueryParam(filterFkko);
     const v = vidQuery.trim();
     if (!f || !v) {
       setValidationError('Заполните обязательные поля: ФККО и вид обращения.');
@@ -162,7 +143,7 @@ export function HomeLanding(): JSX.Element {
 
   const toMapPath = useCallback((): string => {
     const params = new URLSearchParams({
-      fkko: filterFkko.trim(),
+      fkko: fkkoCodesToQueryParam(filterFkko),
       vid: vidQuery.trim(),
     });
     const r = filterRegion.trim();
@@ -189,7 +170,7 @@ export function HomeLanding(): JSX.Element {
           <FilterPanelSection
             filterFkko={filterFkko}
             onFilterFkkoChange={setFilterFkko}
-            fkkoHintOptions={fkkoHintOptions}
+            fkkoOptions={fkkoCatalogCodes}
             filterVid={filterVid}
             onFilterVidChange={setFilterVid}
             activityTypeOptions={activityTypeOptions}
