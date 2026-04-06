@@ -183,7 +183,7 @@ export function HomeLanding(): JSX.Element {
       <div className="relative z-[1] w-full max-w-full min-w-0">
         <FrameScreen>
           <TopNavigationSection />
-          <HeroCopySection />
+          {!hasSearched && <HeroCopySection />}
           <FilterPanelSection
             filterFkko={filterFkko}
             onFilterFkkoChange={setFilterFkko}
@@ -196,48 +196,49 @@ export function HomeLanding(): JSX.Element {
             regionOptions={regionOptions}
             onSearch={() => void runSearch()}
             onReset={handleResetFilters}
+            compactAfterSearch={hasSearched}
           />
-        </FrameScreen>
-      </div>
 
-      <div className="relative z-[1] w-full min-w-0 max-w-[1510px] mx-auto px-4 sm:px-6 md:px-8 lg:px-[50px] pb-12 sm:pb-16">
-        {validationError && (
-          <div className="mt-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-            {validationError}
-          </div>
-        )}
-
-        {hasSearched && (
-          <section className="mt-6 glass-panel p-4 sm:p-5 md:p-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="font-display font-bold text-2xl sm:text-[32px] text-ink leading-tight">Подходящие предприятия</h3>
-              <button
-                type="button"
-                onClick={() => navigate(toMapPath())}
-                className="inline-flex items-center justify-center h-9 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white transition-colors"
-              >
-                Все на карте
-              </button>
-            </div>
-            {isSearching && <p className="text-sm text-ink-muted">Идёт поиск…</p>}
-            {!isSearching && searchError && <p className="text-sm glass-danger">{searchError}</p>}
-            {!isSearching && !searchError && items.length === 0 && (
-              <p className="text-sm text-ink-muted">По этим фильтрам ничего не найдено.</p>
-            )}
-            {!isSearching && !searchError && items.length > 0 && (
-              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                {items.map((item) => (
-                  <LicenseResultCard
-                    key={item.id ?? `${item.companyName}-${item.inn}-${item.address}`}
-                    item={item}
-                    mapPath={toMapPath()}
-                    detailsPath={typeof item.id === 'number' ? `/enterprise/${item.id}` : '/map'}
-                  />
-                ))}
+          <div className="relative mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16">
+            {validationError && (
+              <div className="mt-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                {validationError}
               </div>
             )}
-          </section>
-        )}
+
+            {hasSearched && (
+              <section className="mt-6 glass-panel p-4 sm:p-5 md:p-6">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="font-display font-bold text-2xl sm:text-[32px] text-ink leading-tight">Подходящие предприятия</h3>
+                  <button
+                    type="button"
+                    onClick={() => navigate(toMapPath())}
+                    className="inline-flex items-center justify-center h-9 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white transition-colors"
+                  >
+                    Все на карте
+                  </button>
+                </div>
+                {isSearching && <p className="text-sm text-ink-muted">Идёт поиск…</p>}
+                {!isSearching && searchError && <p className="text-sm glass-danger">{searchError}</p>}
+                {!isSearching && !searchError && items.length === 0 && (
+                  <p className="text-sm text-ink-muted">По этим фильтрам ничего не найдено.</p>
+                )}
+                {!isSearching && !searchError && items.length > 0 && (
+                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                    {items.map((item) => (
+                      <LicenseResultCard
+                        key={item.id ?? `${item.companyName}-${item.inn}-${item.address}`}
+                        item={item}
+                        mapPath={toMapPath()}
+                        detailsPath={typeof item.id === 'number' ? `/enterprise/${item.id}` : '/map'}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+        </FrameScreen>
       </div>
     </section>
   );

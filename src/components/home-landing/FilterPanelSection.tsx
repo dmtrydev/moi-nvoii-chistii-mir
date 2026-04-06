@@ -92,6 +92,8 @@ export interface FilterPanelSectionProps {
   regionOptions: string[];
   onSearch: () => void;
   onReset: () => void;
+  /** После «Найти»: меньше верхний отступ, панель ближе к шапке (герой скрыт). */
+  compactAfterSearch?: boolean;
 }
 
 export function FilterPanelSection({
@@ -106,9 +108,14 @@ export function FilterPanelSection({
   regionOptions,
   onSearch,
   onReset,
+  compactAfterSearch = false,
 }: FilterPanelSectionProps): JSX.Element {
+  const sectionShellClass = compactAfterSearch
+    ? 'relative mx-auto mt-4 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-6 sm:mt-5 sm:px-6 md:mt-6 md:px-8 lg:mt-6 lg:px-[min(50px,3.5vw)]'
+    : 'relative mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]';
+
   return (
-    <section className="relative mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]">
+    <section className={sectionShellClass}>
       <div className="relative overflow-visible rounded-[32.5px] border-[none] bg-[#ffffff4c] p-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 md:p-7 lg:p-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
         {/* Заголовок + сброс */}
         <div className="relative z-[2] mb-6 flex min-w-0 flex-col gap-4 lg:mb-8 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
