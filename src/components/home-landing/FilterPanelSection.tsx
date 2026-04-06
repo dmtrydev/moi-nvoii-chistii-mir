@@ -31,9 +31,11 @@ const filterFieldShell =
   'relative w-full h-full rounded-[10px] border border-black/[0.06] bg-white shadow-sm transition-[background-color,box-shadow,backdrop-filter,border-color] duration-200 ease-out hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)] focus-within:border-transparent focus-within:bg-[#ffffffa6] focus-within:backdrop-blur-[10px] focus-within:shadow-none focus-within:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
 
 /** Оболочка без собственного scroll — прокрутка только у внутреннего списка (полоса скрыта, no-scrollbar), иначе двойной скролл. */
-/** Нижний padding у самой панели — «воздух» под списком (не строка в списке), скролл внутри без лишнего pb */
-/** Список открывается вверх (над полем), чтобы не уходил под блок результатов */
-const glassDropdownPanel =
+/** ФККО / регион: список вниз от поля (как ожидается у автодополнения). */
+const glassDropdownPanelDown =
+  'absolute z-50 top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+/** Вид обращения: список вверх от поля — не перекрывает заголовок фильтра и не уходит под блок результатов. */
+const glassDropdownPanelUp =
   'absolute z-50 bottom-full left-0 w-full mb-0 bg-[#ffffff73] rounded-[10px_10px_0px_0px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pt-2.5';
 
 const fkkoOptionCls = ({ highlighted }: { index: number; highlighted: boolean }): string =>
@@ -176,7 +178,7 @@ export function FilterPanelSection({
             inputClassName={`relative z-[2] ${filterInputBase}`}
             maxItems={10}
             noResultsText="Начните вводить код ФККО"
-            dropdownClassName={glassDropdownPanel}
+            dropdownClassName={glassDropdownPanelDown}
             listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
             optionClassName={fkkoOptionCls}
             emptyClassName="px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]"
@@ -204,7 +206,7 @@ export function FilterPanelSection({
             renderCheckbox={(checked) =>
               checked ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />
             }
-            dropdownPanelClassName={glassDropdownPanel}
+            dropdownPanelClassName={glassDropdownPanelUp}
             dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
             optionButtonClassName={vidOptionCls}
             maxHeightClassName=""
@@ -223,7 +225,7 @@ export function FilterPanelSection({
             inputClassName={`relative z-[2] ${filterInputBase}`}
             maxItems={10}
             noResultsText="Начните вводить"
-            dropdownClassName={glassDropdownPanel}
+            dropdownClassName={glassDropdownPanelDown}
             listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
             optionClassName={fkkoOptionCls}
             emptyClassName="px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]"
