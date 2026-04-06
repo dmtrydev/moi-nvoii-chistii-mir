@@ -282,46 +282,44 @@ export function HomeLanding(): JSX.Element {
                                     </span>
                                   )}
                                 </div>
-                                {mainFkko.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-2.5">
-                                    {mainFkko.map((code) => (
-                                      <span
-                                        key={code}
-                                        className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
-                                      >
-                                        {formatFkkoHuman(code)}
-                                      </span>
-                                    ))}
-                                    {restCount > 0 && (
-                                      <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
-                                        +{restCount}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                                {/* FKKO codes + CTA buttons on same row */}
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  {mainFkko.map((code) => (
+                                    <span
+                                      key={code}
+                                      className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
+                                    >
+                                      {formatFkkoHuman(code)}
+                                    </span>
+                                  ))}
+                                  {restCount > 0 && (
+                                    <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
+                                      +{restCount}
+                                    </span>
+                                  )}
 
-                            {/* CTA buttons — bottom right */}
-                            <div className="mt-6 flex flex-col items-stretch gap-4 sm:flex-row sm:justify-end">
-                              <Link
-                                to={toMapPath()}
-                                className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:w-[435px]"
-                              >
-                                На карте
-                                <svg className="h-5 w-5 -rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                  <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              </Link>
-                              <Link
-                                to={detailsPath}
-                                className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:w-[435px]"
-                              >
-                                Карточка предприятия
-                                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                  <path d="M7 17L17 7M17 7H7M17 7v10" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                              </Link>
+                                  <div className="ml-auto flex items-center gap-4">
+                                    <Link
+                                      to={toMapPath()}
+                                      className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                    >
+                                      На карте
+                                      <svg className="h-5 w-5 -rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                        <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    </Link>
+                                    <Link
+                                      to={detailsPath}
+                                      className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                    >
+                                      Карточка предприятия
+                                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                        <path d="M7 17L17 7M17 7H7M17 7v10" strokeLinecap="round" strokeLinejoin="round" />
+                                      </svg>
+                                    </Link>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </article>
                         );
