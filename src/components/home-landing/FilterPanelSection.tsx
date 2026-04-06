@@ -32,8 +32,9 @@ const filterFieldShell =
 
 /** Оболочка без собственного scroll — прокрутка только у внутреннего списка (полоса скрыта, no-scrollbar), иначе двойной скролл. */
 /** Нижний padding у самой панели — «воздух» под списком (не строка в списке), скролл внутри без лишнего pb */
+/** Список открывается вверх (над полем), чтобы не уходил под блок результатов */
 const glassDropdownPanel =
-  'absolute z-50 top-full left-0 w-full mt-0 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+  'absolute z-50 bottom-full left-0 w-full mb-0 bg-[#ffffff73] rounded-[10px_10px_0px_0px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pt-2.5';
 
 const fkkoOptionCls = ({ highlighted }: { index: number; highlighted: boolean }): string =>
   [
@@ -64,7 +65,8 @@ function vidTriggerClass(isOpen: boolean): string {
   if (isOpen) {
     return [
       vidTriggerBase,
-      'rounded-[10px_10px_0px_0px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[\'\'] before:absolute before:inset-0 before:p-px before:rounded-[10px_10px_0px_0px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none',
+      /* Список сверху — скругления снизу у триггера, стык с панелью */
+      'rounded-[0px_0px_10px_10px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[\'\'] before:absolute before:inset-0 before:p-px before:rounded-[0px_0px_10px_10px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none',
     ].join(' ');
   }
   return [
