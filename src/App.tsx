@@ -17,63 +17,66 @@ import UserProfilePage from '@/pages/UserProfilePage';
 import SupportChatPage from '@/pages/SupportChatPage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
+import { PageLoadReveal } from '@/components/PageLoadReveal';
 
 export default function App(): JSX.Element {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/directory" element={<FkkoDirectoryPage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/enterprise/:id" element={<EnterpriseDetailsPage />} />
-          <Route
-            path="/upload"
-            element={
-              <RequireRole minRole="USER">
-                <UploadPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <RequireRole minRole="USER">
-                <AdminLayout />
-              </RequireRole>
-            }
-          >
-            <Route index element={<UserDashboardPage />} />
-            <Route path="profile" element={<UserProfilePage />} />
-            <Route path="upload" element={<UserUploadPage />} />
-            <Route path="support" element={<SupportChatPage />} />
-            <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
-          </Route>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/403" element={<ForbiddenPage />} />
-          <Route
-            path="/admin"
-            element={
-              <RequireRole minRole="MODERATOR">
-                <AdminLayout />
-              </RequireRole>
-            }
-          >
-            <Route path="dashboard" element={<AdminDashboardPage />} />
-            <Route path="licenses" element={<AdminLicensesPage />} />
-            <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
-            <Route path="logs" element={<AdminLogsPage />} />
-            <Route path="support" element={<SupportChatPage />} />
+        <PageLoadReveal>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/directory" element={<FkkoDirectoryPage />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/enterprise/:id" element={<EnterpriseDetailsPage />} />
             <Route
-              path="users"
+              path="/upload"
               element={
-                <RequireRole minRole="SUPERADMIN">
-                  <AdminUsersPage />
+                <RequireRole minRole="USER">
+                  <UploadPage />
                 </RequireRole>
               }
             />
-          </Route>
-        </Routes>
+            <Route
+              path="/dashboard"
+              element={
+                <RequireRole minRole="USER">
+                  <AdminLayout />
+                </RequireRole>
+              }
+            >
+              <Route index element={<UserDashboardPage />} />
+              <Route path="profile" element={<UserProfilePage />} />
+              <Route path="upload" element={<UserUploadPage />} />
+              <Route path="support" element={<SupportChatPage />} />
+              <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
+            </Route>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/403" element={<ForbiddenPage />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireRole minRole="MODERATOR">
+                  <AdminLayout />
+                </RequireRole>
+              }
+            >
+              <Route path="dashboard" element={<AdminDashboardPage />} />
+              <Route path="licenses" element={<AdminLicensesPage />} />
+              <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
+              <Route path="logs" element={<AdminLogsPage />} />
+              <Route path="support" element={<SupportChatPage />} />
+              <Route
+                path="users"
+                element={
+                  <RequireRole minRole="SUPERADMIN">
+                    <AdminUsersPage />
+                  </RequireRole>
+                }
+              />
+            </Route>
+          </Routes>
+        </PageLoadReveal>
       </BrowserRouter>
     </AuthProvider>
   );
