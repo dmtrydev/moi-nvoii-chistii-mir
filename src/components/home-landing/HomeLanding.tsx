@@ -248,83 +248,80 @@ export function HomeLanding(): JSX.Element {
                         return (
                           <article
                             key={item.id ?? `${item.companyName}-${item.inn}-${item.address}`}
-                            className="relative min-h-[280px] rounded-[32.5px] border border-solid border-white bg-[#ffffff80] p-6 shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-7 lg:p-8"
+                            className="rounded-[32.5px] border border-solid border-white bg-[#ffffff80] p-6 shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-7 lg:p-8"
                           >
-                            <div className="flex flex-col gap-6 lg:flex-row lg:gap-10">
-                              {/* Left column */}
-                              <div className="flex min-w-0 flex-1 flex-col gap-5">
-                                <div className="space-y-2.5">
-                                  <h4 className="bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text font-display font-bold text-[24px] text-transparent leading-[1.1] [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] sm:text-[28px] sm:leading-[30.8px]">
-                                    {item.companyName || 'Организация'}
-                                  </h4>
-                                  <div className="flex flex-wrap items-center gap-3.5 font-nunito font-semibold text-[#5e6567] text-base sm:text-lg">
-                                    <span><span className="font-bold">ИНН:</span> {item.inn || 'не указан'}</span>
-                                    {item.address && (
-                                      <>
-                                        <span>|</span>
-                                        <span>{item.address}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <EnterpriseActivityStrip activityTypes={item.activityTypes} variant="light" size="md" />
-
-                                {/* Tags */}
-                                <div className="space-y-2.5">
-                                  <div className="flex flex-wrap items-center gap-3">
-                                    {fkkoTotal > 0 && (
-                                      <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffffb2] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
-                                        {fkkoTotal} {fkkoTotal === 1 ? 'код ФККО' : 'кодов ФККО'}
-                                      </span>
-                                    )}
-                                    {hasAddress && (
-                                      <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
-                                        {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {mainFkko.length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-2.5">
-                                      {mainFkko.map((code) => (
-                                        <span
-                                          key={code}
-                                          className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
-                                        >
-                                          {formatFkkoHuman(code)}
-                                        </span>
-                                      ))}
-                                      {restCount > 0 && (
-                                        <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
-                                          +{restCount}
-                                        </span>
-                                      )}
-                                    </div>
+                            {/* Content */}
+                            <div className="space-y-5">
+                              <div className="space-y-2.5">
+                                <h4 className="max-w-[900px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text font-display font-bold text-[24px] text-transparent leading-[1.1] [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] sm:text-[28px] sm:leading-[30.8px]">
+                                  {item.companyName || 'Организация'}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-3.5 font-nunito font-semibold text-[#5e6567] text-base sm:text-lg">
+                                  <span><span className="font-bold">ИНН:</span> {item.inn || 'не указан'}</span>
+                                  {item.address && (
+                                    <>
+                                      <span>|</span>
+                                      <span>{item.address}</span>
+                                    </>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Right column — CTA buttons */}
-                              <div className="flex shrink-0 flex-col items-stretch gap-4 self-end sm:flex-row lg:w-auto lg:flex-col lg:self-end xl:flex-row">
-                                <Link
-                                  to={toMapPath()}
-                                  className="home-find-button relative inline-flex h-[60px] min-w-[200px] items-center justify-center gap-2.5 rounded-[20px] px-6 font-nunito font-bold text-[#2b3335] text-lg before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[240px]"
-                                >
-                                  На карте
-                                  <svg className="h-5 w-5 -rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                    <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                                  </svg>
-                                </Link>
-                                <Link
-                                  to={detailsPath}
-                                  className="home-find-button relative inline-flex h-[60px] min-w-[200px] items-center justify-center gap-2.5 rounded-[20px] px-6 font-nunito font-bold text-[#2b3335] text-lg before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[240px]"
-                                >
-                                  Карточка предприятия
-                                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                                    <path d="M7 17L17 7M17 7H7M17 7v10" strokeLinecap="round" strokeLinejoin="round" />
-                                  </svg>
-                                </Link>
+                              <EnterpriseActivityStrip activityTypes={item.activityTypes} variant="light" size="md" />
+
+                              <div className="space-y-2.5">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  {fkkoTotal > 0 && (
+                                    <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffffb2] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
+                                      {fkkoTotal} {fkkoTotal === 1 ? 'код ФККО' : 'кодов ФККО'}
+                                    </span>
+                                  )}
+                                  {hasAddress && (
+                                    <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
+                                      {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
+                                    </span>
+                                  )}
+                                </div>
+                                {mainFkko.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-2.5">
+                                    {mainFkko.map((code) => (
+                                      <span
+                                        key={code}
+                                        className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
+                                      >
+                                        {formatFkkoHuman(code)}
+                                      </span>
+                                    ))}
+                                    {restCount > 0 && (
+                                      <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
+                                        +{restCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
+                            </div>
+
+                            {/* CTA buttons — bottom right */}
+                            <div className="mt-6 flex flex-col items-stretch gap-4 sm:flex-row sm:justify-end">
+                              <Link
+                                to={toMapPath()}
+                                className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:w-[435px]"
+                              >
+                                На карте
+                                <svg className="h-5 w-5 -rotate-45" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                  <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </Link>
+                              <Link
+                                to={detailsPath}
+                                className="home-find-button relative inline-flex h-[60px] items-center justify-center gap-2.5 rounded-[20px] px-8 font-nunito font-bold text-[#2b3335] text-xl before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:w-[435px]"
+                              >
+                                Карточка предприятия
+                                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                  <path d="M7 17L17 7M17 7H7M17 7v10" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </Link>
                             </div>
                           </article>
                         );
