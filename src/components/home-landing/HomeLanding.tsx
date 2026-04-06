@@ -12,13 +12,13 @@ import { FrameScreen } from '@/components/home-landing/FrameScreen';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
 import { TopNavigationSection } from '@/components/home-landing/TopNavigationSection';
 
-/** Как у CTA главной — длинные плавные переходы */
-const HOME_INTRO_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
-const HOME_INTRO_WHITE_MS = 520;
-const HOME_INTRO_MOTION_MS = 1100;
-const HOME_INTRO_DELAY_FILTER_MS = 85;
-const HOME_INTRO_DELAY_BELOW_MS = 170;
-const HOME_INTRO_SLIDE_PX = 44;
+/** Вводная анимация: очень плавное замедление в конце */
+const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
+const HOME_INTRO_WHITE_MS = 1000;
+const HOME_INTRO_MOTION_MS = 2200;
+const HOME_INTRO_DELAY_FILTER_MS = 160;
+const HOME_INTRO_DELAY_BELOW_MS = 320;
+const HOME_INTRO_SLIDE_PX = 36;
 
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
