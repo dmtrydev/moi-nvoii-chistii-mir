@@ -24,6 +24,8 @@ const HOME_INTRO_SLIDE_PX = 36;
 const SEARCH_LAYOUT_MS = 1000;
 const SEARCH_RESULTS_DELAY_MS = 480;
 const SEARCH_RESULTS_REVEAL_MS = 1200;
+/** Одинаковый подъём фильтра и нижней колонки; зазор между карточками визуально = mt-6 (24px). Компактный mt-[52px] = 24px + lift. */
+const SEARCH_LIFT_PX = 28;
 
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
@@ -236,6 +238,9 @@ export function HomeLanding(): JSX.Element {
         transition: `grid-template-rows ${SEARCH_LAYOUT_MS}ms ${HOME_INTRO_EASE}`,
       };
 
+  const searchLiftPx =
+    hasSearched && !prefersReducedMotion && motionOn ? SEARCH_LIFT_PX : 0;
+
   return (
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
       <div
@@ -288,7 +293,7 @@ export function HomeLanding(): JSX.Element {
             style={{
               opacity: motionOn ? 1 : 0,
               transform: motionOn
-                ? `translateY(${hasSearched ? -36 : 0}px)`
+                ? `translateY(${searchLiftPx ? -searchLiftPx : 0}px)`
                 : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
               transition: filterTransition,
               transitionDelay:
@@ -308,6 +313,9 @@ export function HomeLanding(): JSX.Element {
               onSearch={() => void runSearch()}
               onReset={handleResetFilters}
               compactAfterSearch={hasSearched}
+              compactMarginTopClass={
+                hasSearched ? (searchLiftPx > 0 ? 'mt-[52px]' : 'mt-6') : undefined
+              }
             />
           </div>
 
@@ -316,7 +324,7 @@ export function HomeLanding(): JSX.Element {
             style={{
               opacity: motionOn ? 1 : 0,
               transform: motionOn
-                ? `translateY(${hasSearched ? -24 : 0}px)`
+                ? `translateY(${searchLiftPx ? -searchLiftPx : 0}px)`
                 : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
               transition: bottomColumnTransition,
               transitionDelay:
