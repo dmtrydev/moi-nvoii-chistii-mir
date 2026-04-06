@@ -84,8 +84,6 @@ export function EnterpriseActivityStrip({
   labelledBy,
 }: EnterpriseActivityStripProps): JSX.Element {
   const dim = size === 'md' ? 'h-10 w-10' : 'h-8 w-8';
-  const iconDim = size === 'md' ? 'h-5 w-5' : 'h-4 w-4';
-  const isLight = variant === 'light';
 
   return (
     <div
@@ -102,27 +100,20 @@ export function EnterpriseActivityStrip({
             title={label}
             aria-label={label}
             data-tooltip={label}
+            data-variant={variant}
             className={[
               'enterprise-activity-tooltip-target',
-              'inline-flex shrink-0 items-center justify-center rounded-full border transition-all duration-200',
+              /* Круг и заливка — только внутри SVG (active/inactive), иначе получается «круг в круге» */
+              'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 shadow-none',
               dim,
-              active
-                ? isLight
-                  ? 'border-transparent bg-gradient-to-br from-accent-from to-accent-to text-[#1a2e12] shadow-md'
-                  : 'border-[#4caf50]/45 bg-[#4caf50]/15 text-[#b8f5bb]'
-                : isLight
-                  ? 'border-black/[0.08] bg-app-bg text-ink-muted'
-                  : 'border-white/10 bg-white/[0.06] text-white/25',
             ].join(' ')}
           >
-            <span className={`${iconDim} flex items-center justify-center`}>
-              <img
-                src={active ? iconActive : iconInactive}
-                alt=""
-                className="h-full w-full object-contain pointer-events-none"
-                draggable={false}
-              />
-            </span>
+            <img
+              src={active ? iconActive : iconInactive}
+              alt=""
+              className="h-full w-full object-contain object-center pointer-events-none select-none"
+              draggable={false}
+            />
           </span>
         );
       })}
