@@ -13,7 +13,13 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import type { LicenseData } from '@/types';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { formatFkkoHuman, fkkoCodesToQueryParam, normalizeFkkoCodeList, parseFkkoCodesFromQuery } from '@/utils/fkko';
+import {
+  formatFkkoHuman,
+  formatFkkoSelectionSummary,
+  fkkoCodesToQueryParam,
+  normalizeFkkoCodeList,
+  parseFkkoCodesFromQuery,
+} from '@/utils/fkko';
 import { LicenseResultCard } from '@/components/licenses/LicenseResultCard';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
@@ -508,6 +514,7 @@ export default function MapPage(): JSX.Element {
                 buttonClassName={mapField}
                 maxHeightClassName="max-h-64"
                 formatOptionLabel={(code) => `${formatFkkoHuman(code)} — ${getFkkoGroupName(code)}`}
+                formatSelectedLabel={formatFkkoSelectionSummary}
               />
             </div>
             <div>

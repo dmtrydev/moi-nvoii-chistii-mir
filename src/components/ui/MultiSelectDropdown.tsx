@@ -26,6 +26,8 @@ export function MultiSelectDropdown({
   renderCheckbox,
   triggerAlign = 'center',
   formatOptionLabel,
+  /** Текст на кнопке при выборе (вместо склейки подписей опций). */
+  formatSelectedLabel,
 }: {
   options: string[];
   selected: string[];
@@ -59,6 +61,7 @@ export function MultiSelectDropdown({
   triggerAlign?: 'center' | 'start';
   /** Подпись опции в списке и в кнопке (например ФККО: код + название группы). */
   formatOptionLabel?: (option: string) => string;
+  formatSelectedLabel?: (selectedNormalized: string[]) => string;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -72,11 +75,12 @@ export function MultiSelectDropdown({
   const selectedLabel = useMemo(() => {
     const s = selected.map(normalize).filter(Boolean);
     if (s.length === 0) return '';
+    if (formatSelectedLabel) return formatSelectedLabel(s);
     const fmt = formatOptionLabel ?? ((x: string) => x);
     const labels = s.map(fmt);
     if (labels.length <= 2) return labels.join(', ');
     return `${labels.slice(0, 2).join(', ')} и ещё ${labels.length - 2}`;
-  }, [selected, formatOptionLabel]);
+  }, [selected, formatOptionLabel, formatSelectedLabel]);
 
   const hasSelection = Boolean(selectedLabel);
 
@@ -138,7 +142,9 @@ export function MultiSelectDropdown({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span className={resolvedLabelClass}>{selectedLabel || placeholder}</span>
+        <span className={[resolvedLabelClass, 'min-w-0 flex-1 truncate'].join(' ')}>
+          {selectedLabel || placeholder}
+        </span>
         {chevronNode}
       </button>
 

@@ -5,7 +5,7 @@ import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
-import { formatFkkoHuman } from '@/utils/fkko';
+import { formatFkkoHuman, formatFkkoSelectionSummary } from '@/utils/fkko';
 import { getFkkoGroupName } from '@/constants/fkko';
 
 const POLY_IMG =
@@ -183,6 +183,7 @@ export function FilterPanelSection({
             buttonClassName={vidTriggerClass}
             labelClassName={vidLabelClass}
             formatOptionLabel={fkkoOptionLabel}
+            formatSelectedLabel={formatFkkoSelectionSummary}
             renderChevron={(open) => (
               <img
                 className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
