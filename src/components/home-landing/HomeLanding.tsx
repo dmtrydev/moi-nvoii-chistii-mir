@@ -218,14 +218,20 @@ export function HomeLanding(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => navigate(toMapPath())}
-                    className="relative inline-flex h-[52px] items-center justify-center gap-2.5 rounded-[20px] bg-[#ffffff73] px-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-colors hover:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
+                    className="group relative inline-flex h-[52px] items-center justify-center overflow-hidden rounded-[20px] bg-[#ffffff73] px-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-colors duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2"
                   >
-                    <span className="font-nunito font-semibold text-[#2b3335] text-base">Все на карте</span>
-                    <svg className="h-[21px] w-[21px] text-[#2b3335]" viewBox="0 0 21 21" fill="none" aria-hidden>
-                      <path d="M3.5 7.875L10.5 3.5L17.5 7.875V15.75L10.5 19.25L3.5 15.75V7.875Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M10.5 11.375V19.25" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M17.5 7.875L10.5 11.375L3.5 7.875" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
+                    <span className="relative z-[2] inline-flex items-center gap-2.5">
+                      <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-semibold text-[#2b3335] text-base transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:group-hover:translate-x-0 group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                        Все на карте
+                      </span>
+                      <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                        <img
+                          className="h-[21px] w-[21px] object-contain pointer-events-none"
+                          alt=""
+                          src={homeResultsMapCtaIcon}
+                        />
+                      </span>
+                    </span>
                   </button>
                 </div>
 
