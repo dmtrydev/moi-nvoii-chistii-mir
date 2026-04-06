@@ -20,6 +20,11 @@ const HOME_INTRO_DELAY_FILTER_MS = 160;
 const HOME_INTRO_DELAY_BELOW_MS = 320;
 const HOME_INTRO_SLIDE_PX = 36;
 
+/** После «Найти»: подъём/схлопывание и появление результатов */
+const SEARCH_LAYOUT_MS = 1000;
+const SEARCH_RESULTS_DELAY_MS = 480;
+const SEARCH_RESULTS_REVEAL_MS = 1200;
+
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
@@ -42,6 +47,12 @@ export function HomeLanding(): JSX.Element {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [resultsReveal, setResultsReveal] = useState(false);
+
+  const prefersReducedMotion = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   const [introStage, setIntroStage] = useState<0 | 1 | 2>(() => {
     if (typeof window === 'undefined') return 0;
@@ -59,6 +70,19 @@ export function HomeLanding(): JSX.Element {
     });
     return () => cancelAnimationFrame(id);
   }, [introStage]);
+
+  useEffect(() => {
+    if (!hasSearched) {
+      setResultsReveal(false);
+      return;
+    }
+    if (prefersReducedMotion) {
+      setResultsReveal(true);
+      return;
+    }
+    const t = window.setTimeout(() => setResultsReveal(true), SEARCH_RESULTS_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [hasSearched, prefersReducedMotion]);
 
   useEffect(() => {
     let alive = true;
@@ -130,6 +154,7 @@ export function HomeLanding(): JSX.Element {
     setValidationError('');
     setItems([]);
     setHasSearched(false);
+    setResultsReveal(false);
     setSearchError('');
   }, []);
 
@@ -181,8 +206,35 @@ export function HomeLanding(): JSX.Element {
     return `/map?${params.toString()}`;
   }, [filterRegion, filterFkko, vidQuery]);
 
-  const slideTransition =
-    introStage >= 2 ? `opacity ${transitionMotion}, transform ${transitionMotion}` : 'none';
+  const heroInnerTransition = useMemo(() => {
+    if (introStage < 2) return 'none';
+    if (prefersReducedMotion) return 'none';
+    const e = HOME_INTRO_EASE;
+    const ms = hasSearched ? SEARCH_LAYOUT_MS : HOME_INTRO_MOTION_MS;
+    return `opacity ${ms}ms ${e}, transform ${ms}ms ${e}`;
+  }, [introStage, hasSearched, prefersReducedMotion]);
+
+  const filterTransition = useMemo(() => {
+    if (introStage < 2 || prefersReducedMotion) return 'none';
+    const e = HOME_INTRO_EASE;
+    return `opacity ${HOME_INTRO_MOTION_MS}ms ${e}, transform ${(hasSearched ? SEARCH_LAYOUT_MS : HOME_INTRO_MOTION_MS)}ms ${e}`;
+  }, [introStage, hasSearched, prefersReducedMotion]);
+
+  const bottomColumnTransition = useMemo(() => {
+    if (introStage < 2 || prefersReducedMotion) return 'none';
+    const e = HOME_INTRO_EASE;
+    return `opacity ${HOME_INTRO_MOTION_MS}ms ${e}, transform ${(hasSearched ? SEARCH_LAYOUT_MS : HOME_INTRO_MOTION_MS)}ms ${e}`;
+  }, [introStage, hasSearched, prefersReducedMotion]);
+
+  const heroGridClass = prefersReducedMotion
+    ? 'grid min-h-0'
+    : 'grid min-h-0 transition-[grid-template-rows] motion-reduce:transition-none';
+  const heroGridStyle = prefersReducedMotion
+    ? { gridTemplateRows: hasSearched ? ('0fr' as const) : ('1fr' as const) }
+    : {
+        gridTemplateRows: hasSearched ? ('0fr' as const) : ('1fr' as const),
+        transition: `grid-template-rows ${SEARCH_LAYOUT_MS}ms ${HOME_INTRO_EASE}`,
+      };
 
   return (
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
@@ -214,24 +266,33 @@ export function HomeLanding(): JSX.Element {
           >
             <TopNavigationSection />
           </div>
-          {!hasSearched && (
-            <div
-              style={{
-                opacity: motionOn ? 1 : 0,
-                transform: motionOn ? 'translateY(0)' : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
-                transition: slideTransition,
-                transitionDelay: introStage >= 2 ? '0ms' : '0ms',
-              }}
-            >
-              <HeroCopySection />
+          <div className={heroGridClass} style={heroGridStyle}>
+            <div className="min-h-0 overflow-hidden">
+              <div
+                style={{
+                  opacity: motionOn ? (hasSearched ? 0 : 1) : 0,
+                  transform: motionOn
+                    ? hasSearched
+                      ? 'translateY(-32px)'
+                      : 'translateY(0)'
+                    : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
+                  transition: heroInnerTransition,
+                  pointerEvents: hasSearched ? 'none' : 'auto',
+                }}
+              >
+                <HeroCopySection />
+              </div>
             </div>
-          )}
+          </div>
           <div
             style={{
               opacity: motionOn ? 1 : 0,
-              transform: motionOn ? 'translateY(0)' : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
-              transition: slideTransition,
-              transitionDelay: introStage >= 2 ? `${HOME_INTRO_DELAY_FILTER_MS}ms` : '0ms',
+              transform: motionOn
+                ? `translateY(${hasSearched ? -36 : 0}px)`
+                : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
+              transition: filterTransition,
+              transitionDelay:
+                introStage >= 2 && !hasSearched ? `${HOME_INTRO_DELAY_FILTER_MS}ms` : '0ms',
             }}
           >
             <FilterPanelSection
@@ -254,9 +315,12 @@ export function HomeLanding(): JSX.Element {
             className="relative mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16"
             style={{
               opacity: motionOn ? 1 : 0,
-              transform: motionOn ? 'translateY(0)' : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
-              transition: slideTransition,
-              transitionDelay: introStage >= 2 ? `${HOME_INTRO_DELAY_BELOW_MS}ms` : '0ms',
+              transform: motionOn
+                ? `translateY(${hasSearched ? -24 : 0}px)`
+                : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
+              transition: bottomColumnTransition,
+              transitionDelay:
+                introStage >= 2 && !hasSearched ? `${HOME_INTRO_DELAY_BELOW_MS}ms` : '0ms',
             }}
           >
             {validationError && (
@@ -273,6 +337,17 @@ export function HomeLanding(): JSX.Element {
             )}
 
             {hasSearched && (
+              <div
+                className="will-change-transform"
+                style={{
+                  opacity: resultsReveal ? 1 : 0,
+                  transform: resultsReveal ? 'translateY(0)' : 'translateY(52px)',
+                  transition: prefersReducedMotion
+                    ? 'none'
+                    : `opacity ${SEARCH_RESULTS_REVEAL_MS}ms ${HOME_INTRO_EASE}, transform ${SEARCH_RESULTS_REVEAL_MS}ms ${HOME_INTRO_EASE}`,
+                  pointerEvents: resultsReveal ? 'auto' : 'none',
+                }}
+              >
               <section className="relative z-0 mt-6 rounded-[32.5px] bg-[#ffffff4c] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
                 {/* Header */}
                 <div className="relative z-[2] flex flex-wrap items-center justify-between gap-4 px-6 pt-7 pb-4 sm:px-8 lg:px-9">
@@ -434,6 +509,7 @@ export function HomeLanding(): JSX.Element {
                   )}
                 </div>
               </section>
+              </div>
             )}
           </div>
         </FrameScreen>

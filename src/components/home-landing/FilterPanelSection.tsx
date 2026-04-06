@@ -120,9 +120,14 @@ export function FilterPanelSection({
   compactAfterSearch = false,
 }: FilterPanelSectionProps): JSX.Element {
   /** z-[1]: выпадающие списки выше блока «Подходящие предприятия» (ниже шапки z-[2]) */
-  const sectionShellClass = compactAfterSearch
-    ? 'relative z-[1] mx-auto mt-4 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-6 sm:mt-5 sm:px-6 md:mt-6 md:px-8 lg:mt-6 lg:px-[min(50px,3.5vw)]'
-    : 'relative z-[1] mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]';
+  const sectionShellTransition =
+    'transition-[margin,padding] duration-[1000ms] ease-[cubic-bezier(0.14,0.9,0.22,1)] motion-reduce:transition-none';
+  const sectionShellClass = [
+    sectionShellTransition,
+    compactAfterSearch
+      ? 'relative z-[1] mx-auto mt-4 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-6 sm:mt-5 sm:px-6 md:mt-6 md:px-8 lg:mt-6 lg:px-[min(50px,3.5vw)]'
+      : 'relative z-[1] mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]',
+  ].join(' ');
 
   return (
     <section className={sectionShellClass}>
