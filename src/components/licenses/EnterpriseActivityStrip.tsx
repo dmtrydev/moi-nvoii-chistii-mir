@@ -104,7 +104,8 @@ export function EnterpriseActivityStrip({
             className={[
               'enterprise-activity-tooltip-target',
               /* Круг и заливка — только внутри SVG (active/inactive), иначе получается «круг в круге» */
-              'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 shadow-none',
+              /* overflow-visible: иначе обрезаются CSS-тултипы (.enterprise-activity-tooltip-target::after) */
+              'inline-flex shrink-0 items-center justify-center overflow-visible rounded-full border-0 bg-transparent p-0 shadow-none',
               dim,
             ].join(' ')}
           >
