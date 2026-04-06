@@ -12,6 +12,14 @@ import { FrameScreen } from '@/components/home-landing/FrameScreen';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
 import { TopNavigationSection } from '@/components/home-landing/TopNavigationSection';
 
+/** Как у CTA главной — длинные плавные переходы */
+const HOME_INTRO_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const HOME_INTRO_WHITE_MS = 520;
+const HOME_INTRO_MOTION_MS = 1100;
+const HOME_INTRO_DELAY_FILTER_MS = 85;
+const HOME_INTRO_DELAY_BELOW_MS = 170;
+const HOME_INTRO_SLIDE_PX = 44;
+
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
@@ -34,6 +42,23 @@ export function HomeLanding(): JSX.Element {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+
+  const [introStage, setIntroStage] = useState<0 | 1 | 2>(() => {
+    if (typeof window === 'undefined') return 0;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 2 : 0;
+  });
+
+  const motionOn = introStage >= 2;
+  const transitionMotion = `${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`;
+  const transitionWhite = `${HOME_INTRO_WHITE_MS}ms ${HOME_INTRO_EASE}`;
+
+  useEffect(() => {
+    if (introStage !== 0) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIntroStage(1));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [introStage]);
 
   useEffect(() => {
     let alive = true;
@@ -78,7 +103,7 @@ export function HomeLanding(): JSX.Element {
         setActivityTypeOptions(
           list
             .map((x: string) => String(x).trim())
-            .filter((x: string) => x && x.toLowerCase() !== 'иное'),
+            .filter((x: string) => x && x.toLowerCase() !== 'иное')
         );
         if (fkkoParam) {
           setFilterVid((prev) => prev.filter((v) => fromApi.includes(v)));
@@ -109,8 +134,12 @@ export function HomeLanding(): JSX.Element {
   }, []);
 
   const vidQuery = useMemo(
-    () => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '),
-    [filterVid],
+    () =>
+      filterVid
+        .map((x) => String(x).trim())
+        .filter(Boolean)
+        .join(', '),
+    [filterVid]
   );
 
   const runSearch = useCallback(async (): Promise<void> => {
@@ -130,7 +159,8 @@ export function HomeLanding(): JSX.Element {
       if (r) params.set('region', r);
       const resp = await fetch(getApiUrl(`/api/licenses?${params.toString()}`));
       const data = await (resp.ok ? resp.json() : resp.json().catch(() => ({})));
-      if (!resp.ok) throw new Error((data as { message?: string }).message ?? `Ошибка ${resp.status}`);
+      if (!resp.ok)
+        throw new Error((data as { message?: string }).message ?? `Ошибка ${resp.status}`);
       const found = (data as { items?: LicenseData[] }).items;
       setItems(Array.isArray(found) ? found : []);
     } catch (err) {
@@ -151,6 +181,9 @@ export function HomeLanding(): JSX.Element {
     return `/map?${params.toString()}`;
   }, [filterRegion, filterFkko, vidQuery]);
 
+  const slideTransition =
+    introStage >= 2 ? `opacity ${transitionMotion}, transform ${transitionMotion}` : 'none';
+
   return (
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
       <div
@@ -163,26 +196,69 @@ export function HomeLanding(): JSX.Element {
           backgroundSize: 'min(1920px, 100vw) auto',
         }}
       />
-      <div className="relative z-[1] w-full max-w-full min-w-0">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-[1] bg-white/30 backdrop-blur-[14px] [-webkit-backdrop-filter:blur(14px)]"
+        style={{
+          opacity: motionOn ? 0 : 1,
+          transition: introStage >= 2 ? `opacity ${transitionMotion}` : 'none',
+        }}
+      />
+      <div className="relative z-[10] w-full max-w-full min-w-0">
         <FrameScreen>
-          <TopNavigationSection />
-          {!hasSearched && <HeroCopySection />}
-          <FilterPanelSection
-            filterFkko={filterFkko}
-            onFilterFkkoChange={setFilterFkko}
-            fkkoOptions={fkkoCatalogCodes}
-            filterVid={filterVid}
-            onFilterVidChange={setFilterVid}
-            activityTypeOptions={activityTypeOptions}
-            filterRegion={filterRegion}
-            onFilterRegionChange={setFilterRegion}
-            regionOptions={regionOptions}
-            onSearch={() => void runSearch()}
-            onReset={handleResetFilters}
-            compactAfterSearch={hasSearched}
-          />
+          <div
+            style={{
+              opacity: motionOn ? 1 : 0,
+              transition: introStage >= 2 ? `opacity ${transitionMotion}` : 'none',
+            }}
+          >
+            <TopNavigationSection />
+          </div>
+          {!hasSearched && (
+            <div
+              style={{
+                opacity: motionOn ? 1 : 0,
+                transform: motionOn ? 'translateY(0)' : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
+                transition: slideTransition,
+                transitionDelay: introStage >= 2 ? '0ms' : '0ms',
+              }}
+            >
+              <HeroCopySection />
+            </div>
+          )}
+          <div
+            style={{
+              opacity: motionOn ? 1 : 0,
+              transform: motionOn ? 'translateY(0)' : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
+              transition: slideTransition,
+              transitionDelay: introStage >= 2 ? `${HOME_INTRO_DELAY_FILTER_MS}ms` : '0ms',
+            }}
+          >
+            <FilterPanelSection
+              filterFkko={filterFkko}
+              onFilterFkkoChange={setFilterFkko}
+              fkkoOptions={fkkoCatalogCodes}
+              filterVid={filterVid}
+              onFilterVidChange={setFilterVid}
+              activityTypeOptions={activityTypeOptions}
+              filterRegion={filterRegion}
+              onFilterRegionChange={setFilterRegion}
+              regionOptions={regionOptions}
+              onSearch={() => void runSearch()}
+              onReset={handleResetFilters}
+              compactAfterSearch={hasSearched}
+            />
+          </div>
 
-          <div className="relative mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16">
+          <div
+            className="relative mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16"
+            style={{
+              opacity: motionOn ? 1 : 0,
+              transform: motionOn ? 'translateY(0)' : `translateY(${HOME_INTRO_SLIDE_PX}px)`,
+              transition: slideTransition,
+              transitionDelay: introStage >= 2 ? `${HOME_INTRO_DELAY_BELOW_MS}ms` : '0ms',
+            }}
+          >
             {validationError && (
               <div
                 role="alert"
@@ -225,10 +301,20 @@ export function HomeLanding(): JSX.Element {
 
                 {/* Content */}
                 <div className="relative z-[2] px-6 pb-7 sm:px-8 lg:px-9">
-                  {isSearching && <p className="py-8 text-center font-nunito font-semibold text-[#5e6567] text-lg">Идёт поиск…</p>}
-                  {!isSearching && searchError && <p className="py-8 text-center font-nunito font-semibold text-red-600 text-lg">{searchError}</p>}
+                  {isSearching && (
+                    <p className="py-8 text-center font-nunito font-semibold text-[#5e6567] text-lg">
+                      Идёт поиск…
+                    </p>
+                  )}
+                  {!isSearching && searchError && (
+                    <p className="py-8 text-center font-nunito font-semibold text-red-600 text-lg">
+                      {searchError}
+                    </p>
+                  )}
                   {!isSearching && !searchError && items.length === 0 && (
-                    <p className="py-8 text-center font-nunito font-semibold text-[#5e6567] text-lg">По этим фильтрам ничего не найдено.</p>
+                    <p className="py-8 text-center font-nunito font-semibold text-[#5e6567] text-lg">
+                      По этим фильтрам ничего не найдено.
+                    </p>
                   )}
                   {!isSearching && !searchError && items.length > 0 && (
                     <div className="no-scrollbar flex max-h-[600px] flex-col gap-2.5 overflow-y-auto pr-1">
@@ -239,7 +325,8 @@ export function HomeLanding(): JSX.Element {
                         const fkkoTotal = fkkoCodes.length;
                         const sitesCount = Array.isArray(item.sites) ? item.sites.length : 0;
                         const hasAddress = Boolean(item.address?.trim()) || sitesCount > 0;
-                        const detailsPath = typeof item.id === 'number' ? `/enterprise/${item.id}` : '/map';
+                        const detailsPath =
+                          typeof item.id === 'number' ? `/enterprise/${item.id}` : '/map';
 
                         return (
                           <article
@@ -253,7 +340,10 @@ export function HomeLanding(): JSX.Element {
                                   {item.companyName || 'Организация'}
                                 </h4>
                                 <div className="flex flex-wrap items-center gap-3.5 font-nunito font-semibold text-[#5e6567] text-base sm:text-lg">
-                                  <span><span className="font-bold">ИНН:</span> {item.inn || 'не указан'}</span>
+                                  <span>
+                                    <span className="font-bold">ИНН:</span>{' '}
+                                    {item.inn || 'не указан'}
+                                  </span>
                                   {item.address && (
                                     <>
                                       <span>|</span>
@@ -263,7 +353,11 @@ export function HomeLanding(): JSX.Element {
                                 </div>
                               </div>
 
-                              <EnterpriseActivityStrip activityTypes={item.activityTypes} variant="light" size="md" />
+                              <EnterpriseActivityStrip
+                                activityTypes={item.activityTypes}
+                                variant="light"
+                                size="md"
+                              />
 
                               <div className="space-y-2.5">
                                 <div className="flex flex-wrap items-center gap-3">
@@ -344,6 +438,20 @@ export function HomeLanding(): JSX.Element {
           </div>
         </FrameScreen>
       </div>
+      {introStage < 2 && (
+        <div
+          aria-hidden
+          className="fixed inset-0 z-[200] bg-white"
+          style={{
+            opacity: introStage === 0 ? 1 : 0,
+            transition: `opacity ${transitionWhite}`,
+            pointerEvents: introStage === 0 ? 'auto' : 'none',
+          }}
+          onTransitionEnd={(e) => {
+            if (e.propertyName === 'opacity' && introStage === 1) setIntroStage(2);
+          }}
+        />
+      )}
     </section>
   );
 }
