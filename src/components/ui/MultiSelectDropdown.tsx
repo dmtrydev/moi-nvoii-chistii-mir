@@ -28,6 +28,10 @@ export function MultiSelectDropdown({
   formatOptionLabel,
   /** Текст на кнопке при выборе (вместо склейки подписей опций). */
   formatSelectedLabel,
+  inputValue,
+  onInputValueChange,
+  inputClassName,
+  onInputEnter,
 }: {
   options: string[];
   selected: string[];
@@ -62,6 +66,11 @@ export function MultiSelectDropdown({
   /** Подпись опции в списке и в кнопке (например ФККО: код + название группы). */
   formatOptionLabel?: (option: string) => string;
   formatSelectedLabel?: (selectedNormalized: string[]) => string;
+  /** Если задано — триггер становится input (для ФККО: ввод + выбор). */
+  inputValue?: string;
+  onInputValueChange?: (next: string) => void;
+  inputClassName?: string;
+  onInputEnter?: () => void;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -93,6 +102,16 @@ export function MultiSelectDropdown({
       : (labelClassName ?? (selectedLabel ? 'text-ink' : 'text-ink-muted'));
 
   const listScrollClass = dropdownListClassName ?? 'max-h-64 overflow-y-auto py-1';
+  const normalizedInput = normalize(inputValue ?? '');
+  const hasInputMode = typeof onInputValueChange === 'function';
+  const visibleOptions = useMemo(() => {
+    if (!hasInputMode || !normalizedInput) return normalizedOptions;
+    const q = normalizedInput.toLowerCase();
+    return normalizedOptions.filter((opt) => {
+      const label = (formatOptionLabel ? formatOptionLabel(opt) : opt).toLowerCase();
+      return opt.toLowerCase().includes(q) || label.includes(q);
+    });
+  }, [hasInputMode, normalizedInput, normalizedOptions, formatOptionLabel]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -138,6 +157,7 @@ export function MultiSelectDropdown({
           resolvedButtonClass,
           'w-full text-left flex justify-between gap-2',
           triggerAlign === 'start' ? 'items-start' : 'items-center',
+          hasInputMode ? 'hidden' : '',
         ].join(' ')}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -148,6 +168,32 @@ export function MultiSelectDropdown({
         {chevronNode}
       </button>
 
+      {hasInputMode && (
+        <div
+          className={[
+            resolvedButtonClass,
+            'w-full text-left flex justify-between gap-2',
+            triggerAlign === 'start' ? 'items-start' : 'items-center',
+          ].join(' ')}
+          onClick={() => setIsOpen(true)}
+        >
+          <input
+            value={inputValue ?? ''}
+            onChange={(e) => onInputValueChange(e.target.value)}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onInputEnter?.();
+              }
+            }}
+            placeholder={selectedLabel ? `Выбрано: ${selectedLabel}` : placeholder}
+            className={inputClassName ?? 'min-w-0 flex-1 bg-transparent outline-none'}
+          />
+          {chevronNode}
+        </div>
+      )}
+
       {isOpen && (
         <div
           className={
@@ -156,9 +202,9 @@ export function MultiSelectDropdown({
           }
         >
           <div className={listScrollClass}>
-            {normalizedOptions.map((opt, index) => {
+            {visibleOptions.map((opt, index) => {
               const checked = selectedSet.has(opt);
-              const isLast = index === normalizedOptions.length - 1;
+              const isLast = index === visibleOptions.length - 1;
               const labelText = formatOptionLabel ? formatOptionLabel(opt) : opt;
               const defaultOptCls = [
                 'block w-full px-3 py-2 text-left text-sm transition-colors',
@@ -287,7 +333,7 @@ export function MultiSelectDropdown({
                 </button>
               );
             })}
-            {normalizedOptions.length === 0 && (
+            {visibleOptions.length === 0 && (
               <div className={emptyOptionsClassName ?? 'px-3 py-2 text-sm text-ink-muted'}>Нет вариантов</div>
             )}
           </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
 import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-icon.svg';
@@ -122,6 +123,7 @@ export function FilterPanelSection({
   compactAfterSearch = false,
   compactMarginTopClass,
 }: FilterPanelSectionProps): JSX.Element {
+  const [fkkoInput, setFkkoInput] = useState('');
   /** z-[1]: выпадающие списки выше блока «Подходящие предприятия» (ниже шапки z-[2]) */
   const sectionShellTransition =
     'transition-[margin,padding] duration-[1000ms] ease-[cubic-bezier(0.14,0.9,0.22,1)] motion-reduce:transition-none';
@@ -133,6 +135,22 @@ export function FilterPanelSection({
       ? `relative z-[1] mx-auto ${compactTopMargin} w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-6 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)]`
       : 'relative z-[1] mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]',
   ].join(' ');
+  const handleFkkoInput = (next: string): void => {
+    const onlyDigits = String(next).replace(/\D/g, '').slice(0, 11);
+    setFkkoInput(onlyDigits);
+  };
+
+  const submitTypedFkko = (): void => {
+    const code = fkkoInput.trim();
+    if (!code) return;
+    if (code.length !== 11) return;
+    if (filterFkko.includes(code)) {
+      setFkkoInput('');
+      return;
+    }
+    onFilterFkkoChange([...filterFkko, code]);
+    setFkkoInput('');
+  };
 
   return (
     <section className={sectionShellClass}>
@@ -194,6 +212,10 @@ export function FilterPanelSection({
             labelClassName={vidLabelClass}
             formatOptionLabel={fkkoOptionLabel}
             formatSelectedLabel={formatFkkoSelectionSummary}
+            inputValue={fkkoInput}
+            onInputValueChange={handleFkkoInput}
+            onInputEnter={submitTypedFkko}
+            inputClassName="min-w-0 flex-1 bg-transparent font-nunito font-semibold text-lg text-[#2b3335] placeholder:text-[#828583] outline-none"
             renderChevron={(open) => (
               <img
                 className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
@@ -208,6 +230,7 @@ export function FilterPanelSection({
             dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
             optionButtonClassName={vidOptionCls}
             maxHeightClassName=""
+            emptyOptionsClassName="px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]"
           />
         </div>
       </div>
