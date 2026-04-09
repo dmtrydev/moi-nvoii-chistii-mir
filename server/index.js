@@ -11,7 +11,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
-import { query, getPool } from './db.js';
+import { query, getPool, withAdvisorySchemaLock } from './db.js';
 import { authMiddleware, requireRole, requireAuth } from './auth.js';
 import { createAuditLog } from './audit.js';
 import { rateLimit } from './rateLimit.js';
@@ -47,33 +47,35 @@ async function ensureDatabaseSchema() {
   const dashboardMigrationPath = path.join(__dirname, 'db', 'migrations', 'eco-auth-dashboard.sql');
 
   try {
-    // sessions.id использует gen_random_uuid() — для этого нужна pgcrypto.
-    await query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
-    console.log('DB: applying init.sql (при большой БД или медленном диске может занять минуты)…');
+    await withAdvisorySchemaLock(async (client) => {
+      // sessions.id использует gen_random_uuid() — для этого нужна pgcrypto.
+      await client.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+      console.log('DB: applying init.sql (при большой БД или медленном диске может занять минуты)…');
 
-    const initSql = await fsPromises.readFile(initSqlPath, 'utf8');
-    await query(initSql);
-    console.log('DB: init.sql finished');
+      const initSql = await fsPromises.readFile(initSqlPath, 'utf8');
+      await client.query(initSql);
+      console.log('DB: init.sql finished');
 
-    const dashboardSql = await fsPromises.readFile(dashboardMigrationPath, 'utf8');
-    await query(dashboardSql);
+      const dashboardSql = await fsPromises.readFile(dashboardMigrationPath, 'utf8');
+      await client.query(dashboardSql);
 
-    const innUniquePath = path.join(__dirname, 'db', 'migrations', 'license-inn-unique-index.sql');
-    try {
-      const innUniqueSql = await fsPromises.readFile(innUniquePath, 'utf8');
-      await query(innUniqueSql);
-    } catch (innIdxErr) {
-      console.warn(
-        'license-inn-unique-index skipped (если в БД ещё есть дубли ИНН — сначала объедините их в админке):',
-        innIdxErr instanceof Error ? innIdxErr.message : innIdxErr,
-      );
-    }
+      const innUniquePath = path.join(__dirname, 'db', 'migrations', 'license-inn-unique-index.sql');
+      try {
+        const innUniqueSql = await fsPromises.readFile(innUniquePath, 'utf8');
+        await client.query(innUniqueSql);
+      } catch (innIdxErr) {
+        console.warn(
+          'license-inn-unique-index skipped (если в БД ещё есть дубли ИНН — сначала объедините их в админке):',
+          innIdxErr instanceof Error ? innIdxErr.message : innIdxErr,
+        );
+      }
 
-    const fkkoTitlesPath = path.join(__dirname, 'db', 'migrations', 'fkko-official-titles.sql');
-    const fkkoTitlesSql = await fsPromises.readFile(fkkoTitlesPath, 'utf8');
-    await query(fkkoTitlesSql);
+      const fkkoTitlesPath = path.join(__dirname, 'db', 'migrations', 'fkko-official-titles.sql');
+      const fkkoTitlesSql = await fsPromises.readFile(fkkoTitlesPath, 'utf8');
+      await client.query(fkkoTitlesSql);
 
-    console.log('DB schema initialized/ensured');
+      console.log('DB schema initialized/ensured');
+    });
   } catch (err) {
     console.error('DB schema initialization failed:', err instanceof Error ? err.message : err);
     throw err;
