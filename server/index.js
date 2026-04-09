@@ -49,9 +49,11 @@ async function ensureDatabaseSchema() {
   try {
     // sessions.id использует gen_random_uuid() — для этого нужна pgcrypto.
     await query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+    console.log('DB: applying init.sql (при большой БД или медленном диске может занять минуты)…');
 
     const initSql = await fsPromises.readFile(initSqlPath, 'utf8');
     await query(initSql);
+    console.log('DB: init.sql finished');
 
     const dashboardSql = await fsPromises.readFile(dashboardMigrationPath, 'utf8');
     await query(dashboardSql);

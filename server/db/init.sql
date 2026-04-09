@@ -118,15 +118,17 @@ CREATE INDEX IF NOT EXISTS idx_sfa_fkko_activity ON site_fkko_activities(fkko_co
 
 -- Бэкфилл site_fkko_activities из старых данных license_sites:
 -- для каждой пары (fkko_code, activity_type) на площадке создаём запись.
+-- Важно: не сканируем площадки, у которых уже есть хотя бы одна строка в site_fkko_activities —
+-- иначе при каждом рестарте app снова строится огромный LATERAL по всей таблице (I/O, минуты тишины в логах).
+-- Частично заполненные площадки (редкий кейс) можно добить вручную или удалить их sfa и перезапустить бэкфилл.
 INSERT INTO site_fkko_activities (site_id, fkko_code, activity_type)
 SELECT s.id, f.code, a.activity
-FROM license_sites s,
-     LATERAL unnest(s.fkko_codes) AS f(code),
-     LATERAL unnest(s.activity_types) AS a(activity)
-WHERE NOT EXISTS (
-  SELECT 1 FROM site_fkko_activities sfa
-  WHERE sfa.site_id = s.id AND sfa.fkko_code = f.code AND sfa.activity_type = a.activity
-)
+FROM license_sites s
+CROSS JOIN LATERAL unnest(s.fkko_codes) AS f(code)
+CROSS JOIN LATERAL unnest(s.activity_types) AS a(activity)
+WHERE cardinality(s.fkko_codes) > 0
+  AND cardinality(s.activity_types) > 0
+  AND NOT EXISTS (SELECT 1 FROM site_fkko_activities sfa WHERE sfa.site_id = s.id)
 ON CONFLICT DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_licenses_region ON licenses (region);
