@@ -11,12 +11,19 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./server/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U moinoviichistiimir -d moinoviichistiimir']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   app:
     build: .
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3001:3001"
     environment:

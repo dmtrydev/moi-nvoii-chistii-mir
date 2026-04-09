@@ -13,6 +13,8 @@ export function getPool() {
     pool = new Pool({
       connectionString,
       ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : undefined,
+      // Иначе при недоступной БД первый query() может висеть очень долго — HTTP не поднимется, снаружи будет connection refused.
+      connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS) || 15_000,
     });
   }
   return pool;

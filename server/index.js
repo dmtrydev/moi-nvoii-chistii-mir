@@ -1901,6 +1901,9 @@ function startServer(tryPort) {
   });
 }
 
+// Сразу в stdout — иначе при зависании на первом query() к БД docker logs остаётся пустым.
+console.log('Server: starting, DB init before listen…');
+
 ensureDatabaseSchema()
   .then(() => startServer(port))
   .catch(() => process.exit(1));
