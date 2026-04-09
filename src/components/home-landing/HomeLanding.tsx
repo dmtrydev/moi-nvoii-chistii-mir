@@ -43,6 +43,7 @@ export function HomeLanding(): JSX.Element {
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
+  const [fkkoTitleByCode, setFkkoTitleByCode] = useState<Record<string, string>>({});
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [validationError, setValidationError] = useState('');
   const [items, setItems] = useState<LicenseData[]>([]);
@@ -104,6 +105,28 @@ export function HomeLanding(): JSX.Element {
   }, []);
 
   const fkkoCatalogCodes = useMemo(() => normalizeFkkoCodeList(fkkoOptions), [fkkoOptions]);
+
+  useEffect(() => {
+    if (fkkoCatalogCodes.length === 0) return;
+    let alive = true;
+    void fetch(getApiUrl('/api/fkko/titles'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes: fkkoCatalogCodes }),
+    })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data: { titles?: unknown }) => {
+        if (!alive) return;
+        const t = data.titles;
+        if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
+          setFkkoTitleByCode(t as Record<string, string>);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [fkkoCatalogCodes]);
 
   useEffect(() => {
     const defaults = [
@@ -318,6 +341,7 @@ export function HomeLanding(): JSX.Element {
               compactMarginTopClass={
                 hasSearched ? (searchLiftPx > 0 ? 'mt-[52px]' : 'mt-6') : undefined
               }
+              fkkoTitleByCode={fkkoTitleByCode}
             />
           </div>
 

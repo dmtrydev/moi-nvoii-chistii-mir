@@ -18,6 +18,7 @@ import {
   formatFkkoSelectionSummary,
   fkkoCodesToQueryParam,
   normalizeFkkoCodeList,
+  normalizeFkkoDigits,
   parseFkkoCodesFromQuery,
 } from '@/utils/fkko';
 import { LicenseResultCard } from '@/components/licenses/LicenseResultCard';
@@ -222,6 +223,7 @@ export default function MapPage(): JSX.Element {
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
   const [menuVisible, setMenuVisible] = useState(true);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
+  const [fkkoTitleByCode, setFkkoTitleByCode] = useState<Record<string, string>>({});
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [filterValidationError, setFilterValidationError] = useState<string>('');
   const [searchItems, setSearchItems] = useState<LicenseData[]>([]);
@@ -251,6 +253,28 @@ export default function MapPage(): JSX.Element {
   }, []);
 
   const fkkoCatalogCodes = useMemo(() => normalizeFkkoCodeList(fkkoOptions), [fkkoOptions]);
+
+  useEffect(() => {
+    if (fkkoCatalogCodes.length === 0) return;
+    let alive = true;
+    void fetch(getApiUrl('/api/fkko/titles'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes: fkkoCatalogCodes }),
+    })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data: { titles?: unknown }) => {
+        if (!alive) return;
+        const t = data.titles;
+        if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
+          setFkkoTitleByCode(t as Record<string, string>);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [fkkoCatalogCodes]);
 
   useEffect(() => {
     const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
@@ -513,7 +537,11 @@ export default function MapPage(): JSX.Element {
                 placeholder="Выберите коды ФККО"
                 buttonClassName={mapField}
                 maxHeightClassName="max-h-64"
-                formatOptionLabel={(code) => `${formatFkkoHuman(code)} — ${getFkkoGroupName(code)}`}
+                formatOptionLabel={(code) => {
+                  const key = normalizeFkkoDigits(code);
+                  const title = key ? fkkoTitleByCode[key] : undefined;
+                  return `${formatFkkoHuman(code)} — ${title ?? getFkkoGroupName(code)}`;
+                }}
                 formatSelectedLabel={formatFkkoSelectionSummary}
               />
             </div>

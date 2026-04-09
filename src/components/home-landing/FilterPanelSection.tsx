@@ -6,7 +6,7 @@ import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
-import { formatFkkoHuman, formatFkkoSelectionSummary } from '@/utils/fkko';
+import { formatFkkoHuman, formatFkkoSelectionSummary, normalizeFkkoDigits } from '@/utils/fkko';
 import { getFkkoGroupName } from '@/constants/fkko';
 
 const POLY_IMG =
@@ -84,8 +84,10 @@ const vidLabelClass = ({ isOpen, hasSelection }: { isOpen: boolean; hasSelection
     isOpen || hasSelection ? 'text-[#2b3335]' : 'text-[#828583]',
   ].join(' ');
 
-function fkkoOptionLabel(code: string): string {
-  return `${formatFkkoHuman(code)} — ${getFkkoGroupName(code)}`;
+function fkkoOptionLabel(code: string, titles?: Record<string, string>): string {
+  const key = normalizeFkkoDigits(code);
+  const title = key && titles?.[key];
+  return `${formatFkkoHuman(code)} — ${title ?? getFkkoGroupName(code)}`;
 }
 
 export interface FilterPanelSectionProps {
@@ -106,6 +108,8 @@ export interface FilterPanelSectionProps {
   compactAfterSearch?: boolean;
   /** Верхний margin в компактном режиме (напр. mt-6 или компенсация под translateY). */
   compactMarginTopClass?: string;
+  /** Наименование вида отходов по коду (например с rpn.gov.ru/fkko), ключ — 11 цифр. */
+  fkkoTitleByCode?: Record<string, string>;
 }
 
 export function FilterPanelSection({
@@ -122,6 +126,7 @@ export function FilterPanelSection({
   onReset,
   compactAfterSearch = false,
   compactMarginTopClass,
+  fkkoTitleByCode,
 }: FilterPanelSectionProps): JSX.Element {
   const [fkkoInput, setFkkoInput] = useState('');
   /** z-[1]: выпадающие списки выше блока «Подходящие предприятия» (ниже шапки z-[2]) */
@@ -210,7 +215,7 @@ export function FilterPanelSection({
             placeholder="ФККО"
             buttonClassName={vidTriggerClass}
             labelClassName={vidLabelClass}
-            formatOptionLabel={fkkoOptionLabel}
+            formatOptionLabel={(code) => fkkoOptionLabel(code, fkkoTitleByCode)}
             formatSelectedLabel={formatFkkoSelectionSummary}
             inputValue={fkkoInput}
             onInputValueChange={handleFkkoInput}

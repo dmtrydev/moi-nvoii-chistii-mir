@@ -18,6 +18,7 @@ import { rateLimit } from './rateLimit.js';
 import adminRouter from './adminRoutes.js';
 import { normalizeInn, LICENSE_INN_NORMALIZED_EXPR, DUPLICATE_INN_MESSAGE } from './innUtils.js';
 import { normalizeFkkoCode, extractFkkoCodesFromText, parseFkkoInput } from './fkkoServer.js';
+import { fetchFkkoTitlesBatched } from './rpnFkkoClient.js';
 import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
 import authRouter from './authRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
@@ -1778,6 +1779,22 @@ app.get('/api/filters/fkko', async (_req, res) => {
   } catch (err) {
     console.error('fkko filters error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка получения кодов ФККО' });
+  }
+});
+
+/** Наименования по кодам с поиска rpn.gov.ru/fkko (кэш на сервере). */
+app.post('/api/fkko/titles', async (req, res) => {
+  try {
+    const raw = req.body?.codes;
+    const codes = Array.isArray(raw) ? raw.map((x) => String(x ?? '').trim()).filter(Boolean) : [];
+    if (codes.length > 400) {
+      return res.status(400).json({ message: 'Не более 400 кодов за один запрос' });
+    }
+    const titles = await fetchFkkoTitlesBatched(codes, { concurrency: 2, delayMs: 300 });
+    return res.json({ titles });
+  } catch (err) {
+    console.error('fkko titles error:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка справочника ФККО' });
   }
 });
 
