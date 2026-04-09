@@ -6,6 +6,10 @@
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --dry-run
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --geocode
  *
+ *   Файлы >256 МБ: потоковое чтение (без readFileSync целиком — лимит строки в Node).
+ *   Путь в JSON по умолчанию: content.* (корень { "content": [ ... ] }) или *.content.* (корень [ { "content": [ ] }, ... ]).
+ *   Явно: --json-path=content.*  или  --json-path=*.content.*
+ *
  *   (Флаг --include-inactive устарел: неактивные по реестру импортируются по умолчанию и помечаются в БД.)
  *
  * Большие файлы: увеличьте лимит памяти Node, например:
@@ -13,9 +17,13 @@
  * или разбейте JSON на части.
  */
 import 'dotenv/config';
+import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { getPool } from '../db.js';
+
+const require = createRequire(import.meta.url);
+const JSONStream = require('JSONStream');
 import { normalizeInn, LICENSE_INN_NORMALIZED_EXPR } from '../innUtils.js';
 import { normalizeFkkoCode } from '../fkkoServer.js';
 import { aggregateFkkoAndActivityFromSites } from '../licensePayloadNormalize.js';
@@ -58,18 +66,37 @@ function fkkoFromWasteTypes(wt) {
   return /^\d{11}$/.test(code) ? code : null;
 }
 
+/** Выше этого размера — только поток (иначе ERR_STRING_TOO_LONG в V8). */
+const STREAM_IMPORT_MIN_BYTES = 256 * 1024 * 1024;
+
 function parseArgs(argv) {
   const positional = [];
   let dryRun = false;
   let geocode = false;
   let includeInactive = false;
+  let jsonStreamPath = '';
   for (const a of argv) {
     if (a === '--dry-run') dryRun = true;
     else if (a === '--geocode') geocode = true;
     else if (a === '--include-inactive') includeInactive = true;
+    else if (a.startsWith('--json-path=')) jsonStreamPath = a.slice('--json-path='.length).trim();
     else if (!a.startsWith('-')) positional.push(a);
   }
-  return { jsonPath: positional[0] ?? '', dryRun, geocode, includeInactive };
+  return { jsonPath: positional[0] ?? '', dryRun, geocode, includeInactive, jsonStreamPath };
+}
+
+/** Путь для JSONStream: content.* vs *.content.* */
+function detectJsonStreamPath(abs) {
+  const fh = fs.openSync(abs, 'r');
+  try {
+    const buf = Buffer.alloc(16384);
+    const n = fs.readSync(fh, buf, 0, 16384, 0);
+    const head = buf.subarray(0, n).toString('utf8').trimStart();
+    if (head.startsWith('[')) return '*.content.*';
+    return 'content.*';
+  } finally {
+    fs.closeSync(fh);
+  }
 }
 
 /** Позиция из сообщения V8/Node: "... at position 123" */
@@ -343,10 +370,128 @@ async function insertLicenseBundle(client, payload, opts) {
   return { ok: true, licenseId };
 }
 
+/**
+ * @param {unknown} entry
+ * @param {{
+ *   stats: { parsed: number, skippedNoData: number, skippedDupInn: number, skippedDupRef: number, inserted: number, errors: number },
+ *   pool: import('pg').Pool | null,
+ *   dryRun: boolean,
+ *   geocode: boolean,
+ *   yandexKey: string,
+ *   innExpr: string,
+ * }} ctx
+ */
+async function importSingleEntry(entry, ctx) {
+  const { stats, pool, dryRun, geocode, yandexKey, innExpr } = ctx;
+  const payload = mapRegistryEntryToSites(entry);
+  if (!payload) {
+    stats.skippedNoData += 1;
+    return;
+  }
+  stats.parsed += 1;
+
+  if (dryRun) {
+    stats.inserted += 1;
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const dupRef = await client.query(
+      `SELECT id FROM licenses WHERE deleted_at IS NULL AND import_external_ref = $1 LIMIT 1`,
+      [payload.externalRef],
+    );
+    if (dupRef.rows.length > 0) {
+      await client.query('ROLLBACK');
+      stats.skippedDupRef += 1;
+      return;
+    }
+
+    const dupInn = await client.query(
+      `SELECT id FROM licenses
+       WHERE deleted_at IS NULL
+         AND ${innExpr} = $1
+         AND length(${innExpr}) IN (10, 12)
+       LIMIT 1`,
+      [payload.innNorm],
+    );
+    if (dupInn.rows.length > 0) {
+      await client.query('ROLLBACK');
+      stats.skippedDupInn += 1;
+      return;
+    }
+
+    const result = await insertLicenseBundle(client, payload, { geocode, yandexKey });
+    if (!result.ok) {
+      await client.query('ROLLBACK');
+      stats.skippedNoData += 1;
+      return;
+    }
+
+    await client.query('COMMIT');
+    stats.inserted += 1;
+    if (stats.inserted % 50 === 0) {
+      console.log('Импортировано:', stats.inserted);
+    }
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    stats.errors += 1;
+    console.error('Ошибка записи:', payload.externalRef, err instanceof Error ? err.message : err);
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Большие файлы: JSONStream по пути content.* или *.content.* (без загрузки всего файла в строку).
+ */
+async function runStreamingImport(abs, jsonStreamPath, ctx) {
+  const pattern = jsonStreamPath || detectJsonStreamPath(abs);
+  console.log('Потоковое чтение JSON, JSONStream path:', pattern);
+
+  const readStream = fs.createReadStream(abs, { encoding: 'utf8' });
+  const parser = JSONStream.parse(pattern);
+
+  let tail = Promise.resolve();
+  let streamItems = 0;
+
+  await new Promise((resolve, reject) => {
+    const fail = (err) => {
+      readStream.destroy();
+      reject(err);
+    };
+
+    readStream.on('error', fail);
+    parser.on('error', fail);
+
+    parser.on('data', (entry) => {
+      streamItems += 1;
+      tail = tail.then(() => importSingleEntry(entry, ctx)).catch(fail);
+    });
+
+    parser.on('end', () => {
+      tail.then(() => resolve()).catch(fail);
+    });
+
+    readStream.pipe(parser);
+  });
+
+  console.log('Событий из потока (элементов по пути):', streamItems);
+  if (streamItems === 0) {
+    console.warn(
+      'Поток не вернул ни одной записи. Проверьте структуру JSON: ожидается { "content": [ ... ] } или [ { "content": [ ... ] }, ... ]. Укажите путь вручную: --json-path=content.* или --json-path=*.content.*',
+    );
+  }
+}
+
 async function main() {
-  const { jsonPath, dryRun, geocode, includeInactive } = parseArgs(process.argv.slice(2));
+  const { jsonPath, dryRun, geocode, includeInactive, jsonStreamPath } = parseArgs(process.argv.slice(2));
   if (!jsonPath) {
-    console.error('Укажите путь к JSON: node scripts/import-rpn-licenses-json.js <file.json> [--dry-run] [--geocode]');
+    console.error(
+      'Укажите путь к JSON: node scripts/import-rpn-licenses-json.js <file.json> [--dry-run] [--geocode] [--json-path=content.*]',
+    );
     process.exit(1);
   }
 
@@ -356,19 +501,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('Чтение JSON…', abs);
-  const raw = fs.readFileSync(abs, 'utf8');
-  let root;
-  try {
-    root = JSON.parse(raw);
-  } catch (e) {
-    console.error('Ошибка JSON.parse:', e instanceof Error ? e.message : e);
-    printJsonParseDiagnostics(raw, e);
-    process.exit(1);
-  }
-
-  const flat = flattenRootDocuments(root);
-  console.log('Записей content (всего):', flat.length);
+  const st = fs.statSync(abs);
+  const useStream =
+    st.size >= STREAM_IMPORT_MIN_BYTES || String(process.env.STREAM_IMPORT ?? '').trim() === '1';
 
   if (includeInactive) {
     console.warn(
@@ -392,66 +527,28 @@ async function main() {
 
   const pool = dryRun ? null : getPool();
   const innExpr = LICENSE_INN_NORMALIZED_EXPR;
+  const ctx = { stats, pool, dryRun, geocode, yandexKey, innExpr };
 
-  for (const entry of flat) {
-    const payload = mapRegistryEntryToSites(entry);
-    if (!payload) {
-      stats.skippedNoData += 1;
-      continue;
-    }
-    stats.parsed += 1;
-
-    if (dryRun) {
-      stats.inserted += 1;
-      continue;
-    }
-
-    const client = await pool.connect();
+  if (useStream) {
+    console.log('Файл', (st.size / (1024 * 1024)).toFixed(1), 'МБ — режим потока.');
+    await runStreamingImport(abs, jsonStreamPath, ctx);
+  } else {
+    console.log('Чтение JSON…', abs);
+    const raw = fs.readFileSync(abs, 'utf8');
+    let root;
     try {
-      await client.query('BEGIN');
+      root = JSON.parse(raw);
+    } catch (e) {
+      console.error('Ошибка JSON.parse:', e instanceof Error ? e.message : e);
+      printJsonParseDiagnostics(raw, e);
+      process.exit(1);
+    }
 
-      const dupRef = await client.query(
-        `SELECT id FROM licenses WHERE deleted_at IS NULL AND import_external_ref = $1 LIMIT 1`,
-        [payload.externalRef],
-      );
-      if (dupRef.rows.length > 0) {
-        await client.query('ROLLBACK');
-        stats.skippedDupRef += 1;
-        continue;
-      }
+    const flat = flattenRootDocuments(root);
+    console.log('Записей content (всего):', flat.length);
 
-      const dupInn = await client.query(
-        `SELECT id FROM licenses
-         WHERE deleted_at IS NULL
-           AND ${innExpr} = $1
-           AND length(${innExpr}) IN (10, 12)
-         LIMIT 1`,
-        [payload.innNorm],
-      );
-      if (dupInn.rows.length > 0) {
-        await client.query('ROLLBACK');
-        stats.skippedDupInn += 1;
-        continue;
-      }
-
-      const result = await insertLicenseBundle(client, payload, { geocode, yandexKey });
-      if (!result.ok) {
-        await client.query('ROLLBACK');
-        stats.skippedNoData += 1;
-        continue;
-      }
-
-      await client.query('COMMIT');
-      stats.inserted += 1;
-      if (stats.inserted % 50 === 0) {
-        console.log('Импортировано:', stats.inserted);
-      }
-    } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
-      stats.errors += 1;
-      console.error('Ошибка записи:', payload.externalRef, err instanceof Error ? err.message : err);
-    } finally {
-      client.release();
+    for (const entry of flat) {
+      await importSingleEntry(entry, ctx);
     }
   }
 
