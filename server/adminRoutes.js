@@ -13,6 +13,11 @@ import {
 import { fetchLicenseExtendedJson } from './licenseExtendedFetch.js';
 import { approveLicenseInTx, ApproveLicenseError } from './licenseApprove.js';
 import { runBatchAiApproveChunk } from './moderationBatch.js';
+import {
+  runFkkoOfficialTitlesSyncJob,
+  getFkkoTitlesSyncStatus,
+  isFkkoTitlesSyncRunning,
+} from './fkkoTitlesSync.js';
 
 const adminRouter = express.Router();
 const requireSuperadminOnly = requireRole('SUPERADMIN');
@@ -1002,6 +1007,25 @@ adminRouter.delete('/licenses/:id/hard', requireSuperadminOnly, async (req, res)
   });
 
   return res.json({ ok: true, id });
+});
+
+/** Фоновая подтяжка наименований ФККО с РПН по всем кодам из одобренных лицензий → fkko_official_titles */
+adminRouter.post('/fkko/sync-official-titles', async (_req, res) => {
+  if (isFkkoTitlesSyncRunning()) {
+    return res.status(409).json({
+      message: 'Синхронизация уже выполняется',
+      status: getFkkoTitlesSyncStatus(),
+    });
+  }
+  void runFkkoOfficialTitlesSyncJob();
+  return res.status(202).json({
+    message: 'Синхронизация запущена. Статус можно опросить методом GET.',
+    status: getFkkoTitlesSyncStatus(),
+  });
+});
+
+adminRouter.get('/fkko/sync-official-titles/status', (_req, res) => {
+  return res.json(getFkkoTitlesSyncStatus());
 });
 
 export default adminRouter;

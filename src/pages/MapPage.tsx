@@ -26,7 +26,6 @@ import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivit
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
-import { getFkkoGroupName } from '@/constants/fkko';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 
 const INITIAL_FKKO: string[] = [];
@@ -240,9 +239,13 @@ export default function MapPage(): JSX.Element {
     let alive = true;
     fetch(getApiUrl('/api/filters/fkko'))
       .then((r) => (r.ok ? r.json() : { fkko: [] }))
-      .then((fkkoData) => {
+      .then((fkkoData: { fkko?: unknown; titles?: unknown }) => {
         if (!alive) return;
         setFkkoOptions(Array.isArray(fkkoData.fkko) ? fkkoData.fkko : []);
+        const t = fkkoData.titles;
+        if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
+          setFkkoTitleByCode((prev) => ({ ...prev, ...(t as Record<string, string>) }));
+        }
       })
       .catch(() => {
         if (!alive) return;
@@ -581,7 +584,8 @@ export default function MapPage(): JSX.Element {
                 formatOptionLabel={(code) => {
                   const key = normalizeFkkoDigits(code);
                   const title = key.length === 11 ? fkkoTitleByCode[key] : undefined;
-                  return `${formatFkkoHuman(code)} — ${title ?? getFkkoGroupName(code)}`;
+                  const human = formatFkkoHuman(code);
+                  return title ? `${human} — ${title}` : human;
                 }}
                 formatSelectedLabel={formatFkkoSelectionSummary}
               />

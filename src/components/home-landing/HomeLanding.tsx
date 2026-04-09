@@ -99,9 +99,13 @@ export function HomeLanding(): JSX.Element {
     let alive = true;
     fetch(getApiUrl('/api/filters/fkko'))
       .then((r) => (r.ok ? r.json() : { fkko: [] }))
-      .then((fkkoData) => {
+      .then((fkkoData: { fkko?: unknown; titles?: unknown }) => {
         if (!alive) return;
         setFkkoOptions(Array.isArray(fkkoData.fkko) ? fkkoData.fkko : []);
+        const t = fkkoData.titles;
+        if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
+          setFkkoTitleByCode((prev) => ({ ...prev, ...(t as Record<string, string>) }));
+        }
       })
       .catch(() => {
         if (!alive) return;

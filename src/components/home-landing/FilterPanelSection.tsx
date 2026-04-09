@@ -7,7 +7,6 @@ import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
 import { formatFkkoHuman, formatFkkoSelectionSummary, normalizeFkkoDigits } from '@/utils/fkko';
-import { getFkkoGroupName } from '@/constants/fkko';
 
 const POLY_IMG =
   "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
@@ -87,7 +86,8 @@ const vidLabelClass = ({ isOpen, hasSelection }: { isOpen: boolean; hasSelection
 function fkkoOptionLabel(code: string, titles?: Record<string, string>): string {
   const key = normalizeFkkoDigits(code);
   const title = key.length === 11 ? titles?.[key] : undefined;
-  return `${formatFkkoHuman(code)} — ${title ?? getFkkoGroupName(code)}`;
+  const human = formatFkkoHuman(code);
+  return title ? `${human} — ${title}` : human;
 }
 
 export interface FilterPanelSectionProps {

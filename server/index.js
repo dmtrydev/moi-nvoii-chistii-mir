@@ -19,6 +19,7 @@ import adminRouter from './adminRoutes.js';
 import { normalizeInn, LICENSE_INN_NORMALIZED_EXPR, DUPLICATE_INN_MESSAGE } from './innUtils.js';
 import { normalizeFkkoCode, extractFkkoCodesFromText, parseFkkoInput } from './fkkoServer.js';
 import { fetchFkkoTitlesBatched } from './rpnFkkoClient.js';
+import { loadFkkoTitlesFromDb, upsertFkkoOfficialTitles } from './fkkoOfficialTitles.js';
 import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
 import authRouter from './authRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
@@ -65,6 +66,10 @@ async function ensureDatabaseSchema() {
         innIdxErr instanceof Error ? innIdxErr.message : innIdxErr,
       );
     }
+
+    const fkkoTitlesPath = path.join(__dirname, 'db', 'migrations', 'fkko-official-titles.sql');
+    const fkkoTitlesSql = await fsPromises.readFile(fkkoTitlesPath, 'utf8');
+    await query(fkkoTitlesSql);
 
     console.log('DB schema initialized/ensured');
   } catch (err) {
@@ -1775,7 +1780,8 @@ app.get('/api/filters/fkko', async (_req, res) => {
       []
     );
     const codes = rows.rows.map((r) => r.code).filter(Boolean);
-    return res.json({ fkko: codes });
+    const titles = await loadFkkoTitlesFromDb(codes);
+    return res.json({ fkko: codes, titles });
   } catch (err) {
     console.error('fkko filters error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка получения кодов ФККО' });
@@ -1798,11 +1804,16 @@ app.post('/api/fkko/titles', async (req, res) => {
         message: `Не более ${FKKO_TITLES_MAX_CODES} кодов за один запрос`,
       });
     }
-    const titles = /** @type {Record<string, string>} */ ({});
-    for (let i = 0; i < normalized.length; i += FKKO_TITLES_CHUNK) {
-      const slice = normalized.slice(i, i + FKKO_TITLES_CHUNK);
+    const fromDb = await loadFkkoTitlesFromDb(normalized);
+    const titles = /** @type {Record<string, string>} */ ({ ...fromDb });
+    const missing = normalized.filter((c) => !titles[c]);
+    for (let i = 0; i < missing.length; i += FKKO_TITLES_CHUNK) {
+      const slice = missing.slice(i, i + FKKO_TITLES_CHUNK);
       const part = await fetchFkkoTitlesBatched(slice, { concurrency: 2, delayMs: 300 });
       Object.assign(titles, part);
+      if (Object.keys(part).length > 0) {
+        await upsertFkkoOfficialTitles(part);
+      }
     }
     return res.json({ titles });
   } catch (err) {

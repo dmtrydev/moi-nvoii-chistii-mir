@@ -17,6 +17,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
   const [activeSection, setActiveSection] = useState<string>('fkko');
 
   const [codes, setCodes] = useState<string[]>([]);
+  const [titleByCode, setTitleByCode] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -35,7 +36,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
 
     fetch(getApiUrl('/api/filters/fkko'))
       .then((r) => (r.ok ? r.json() : r.json().catch(() => ({ message: `HTTP ${r.status}` }))))
-      .then((data: { fkko?: unknown }) => {
+      .then((data: { fkko?: unknown; titles?: unknown }) => {
         if (!alive) return;
         const raw = Array.isArray(data.fkko) ? data.fkko : [];
         const normalized = raw
@@ -44,6 +45,12 @@ export default function FkkoDirectoryPage(): JSX.Element {
           // keep stable order from API
           .filter((v: string, i: number, arr: string[]) => arr.indexOf(v) === i);
         setCodes(normalized);
+        const t = data.titles;
+        if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
+          setTitleByCode(t as Record<string, string>);
+        } else {
+          setTitleByCode({});
+        }
       })
       .catch((e) => {
         if (!alive) return;
@@ -190,6 +197,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                       {visibleCodes.map((c) => {
                         const human = formatFkkoHuman(c);
+                        const title = titleByCode[c];
                         return (
                           <div
                             key={c}
@@ -199,6 +207,9 @@ export default function FkkoDirectoryPage(): JSX.Element {
                               <div className="text-sm font-medium text-ink whitespace-nowrap overflow-hidden text-ellipsis">
                                 {human}
                               </div>
+                              {title ? (
+                                <div className="mt-0.5 text-xs text-ink-muted line-clamp-2">{title}</div>
+                              ) : null}
                             </div>
 
                             <button
