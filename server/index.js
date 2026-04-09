@@ -1873,8 +1873,9 @@ if (distPath) {
 }
 
 function startServer(tryPort) {
-  const server = app.listen(tryPort, () => {
-    console.log(`API: http://localhost:${tryPort}`);
+  // В Docker нужно слушать 0.0.0.0, иначе с хоста по IPv4 (docker-proxy) бывает «connection reset».
+  const server = app.listen(tryPort, '0.0.0.0', () => {
+    console.log(`API: http://0.0.0.0:${tryPort}`);
     if (tryPort !== port) {
       console.log(`(порт ${port} был занят, использован ${tryPort})`);
       console.log(`В .env укажите: VITE_API_URL=http://localhost:${tryPort}`);
