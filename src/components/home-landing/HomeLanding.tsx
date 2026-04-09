@@ -264,6 +264,7 @@ export function HomeLanding(): JSX.Element {
       <div className="relative z-[10] w-full max-w-full min-w-0">
         <FrameScreen>
           <div
+            className="relative z-[50]"
             style={{
               opacity: motionOn ? 1 : 0,
               transition: introStage >= 2 ? `opacity ${transitionMotion}` : 'none',
@@ -290,6 +291,7 @@ export function HomeLanding(): JSX.Element {
             </div>
           </div>
           <div
+            className="relative z-[40]"
             style={{
               opacity: motionOn ? 1 : 0,
               transform: motionOn
@@ -320,7 +322,7 @@ export function HomeLanding(): JSX.Element {
           </div>
 
           <div
-            className="relative mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16"
+            className="relative z-10 mx-auto w-full min-w-0 max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)] pb-12 sm:pb-16"
             style={{
               opacity: motionOn ? 1 : 0,
               transform: motionOn

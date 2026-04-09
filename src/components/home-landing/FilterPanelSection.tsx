@@ -36,7 +36,7 @@ const filterFieldShell =
 /** Оболочка без собственного scroll — прокрутка только у внутреннего списка (полоса скрыта, no-scrollbar), иначе двойной скролл. */
 /** Выпадающие списки фильтра: вниз от поля (ФККО, вид обращения, регион). */
 const glassDropdownPanelDown =
-  'absolute z-50 top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+  'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
 
 const fkkoOptionCls = ({ highlighted }: { index: number; highlighted: boolean }): string =>
   [
