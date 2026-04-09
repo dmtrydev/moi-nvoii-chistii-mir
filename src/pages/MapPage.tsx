@@ -224,6 +224,7 @@ export default function MapPage(): JSX.Element {
   const [menuVisible, setMenuVisible] = useState(true);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
   const [fkkoTitleByCode, setFkkoTitleByCode] = useState<Record<string, string>>({});
+  const fkkoSelectedTitleMissRef = useRef<Set<string>>(new Set());
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [filterValidationError, setFilterValidationError] = useState<string>('');
   const [searchItems, setSearchItems] = useState<LicenseData[]>([]);
@@ -267,7 +268,7 @@ export default function MapPage(): JSX.Element {
         if (!alive) return;
         const t = data.titles;
         if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
-          setFkkoTitleByCode(t as Record<string, string>);
+          setFkkoTitleByCode((prev) => ({ ...prev, ...(t as Record<string, string>) }));
         }
       })
       .catch(() => {});
@@ -275,6 +276,46 @@ export default function MapPage(): JSX.Element {
       alive = false;
     };
   }, [fkkoCatalogCodes]);
+
+  useEffect(() => {
+    const need = filterFkko
+      .map((c) => normalizeFkkoDigits(c))
+      .filter(
+        (k) =>
+          k.length === 11 &&
+          !fkkoTitleByCode[k] &&
+          !fkkoSelectedTitleMissRef.current.has(k),
+      )
+      .slice(0, 80);
+    if (need.length === 0) return;
+    let alive = true;
+    void fetch(getApiUrl('/api/fkko/titles'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes: need }),
+    })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data: { titles?: unknown }) => {
+        if (!alive) return;
+        const raw = data.titles;
+        const partial =
+          raw && typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+            ? (raw as Record<string, string>)
+            : null;
+        if (partial && Object.keys(partial).length > 0) {
+          setFkkoTitleByCode((prev) => ({ ...prev, ...partial }));
+        }
+        for (const k of need) {
+          if (!partial?.[k]) fkkoSelectedTitleMissRef.current.add(k);
+        }
+      })
+      .catch(() => {
+        for (const k of need) fkkoSelectedTitleMissRef.current.add(k);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [filterFkko, fkkoTitleByCode]);
 
   useEffect(() => {
     const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];

@@ -49,6 +49,9 @@ export function HomeLanding(): JSX.Element {
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
   const [fkkoTitleByCode, setFkkoTitleByCode] = useState<Record<string, string>>({});
+  const mergeFkkoTitles = useCallback((partial: Record<string, string>) => {
+    setFkkoTitleByCode((prev) => ({ ...prev, ...partial }));
+  }, []);
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [validationError, setValidationError] = useState('');
   const [items, setItems] = useState<LicenseData[]>([]);
@@ -124,7 +127,7 @@ export function HomeLanding(): JSX.Element {
         if (!alive) return;
         const t = data.titles;
         if (t && typeof t === 'object' && t !== null && !Array.isArray(t)) {
-          setFkkoTitleByCode(t as Record<string, string>);
+          setFkkoTitleByCode((prev) => ({ ...prev, ...(t as Record<string, string>) }));
         }
       })
       .catch(() => {});
@@ -347,6 +350,8 @@ export function HomeLanding(): JSX.Element {
                 hasSearched ? (searchLiftPx > 0 ? 'mt-[52px]' : 'mt-6') : undefined
               }
               fkkoTitleByCode={fkkoTitleByCode}
+              resolveFkkoTitlesApi={getApiUrl}
+              onFkkoTitlesMerge={mergeFkkoTitles}
             />
           </div>
 

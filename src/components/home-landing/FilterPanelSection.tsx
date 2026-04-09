@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
 import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-icon.svg';
@@ -110,6 +110,10 @@ export interface FilterPanelSectionProps {
   compactMarginTopClass?: string;
   /** Наименование вида отходов по коду (например с rpn.gov.ru/fkko), ключ — 11 цифр. */
   fkkoTitleByCode?: Record<string, string>;
+  /** База URL API (как getApiUrl на главной) — для догрузки названий по вводу в поле ФККО. */
+  resolveFkkoTitlesApi?: (path: string) => string;
+  /** Добавить полученные с API названия к общему словарю. */
+  onFkkoTitlesMerge?: (partial: Record<string, string>) => void;
 }
 
 export function FilterPanelSection({
@@ -127,8 +131,75 @@ export function FilterPanelSection({
   compactAfterSearch = false,
   compactMarginTopClass,
   fkkoTitleByCode,
+  resolveFkkoTitlesApi,
+  onFkkoTitlesMerge,
 }: FilterPanelSectionProps): JSX.Element {
   const [fkkoInput, setFkkoInput] = useState('');
+  /** Коды, для которых API уже ответил без названия — не долбим РПН в цикле. */
+  const fkkoTitleMissRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!resolveFkkoTitlesApi || !onFkkoTitlesMerge) return;
+
+    const titlesMap = fkkoTitleByCode ?? {};
+
+    const digits = normalizeFkkoDigits(fkkoInput);
+    const selectedNeed = filterFkko
+      .map((c) => normalizeFkkoDigits(c))
+      .filter(
+        (k) =>
+          k.length === 11 && !titlesMap[k] && !fkkoTitleMissRef.current.has(k),
+      );
+
+    let fromFilter: string[] = [];
+    if (digits.length > 0) {
+      fromFilter = fkkoOptions
+        .filter((opt) => opt.includes(digits))
+        .map((opt) => normalizeFkkoDigits(opt))
+        .filter(
+          (k) =>
+            k.length === 11 && !titlesMap[k] && !fkkoTitleMissRef.current.has(k),
+        );
+    }
+
+    const need = [...new Set([...selectedNeed, ...fromFilter])].slice(0, 120);
+    if (need.length === 0) return;
+
+    const t = window.setTimeout(() => {
+      void fetch(resolveFkkoTitlesApi('/api/fkko/titles'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codes: need }),
+      })
+        .then((r) => (r.ok ? r.json() : {}))
+        .then((data: { titles?: unknown }) => {
+          const raw = data.titles;
+          if (!raw || typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+            for (const k of need) fkkoTitleMissRef.current.add(k);
+            return;
+          }
+          const partial = raw as Record<string, string>;
+          if (Object.keys(partial).length > 0) {
+            onFkkoTitlesMerge(partial);
+          }
+          for (const k of need) {
+            if (!partial[k]) fkkoTitleMissRef.current.add(k);
+          }
+        })
+        .catch(() => {
+          for (const k of need) fkkoTitleMissRef.current.add(k);
+        });
+    }, 280);
+
+    return () => clearTimeout(t);
+  }, [
+    fkkoInput,
+    fkkoOptions,
+    filterFkko,
+    fkkoTitleByCode,
+    resolveFkkoTitlesApi,
+    onFkkoTitlesMerge,
+  ]);
   /** z-[1]: выпадающие списки выше блока «Подходящие предприятия» (ниже шапки z-[2]) */
   const sectionShellTransition =
     'transition-[margin,padding] duration-[1000ms] ease-[cubic-bezier(0.14,0.9,0.22,1)] motion-reduce:transition-none';
