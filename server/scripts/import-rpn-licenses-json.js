@@ -91,7 +91,8 @@ function detectJsonStreamPath(abs) {
   try {
     const buf = Buffer.alloc(16384);
     const n = fs.readSync(fh, buf, 0, 16384, 0);
-    const head = buf.subarray(0, n).toString('utf8').trimStart();
+    let head = buf.subarray(0, n).toString('utf8').trimStart();
+    if (head.charCodeAt(0) === 0xfeff) head = head.slice(1);
     if (head.startsWith('[')) return '*.content.*';
     return 'content.*';
   } finally {

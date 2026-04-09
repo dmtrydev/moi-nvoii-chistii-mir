@@ -1783,14 +1783,27 @@ app.get('/api/filters/fkko', async (_req, res) => {
 });
 
 /** Наименования по кодам с поиска rpn.gov.ru/fkko (кэш на сервере). */
+const FKKO_TITLES_MAX_CODES = 6000;
+const FKKO_TITLES_CHUNK = 400;
+
 app.post('/api/fkko/titles', async (req, res) => {
   try {
     const raw = req.body?.codes;
     const codes = Array.isArray(raw) ? raw.map((x) => String(x ?? '').trim()).filter(Boolean) : [];
-    if (codes.length > 400) {
-      return res.status(400).json({ message: 'Не более 400 кодов за один запрос' });
+    const normalized = [
+      ...new Set(codes.map((c) => normalizeFkkoCode(c)).filter((c) => /^\d{11}$/.test(c))),
+    ];
+    if (normalized.length > FKKO_TITLES_MAX_CODES) {
+      return res.status(400).json({
+        message: `Не более ${FKKO_TITLES_MAX_CODES} кодов за один запрос`,
+      });
     }
-    const titles = await fetchFkkoTitlesBatched(codes, { concurrency: 2, delayMs: 300 });
+    const titles = /** @type {Record<string, string>} */ ({});
+    for (let i = 0; i < normalized.length; i += FKKO_TITLES_CHUNK) {
+      const slice = normalized.slice(i, i + FKKO_TITLES_CHUNK);
+      const part = await fetchFkkoTitlesBatched(slice, { concurrency: 2, delayMs: 300 });
+      Object.assign(titles, part);
+    }
     return res.json({ titles });
   } catch (err) {
     console.error('fkko titles error:', err);

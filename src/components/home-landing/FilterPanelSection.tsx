@@ -86,7 +86,7 @@ const vidLabelClass = ({ isOpen, hasSelection }: { isOpen: boolean; hasSelection
 
 function fkkoOptionLabel(code: string, titles?: Record<string, string>): string {
   const key = normalizeFkkoDigits(code);
-  const title = key && titles?.[key];
+  const title = key.length === 11 ? titles?.[key] : undefined;
   return `${formatFkkoHuman(code)} — ${title ?? getFkkoGroupName(code)}`;
 }
 

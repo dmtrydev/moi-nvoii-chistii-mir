@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { LicenseData } from '@/types';
-import { formatFkkoHuman } from '@/utils/fkko';
+import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 
 interface LicenseResultCardProps {
@@ -10,6 +10,8 @@ interface LicenseResultCardProps {
   compact?: boolean;
   /** Тёмная тема только для устаревших встраиваний */
   variant?: 'dark' | 'light';
+  /** Подписи с РПН (ключ — 11 цифр без пробелов) для подсказок на чипах */
+  fkkoTitleByCode?: Record<string, string>;
 }
 
 export function LicenseResultCard({
@@ -18,6 +20,7 @@ export function LicenseResultCard({
   mapPath,
   compact = false,
   variant = 'light',
+  fkkoTitleByCode,
 }: LicenseResultCardProps): JSX.Element {
   const fkkoCodes = Array.isArray(item.fkkoCodes) ? item.fkkoCodes : [];
   const mainFkko = fkkoCodes.slice(0, compact ? 2 : 3);
@@ -114,18 +117,23 @@ export function LicenseResultCard({
 
           {mainFkko.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {mainFkko.map((code) => (
-                <span
-                  key={code}
-                  className={
-                    isLight
-                      ? 'rounded-lg bg-app-bg px-2 py-0.5 text-[11px] font-medium text-ink'
-                      : 'rounded-lg border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/85'
-                  }
-                >
-                  {formatFkkoHuman(code)}
-                </span>
-              ))}
+              {mainFkko.map((code) => {
+                const k = normalizeFkkoDigits(code);
+                const official = k.length === 11 ? fkkoTitleByCode?.[k] : undefined;
+                return (
+                  <span
+                    key={code}
+                    title={official || undefined}
+                    className={
+                      isLight
+                        ? 'rounded-lg bg-app-bg px-2 py-0.5 text-[11px] font-medium text-ink'
+                        : 'rounded-lg border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/85'
+                    }
+                  >
+                    {formatFkkoHuman(code)}
+                  </span>
+                );
+              })}
               {restCount > 0 && (
                 <span
                   className={

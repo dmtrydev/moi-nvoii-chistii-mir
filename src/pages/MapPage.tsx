@@ -539,7 +539,7 @@ export default function MapPage(): JSX.Element {
                 maxHeightClassName="max-h-64"
                 formatOptionLabel={(code) => {
                   const key = normalizeFkkoDigits(code);
-                  const title = key ? fkkoTitleByCode[key] : undefined;
+                  const title = key.length === 11 ? fkkoTitleByCode[key] : undefined;
                   return `${formatFkkoHuman(code)} — ${title ?? getFkkoGroupName(code)}`;
                 }}
                 formatSelectedLabel={formatFkkoSelectionSummary}
@@ -630,6 +630,7 @@ export default function MapPage(): JSX.Element {
                         mapPath={`/map?${mapParams.toString()}`}
                         detailsPath={id != null ? `/enterprise/${id}` : '/map'}
                         compact
+                        fkkoTitleByCode={fkkoTitleByCode}
                       />
                       {!hasCoords && typeof it.siteId === 'number' && (
                         <button

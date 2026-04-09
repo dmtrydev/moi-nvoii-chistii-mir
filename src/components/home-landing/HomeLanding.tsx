@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { LicenseData } from '@/types';
-import { formatFkkoHuman, fkkoCodesToQueryParam, normalizeFkkoCodeList } from '@/utils/fkko';
+import {
+  formatFkkoHuman,
+  fkkoCodesToQueryParam,
+  normalizeFkkoCodeList,
+  normalizeFkkoDigits,
+} from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import heroBackground from '@/assets/home-landing/hero-background.png';
@@ -483,14 +488,19 @@ export function HomeLanding(): JSX.Element {
                                 </div>
                                 {/* FKKO codes + CTA buttons on same row */}
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  {mainFkko.map((code) => (
-                                    <span
-                                      key={code}
-                                      className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
-                                    >
-                                      {formatFkkoHuman(code)}
-                                    </span>
-                                  ))}
+                                  {mainFkko.map((code) => {
+                                    const k = normalizeFkkoDigits(code);
+                                    const official = k.length === 11 ? fkkoTitleByCode[k] : undefined;
+                                    return (
+                                      <span
+                                        key={code}
+                                        title={official || undefined}
+                                        className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
+                                      >
+                                        {formatFkkoHuman(code)}
+                                      </span>
+                                    );
+                                  })}
                                   {restCount > 0 && (
                                     <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
                                       +{restCount}
