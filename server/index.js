@@ -1266,8 +1266,9 @@ app.get('/api/license-sites', async (req, res) => {
     params.push(vids);
     const vidClause = `AND sfa.activity_type = ANY($${params.length}::text[])`;
 
+    // EXISTS вместо JOIN + DISTINCT: одна строка на площадку, без тяжёлого HashAggregate
     const sql = `
-      SELECT DISTINCT
+      SELECT
         s.id AS "siteId",
         l.id,
         l.company_name AS "companyName",
@@ -1281,13 +1282,17 @@ app.get('/api/license-sites', async (req, res) => {
         s.site_label AS "siteLabel"
       FROM license_sites s
       JOIN licenses l ON l.id = s.license_id
-      JOIN site_fkko_activities sfa ON sfa.site_id = s.id
       WHERE l.deleted_at IS NULL
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1)
-        ${fkkoClause}
-        ${vidClause}
+        AND EXISTS (
+          SELECT 1
+          FROM site_fkko_activities sfa
+          WHERE sfa.site_id = s.id
+            ${fkkoClause}
+            ${vidClause}
+        )
       ORDER BY s.id DESC
       LIMIT 200
     `;
@@ -1496,8 +1501,7 @@ app.get('/api/licenses', async (req, res) => {
     const vidClause = `AND sfa.activity_type = ANY($${params.length}::text[])`;
 
     const sql = `
-      SELECT DISTINCT
-             l.id,
+      SELECT l.id,
              l.company_name AS "companyName",
              l.inn,
              l.address,
@@ -1508,14 +1512,18 @@ app.get('/api/licenses', async (req, res) => {
              l.activity_types AS "activityTypes",
              l.created_at AS "createdAt"
       FROM licenses l
-      JOIN license_sites s ON s.license_id = l.id
-      JOIN site_fkko_activities sfa ON sfa.site_id = s.id
       WHERE l.deleted_at IS NULL
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
-        AND ($1 = '' OR COALESCE(s.region, l.region) = $1 OR l.region = $1)
-        ${fkkoClause}
-        ${vidClause}
+        AND EXISTS (
+          SELECT 1
+          FROM license_sites s
+          INNER JOIN site_fkko_activities sfa ON sfa.site_id = s.id
+          WHERE s.license_id = l.id
+            AND ($1 = '' OR COALESCE(s.region, l.region) = $1 OR l.region = $1)
+            ${fkkoClause}
+            ${vidClause}
+        )
       ORDER BY l.created_at DESC
       LIMIT 200
     `;

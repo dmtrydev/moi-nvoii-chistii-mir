@@ -27,6 +27,7 @@ import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
+import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
 
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
@@ -234,6 +235,7 @@ export default function MapPage(): JSX.Element {
   const [searchError, setSearchError] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [baseMapStyle, setBaseMapStyle] = useState<'osm' | 'cadastral'>('osm');
+  const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
 
   useEffect(() => {
     let alive = true;
@@ -401,13 +403,17 @@ export default function MapPage(): JSX.Element {
     };
   }, [focusSiteId]);
 
-  // При изменении фильтров скрываем результаты до следующего клика "Найти объект"
+  // При изменении фильтров сбрасываем результаты (без hasSearched в deps — иначе ломается поиск)
+  const filterChangeSearchResetSkip = useRef(true);
   useEffect(() => {
-    if (!hasSearched) return;
+    if (filterChangeSearchResetSkip.current) {
+      filterChangeSearchResetSkip.current = false;
+      return;
+    }
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
-  }, [filterFkko, filterRegion, filterVid, hasSearched]);
+  }, [filterFkko, filterRegion, filterVid]);
 
   const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
 
@@ -644,7 +650,15 @@ export default function MapPage(): JSX.Element {
               Укажите вид обращения. Код ФККО и регион — по желанию.
             </div>
           )}
-          {hasSearched && isSearching && <div className="text-xs text-ink-muted">Идёт поиск…</div>}
+          {hasSearched && isSearching && (
+            <div
+              className="text-xs text-ink-muted"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              {searchPhaseLabel}
+            </div>
+          )}
           {hasSearched && !isSearching && searchError && (
               <div className="text-xs glass-danger">
               {searchError}

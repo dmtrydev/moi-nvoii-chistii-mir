@@ -12,6 +12,7 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import heroBackground from '@/assets/home-landing/hero-background.png';
 import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-icon.svg';
 import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
+import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
 import { FilterPanelSection } from '@/components/home-landing/FilterPanelSection';
 import { FrameScreen } from '@/components/home-landing/FrameScreen';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
@@ -59,6 +60,7 @@ export function HomeLanding(): JSX.Element {
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [resultsReveal, setResultsReveal] = useState(false);
+  const searchPhaseLabel = useRotatingSearchMessage(isSearching);
 
   const prefersReducedMotion = useMemo(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -425,8 +427,12 @@ export function HomeLanding(): JSX.Element {
                 {/* Content */}
                 <div className="relative z-[2] px-6 pb-7 sm:px-8 lg:px-9">
                   {isSearching && (
-                    <p className="py-8 text-center font-nunito font-semibold text-[#5e6567] text-lg">
-                      Идёт поиск…
+                    <p
+                      className="py-8 text-center font-nunito font-semibold text-[#5e6567] text-lg"
+                      aria-live="polite"
+                      aria-busy="true"
+                    >
+                      {searchPhaseLabel}
                     </p>
                   )}
                   {!isSearching && searchError && (
