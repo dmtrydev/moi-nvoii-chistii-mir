@@ -1843,7 +1843,8 @@ app.post('/api/fkko/titles', async (req, res) => {
         await upsertFkkoOfficialTitles(part);
       }
     }
-    return res.json({ titles });
+    const missing = normalized.filter((c) => !String(titles[c] ?? '').trim());
+    return res.json({ titles, missing });
   } catch (err) {
     console.error('fkko titles error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка справочника ФККО' });

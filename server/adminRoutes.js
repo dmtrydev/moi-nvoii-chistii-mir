@@ -18,6 +18,7 @@ import {
   getFkkoTitlesSyncStatus,
   isFkkoTitlesSyncRunning,
 } from './fkkoTitlesSync.js';
+import { upsertFkkoOfficialTitles } from './fkkoOfficialTitles.js';
 
 const adminRouter = express.Router();
 const requireSuperadminOnly = requireRole('SUPERADMIN');
@@ -1026,6 +1027,85 @@ adminRouter.post('/fkko/sync-official-titles', async (_req, res) => {
 
 adminRouter.get('/fkko/sync-official-titles/status', (_req, res) => {
   return res.json(getFkkoTitlesSyncStatus());
+});
+
+/** Коды ФККО из одобренных лицензий, для которых в БД нет непустого наименования */
+adminRouter.get('/fkko/titles/missing', async (_req, res) => {
+  try {
+    const rows = await query(
+      `SELECT DISTINCT sfa.fkko_code AS code
+       FROM site_fkko_activities sfa
+       JOIN license_sites s ON s.id = sfa.site_id
+       JOIN licenses l ON l.id = s.license_id
+       WHERE l.deleted_at IS NULL
+         AND l.status = 'approved'
+         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
+         AND sfa.fkko_code ~ '^[0-9]{11}$'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM fkko_official_titles t
+           WHERE t.code = sfa.fkko_code
+             AND length(trim(t.title)) > 0
+         )
+       ORDER BY code ASC`,
+      [],
+    );
+    const codes = rows.rows.map((r) => String(r.code ?? '').trim()).filter(Boolean);
+    return res.json({ codes });
+  } catch (err) {
+    console.error('admin fkko titles missing:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка' });
+  }
+});
+
+const MAX_MANUAL_FKKO_TITLES_BATCH = 80;
+const MAX_FKKO_TITLE_LEN = 2000;
+
+/** Ручное добавление/обновление наименований в fkko_official_titles */
+adminRouter.post('/fkko/titles/manual', async (req, res) => {
+  try {
+    const raw = req.body?.titles;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return res.status(400).json({
+        message: 'Ожидается JSON: { "titles": { "47110101521": "Текст наименования" } }',
+      });
+    }
+    const normalized = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const code = String(k ?? '').replace(/\D/g, '');
+      if (!/^\d{11}$/.test(code)) continue;
+      const title = String(v ?? '').trim();
+      if (!title) continue;
+      if (title.length > MAX_FKKO_TITLE_LEN) {
+        return res.status(400).json({
+          message: `Наименование для кода ${code} длиннее ${MAX_FKKO_TITLE_LEN} символов`,
+        });
+      }
+      normalized[code] = title;
+    }
+    const keys = Object.keys(normalized);
+    if (keys.length === 0) {
+      return res.status(400).json({ message: 'Нет валидных пар «11 цифр кода» — «непустое наименование»' });
+    }
+    if (keys.length > MAX_MANUAL_FKKO_TITLES_BATCH) {
+      return res.status(400).json({
+        message: `Не более ${MAX_MANUAL_FKKO_TITLES_BATCH} кодов за один запрос`,
+      });
+    }
+    await upsertFkkoOfficialTitles(normalized);
+    await createAuditLog({
+      req,
+      action: 'FKKO_TITLES_MANUAL_UPSERT',
+      entityType: 'FKKO',
+      entityId: keys.length === 1 ? keys[0] : `batch:${keys.length}`,
+      severity: 'INFO',
+      changes: { codes: keys },
+    });
+    return res.json({ ok: true, saved: keys.length });
+  } catch (err) {
+    console.error('admin fkko titles manual:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка сохранения' });
+  }
 });
 
 export default adminRouter;

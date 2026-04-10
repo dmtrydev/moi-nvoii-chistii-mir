@@ -1,4 +1,5 @@
-# moinoviichistiimir site in /root — replace ВАШ_ДОМЕН_ИЛИ_IP then: sudo nginx -t && sudo systemctl reload nginx
+# Статика из /root (без Docker). Если сайт в Docker Compose на порту 3001 — см. nginx-docker-proxy.conf.example
+# Замените server_name, затем: sudo nginx -t && sudo systemctl reload nginx
 server {
     listen 80;
     listen [::]:80;

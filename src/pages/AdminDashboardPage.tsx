@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/useAuth';
+import { formatFkkoHuman } from '@/utils/fkko';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -54,6 +55,12 @@ export default function AdminDashboardPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [fkkoTitlesSync, setFkkoTitlesSync] = useState<FkkoTitlesSyncStatus | null>(null);
   const [fkkoTitlesSyncError, setFkkoTitlesSyncError] = useState<string | null>(null);
+  const [fkkoMissingCodes, setFkkoMissingCodes] = useState<string[]>([]);
+  const [fkkoMissingDraft, setFkkoMissingDraft] = useState<Record<string, string>>({});
+  const [fkkoMissingLoading, setFkkoMissingLoading] = useState(false);
+  const [fkkoMissingError, setFkkoMissingError] = useState<string | null>(null);
+  const [fkkoMissingSaveOk, setFkkoMissingSaveOk] = useState<string | null>(null);
+  const [fkkoMissingListLoaded, setFkkoMissingListLoaded] = useState(false);
 
   const adminHeaders = useMemo(
     () => ({
@@ -84,6 +91,71 @@ export default function AdminDashboardPage(): JSX.Element {
     const id = window.setInterval(() => void refreshFkkoTitlesSyncStatus(), 2000);
     return () => clearInterval(id);
   }, [fkkoTitlesSync?.running, refreshFkkoTitlesSyncStatus]);
+
+  const loadFkkoMissingTitles = useCallback(async () => {
+    setFkkoMissingError(null);
+    setFkkoMissingSaveOk(null);
+    setFkkoMissingLoading(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/fkko/titles/missing'), {
+        headers: adminHeaders,
+        credentials: 'include',
+      });
+      const body = (await res.json()) as { codes?: string[]; message?: string };
+      if (!res.ok) throw new Error(body.message ?? `HTTP ${res.status}`);
+      const codes = Array.isArray(body.codes) ? body.codes : [];
+      setFkkoMissingListLoaded(true);
+      setFkkoMissingCodes(codes);
+      setFkkoMissingDraft((prev) => {
+        const next = { ...prev };
+        for (const c of codes) if (next[c] === undefined) next[c] = '';
+        for (const k of Object.keys(next)) if (!codes.includes(k)) delete next[k];
+        return next;
+      });
+    } catch (e) {
+      setFkkoMissingListLoaded(true);
+      setFkkoMissingCodes([]);
+      setFkkoMissingDraft({});
+      setFkkoMissingError(e instanceof Error ? e.message : 'Ошибка загрузки');
+    } finally {
+      setFkkoMissingLoading(false);
+    }
+  }, [adminHeaders]);
+
+  const saveFkkoManualTitles = useCallback(async () => {
+    setFkkoMissingError(null);
+    setFkkoMissingSaveOk(null);
+    const titles: Record<string, string> = {};
+    for (const code of fkkoMissingCodes) {
+      const t = (fkkoMissingDraft[code] ?? '').trim();
+      if (t) titles[code] = t;
+    }
+    if (Object.keys(titles).length === 0) {
+      setFkkoMissingError('Введите хотя бы одно наименование');
+      return;
+    }
+    const MANUAL_BATCH = 80;
+    const pairs = Object.entries(titles);
+    try {
+      let totalSaved = 0;
+      for (let i = 0; i < pairs.length; i += MANUAL_BATCH) {
+        const chunk = Object.fromEntries(pairs.slice(i, i + MANUAL_BATCH));
+        const res = await fetch(getApiUrl('/api/admin/fkko/titles/manual'), {
+          method: 'POST',
+          headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ titles: chunk }),
+        });
+        const body = (await res.json()) as { saved?: number; message?: string };
+        if (!res.ok) throw new Error(body.message ?? `HTTP ${res.status}`);
+        totalSaved += body.saved ?? Object.keys(chunk).length;
+      }
+      setFkkoMissingSaveOk(`Сохранено наименований: ${totalSaved}`);
+      await loadFkkoMissingTitles();
+    } catch (e) {
+      setFkkoMissingError(e instanceof Error ? e.message : 'Ошибка сохранения');
+    }
+  }, [adminHeaders, fkkoMissingCodes, fkkoMissingDraft, loadFkkoMissingTitles]);
 
   const startFkkoTitlesSync = useCallback(async () => {
     setFkkoTitlesSyncError(null);
@@ -221,6 +293,83 @@ export default function AdminDashboardPage(): JSX.Element {
             >
               {fkkoTitlesSync?.running ? 'Синхронизация выполняется…' : 'Обновить наименования ФККО из РПН'}
             </button>
+            <div className="mt-8 pt-6 border-t border-white/10">
+              <h3 className="text-sm font-semibold text-[#e8f7eb] mb-2">Коды без описания в базе</h3>
+              <p className="text-xs text-[#9bb5a8] mb-4 leading-relaxed">
+                Список кодов из одобренных лицензий, для которых в{' '}
+                <span className="text-[#c3d7cb]">fkko_official_titles</span> ещё нет текста (РПН не вернул или код
+                нестандартный). Можно ввести наименование вручную — оно появится в фильтрах, на карте и в справочнике.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => void loadFkkoMissingTitles()}
+                  disabled={fkkoMissingLoading}
+                  className="inline-flex items-center justify-center h-9 px-3 rounded-lg text-xs font-semibold bg-white/10 text-[#e8f7eb] hover:bg-white/15 border border-white/10 disabled:opacity-50"
+                >
+                  {fkkoMissingLoading ? 'Загрузка…' : 'Показать список'}
+                </button>
+                {fkkoMissingCodes.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => void saveFkkoManualTitles()}
+                    className="inline-flex items-center justify-center h-9 px-3 rounded-lg text-xs font-semibold bg-gradient-to-br from-accent-from to-accent-to text-[#1a2e12]"
+                  >
+                    Сохранить введённые наименования
+                  </button>
+                )}
+              </div>
+              {fkkoMissingError && (
+                <div className="mb-3 text-xs text-red-300 bg-red-950/40 border border-red-800/50 rounded-lg px-3 py-2">
+                  {fkkoMissingError}
+                </div>
+              )}
+              {fkkoMissingSaveOk && (
+                <div className="mb-3 text-xs text-emerald-200 bg-emerald-950/30 border border-emerald-800/40 rounded-lg px-3 py-2">
+                  {fkkoMissingSaveOk}
+                </div>
+              )}
+              {fkkoMissingCodes.length > 0 && (
+                <div className="max-h-[420px] overflow-y-auto space-y-3 pr-1 no-scrollbar">
+                  {fkkoMissingCodes.map((code) => (
+                    <div
+                      key={code}
+                      className="rounded-xl border border-white/10 bg-black/20 px-3 py-3 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
+                        <span className="font-mono text-[#d9ffe0] tabular-nums">{code}</span>
+                        <span className="text-[#9bb5a8]">{formatFkkoHuman(code)}</span>
+                      </div>
+                      <label className="sr-only" htmlFor={`fkko-title-${code}`}>
+                        Наименование для {code}
+                      </label>
+                      <textarea
+                        id={`fkko-title-${code}`}
+                        value={fkkoMissingDraft[code] ?? ''}
+                        onChange={(e) =>
+                          setFkkoMissingDraft((prev) => ({ ...prev, [code]: e.target.value }))
+                        }
+                        rows={2}
+                        placeholder="Введите официальное наименование отхода по ФККО"
+                        className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-[#e8f7eb] placeholder:text-[#6b7a72] focus:outline-none focus:ring-1 focus:ring-accent-from resize-y min-h-[2.75rem]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!fkkoMissingLoading &&
+                fkkoMissingCodes.length === 0 &&
+                fkkoMissingError === null &&
+                !fkkoMissingListLoaded && (
+                  <p className="text-xs text-[#6b7a72]">Нажмите «Показать список», чтобы загрузить коды без наименования в базе.</p>
+                )}
+              {!fkkoMissingLoading &&
+                fkkoMissingCodes.length === 0 &&
+                fkkoMissingError === null &&
+                fkkoMissingListLoaded && (
+                  <p className="text-xs text-[#9bb5a8]">Кодов без описания не найдено — для всех используемых в лицензиях кодов есть запись в базе.</p>
+                )}
+            </div>
           </div>
         </div>
       )}
