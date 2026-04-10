@@ -115,7 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_sfa_site_id ON site_fkko_activities(site_id);
 CREATE INDEX IF NOT EXISTS idx_sfa_fkko_code ON site_fkko_activities(fkko_code);
 CREATE INDEX IF NOT EXISTS idx_sfa_activity_type ON site_fkko_activities(activity_type);
 CREATE INDEX IF NOT EXISTS idx_sfa_fkko_activity ON site_fkko_activities(fkko_code, activity_type);
-CREATE INDEX IF NOT EXISTS idx_sfa_activity_site ON site_fkko_activities(activity_type, site_id);
+-- idx_sfa_activity_site создаётся в фоне при старте приложения (CONCURRENTLY), см. server/index.js
 
 -- Бэкфилл site_fkko_activities из старых данных license_sites:
 -- для каждой пары (fkko_code, activity_type) на площадке создаём запись.

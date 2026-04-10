@@ -1929,9 +1929,30 @@ function startServer(tryPort) {
   });
 }
 
+// Индекс для поиска по activity_type без блокировки старта (init.sql гоняется одним batch’ем = одна транзакция).
+function ensureSearchPerfIndexInBackground() {
+  if (!process.env.DATABASE_URL) return;
+  const sql =
+    'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sfa_activity_site ON site_fkko_activities (activity_type, site_id)';
+  query(sql)
+    .then(() => console.log('DB: idx_sfa_activity_site ready (CONCURRENTLY)'))
+    .catch((err) =>
+      console.warn(
+        'DB: idx_sfa_activity_site not created (поиск всё равно работает, возможно медленнее):',
+        err instanceof Error ? err.message : err,
+      ),
+    );
+}
+
 // Сразу в stdout — иначе при зависании на первом query() к БД docker logs остаётся пустым.
 console.log('Server: starting, DB init before listen…');
 
 ensureDatabaseSchema()
-  .then(() => startServer(port))
-  .catch(() => process.exit(1));
+  .then(() => {
+    startServer(port);
+    ensureSearchPerfIndexInBackground();
+  })
+  .catch((err) => {
+    console.error('Server startup failed (часто: БД недоступна или ошибка в init/migrations):', err);
+    process.exit(1);
+  });
