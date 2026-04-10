@@ -48,9 +48,15 @@ function fkkoSyncPhaseLabel(phase: string): string {
   }
 }
 
+type AdminStatsSummary = {
+  licensesByDay: LicensesByDay[];
+  moderation: ModerationSummary;
+  registryInactiveLicensesCount?: number;
+};
+
 export default function AdminDashboardPage(): JSX.Element {
-  const { accessToken } = useAuth();
-  const [data, setData] = useState<{ licensesByDay: LicensesByDay[]; moderation: ModerationSummary } | null>(null);
+  const { accessToken, user } = useAuth();
+  const [data, setData] = useState<AdminStatsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fkkoTitlesSync, setFkkoTitlesSync] = useState<FkkoTitlesSyncStatus | null>(null);
@@ -61,6 +67,9 @@ export default function AdminDashboardPage(): JSX.Element {
   const [fkkoMissingError, setFkkoMissingError] = useState<string | null>(null);
   const [fkkoMissingSaveOk, setFkkoMissingSaveOk] = useState<string | null>(null);
   const [fkkoMissingListLoaded, setFkkoMissingListLoaded] = useState(false);
+  const [registryPurgeBusy, setRegistryPurgeBusy] = useState(false);
+  const [registryPurgeError, setRegistryPurgeError] = useState<string | null>(null);
+  const [registryPurgeOk, setRegistryPurgeOk] = useState<string | null>(null);
 
   const adminHeaders = useMemo(
     () => ({
@@ -176,23 +185,27 @@ export default function AdminDashboardPage(): JSX.Element {
     }
   }, [adminHeaders, refreshFkkoTitlesSyncStatus]);
 
+  const refreshSummary = useCallback(async (): Promise<void> => {
+    const res = await fetch(getApiUrl('/api/admin/stats/summary'), {
+      headers: {
+        Authorization: accessToken ? `Bearer ${accessToken}` : '',
+      },
+      credentials: 'include',
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки статистики');
+    }
+    setData(body as AdminStatsSummary);
+  }, [accessToken]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(getApiUrl('/api/admin/stats/summary'), {
-          headers: {
-            Authorization: accessToken ? `Bearer ${accessToken}` : '',
-          },
-          credentials: 'include',
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки статистики');
-        }
-        if (!cancelled) setData(body as typeof data);
+        await refreshSummary();
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка');
       } finally {
@@ -203,7 +216,42 @@ export default function AdminDashboardPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [accessToken, refreshSummary]);
+
+  const purgeRegistryInactiveLicenses = useCallback(async () => {
+    const n = data?.registryInactiveLicensesCount ?? 0;
+    if (n <= 0) return;
+    setRegistryPurgeError(null);
+    setRegistryPurgeOk(null);
+    if (
+      !window.confirm(
+        `Удалить безвозвратно ${n} лицензий с пометкой «Неактивна (реестр)»? Будут удалены связанные площадки и строки ФККО. Восстановить нельзя.`,
+      )
+    ) {
+      return;
+    }
+    if (!window.confirm('Подтвердите ещё раз: операция необратима.')) return;
+    setRegistryPurgeBusy(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/licenses/purge-registry-inactive'), {
+        method: 'POST',
+        headers: {
+          Authorization: accessToken ? `Bearer ${accessToken}` : '',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ confirm: 'PURGE_REGISTRY_INACTIVE' }),
+      });
+      const body = (await res.json()) as { deleted?: number; message?: string };
+      if (!res.ok) throw new Error(body.message ?? `HTTP ${res.status}`);
+      setRegistryPurgeOk(`Удалено записей: ${body.deleted ?? 0}`);
+      await refreshSummary();
+    } catch (e) {
+      setRegistryPurgeError(e instanceof Error ? e.message : 'Ошибка удаления');
+    } finally {
+      setRegistryPurgeBusy(false);
+    }
+  }, [accessToken, data?.registryInactiveLicensesCount, refreshSummary]);
 
   return (
     <div className="space-y-5">
@@ -244,6 +292,46 @@ export default function AdminDashboardPage(): JSX.Element {
                 <dd className="font-semibold text-[#d9ffe0]">{data.moderation.rejected}</dd>
               </div>
             </dl>
+          </div>
+          <div className="glass-panel p-4 md:col-span-2">
+            <h2 className="text-sm font-semibold text-[#e8f7eb] mb-2">Импорт реестра РПН: неактивные</h2>
+            <p className="text-xs text-[#9bb5a8] mb-3 leading-relaxed">
+              Записи с флагом «неактивна в выгрузке реестра» (в списке объектов отображаются как «Неактивна
+              (реестр)»). Они не показываются на публичной карте и в поиске.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="glass-panel px-3 py-2.5 text-sm text-[#c3d7cb]">
+                Всего таких лицензий в базе:{' '}
+                <span className="font-semibold tabular-nums text-[#d9ffe0]">
+                  {data.registryInactiveLicensesCount ?? 0}
+                </span>
+              </div>
+              {user?.role === 'SUPERADMIN' && (data.registryInactiveLicensesCount ?? 0) > 0 && (
+                <button
+                  type="button"
+                  disabled={registryPurgeBusy}
+                  onClick={() => void purgeRegistryInactiveLicenses()}
+                  className="inline-flex items-center justify-center h-9 px-3 rounded-lg text-xs font-semibold bg-red-950/50 text-red-200 border border-red-800/60 hover:bg-red-950/70 disabled:opacity-50"
+                >
+                  {registryPurgeBusy ? 'Удаление…' : 'Удалить все неактивные (реестр)'}
+                </button>
+              )}
+            </div>
+            {user?.role !== 'SUPERADMIN' && (data.registryInactiveLicensesCount ?? 0) > 0 && (
+              <p className="text-xs text-[#9bb5a8]">
+                Массовое удаление доступно только роли суперадминистратора.
+              </p>
+            )}
+            {registryPurgeError && (
+              <div className="mb-2 text-xs text-red-300 bg-red-950/40 border border-red-800/50 rounded-lg px-3 py-2">
+                {registryPurgeError}
+              </div>
+            )}
+            {registryPurgeOk && (
+              <div className="mb-2 text-xs text-emerald-200 bg-emerald-950/30 border border-emerald-800/40 rounded-lg px-3 py-2">
+                {registryPurgeOk}
+              </div>
+            )}
           </div>
           <div className="glass-panel p-4 md:col-span-2">
             <h2 className="text-sm font-semibold text-[#e8f7eb] mb-2">Наименования ФККО (РПН)</h2>

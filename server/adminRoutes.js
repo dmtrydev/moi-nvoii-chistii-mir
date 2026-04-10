@@ -84,28 +84,37 @@ adminRouter.get('/stats/summary', async (req, res) => {
   const fromTs = from || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const toTs = to || new Date().toISOString();
 
-  const [{ rows: licensesByDay }, { rows: moderationQueue }] = await Promise.all([
-    query(
-      `SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS count
-       FROM licenses
-       WHERE created_at BETWEEN $1 AND $2
-       GROUP BY day
-       ORDER BY day ASC`,
-      [fromTs, toTs],
-    ),
-    query(
-      `SELECT
-         COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
-         COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
-         COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected
-       FROM licenses`,
-      [],
-    ),
-  ]);
+  const [{ rows: licensesByDay }, { rows: moderationQueue }, { rows: registryInactiveRows }] =
+    await Promise.all([
+      query(
+        `SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS count
+         FROM licenses
+         WHERE created_at BETWEEN $1 AND $2
+         GROUP BY day
+         ORDER BY day ASC`,
+        [fromTs, toTs],
+      ),
+      query(
+        `SELECT
+           COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+           COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+           COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected
+         FROM licenses`,
+        [],
+      ),
+      query(
+        `SELECT COUNT(*)::int AS c
+         FROM licenses
+         WHERE import_source = 'rpn_registry'
+           AND import_registry_inactive = TRUE`,
+        [],
+      ),
+    ]);
 
   res.json({
     licensesByDay,
     moderation: moderationQueue[0] ?? { pending: 0, approved: 0, rejected: 0 },
+    registryInactiveLicensesCount: registryInactiveRows[0]?.c ?? 0,
   });
 });
 
@@ -1008,6 +1017,51 @@ adminRouter.delete('/licenses/:id/hard', requireSuperadminOnly, async (req, res)
   });
 
   return res.json({ ok: true, id });
+});
+
+/**
+ * Жёсткое удаление всех лицензий импорта реестра РПН с флагом «неактивна в реестре».
+ * Площадки и site_fkko_activities удаляются каскадом.
+ */
+adminRouter.post('/licenses/purge-registry-inactive', requireSuperadminOnly, async (req, res) => {
+  const confirm = String(req.body?.confirm ?? '').trim();
+  if (confirm !== 'PURGE_REGISTRY_INACTIVE') {
+    return res.status(400).json({
+      message:
+        'Укажите в JSON теле: { "confirm": "PURGE_REGISTRY_INACTIVE" } — операция необратима.',
+    });
+  }
+  try {
+    const sel = await query(
+      `SELECT id, company_name AS "companyName", status
+       FROM licenses
+       WHERE import_source = 'rpn_registry'
+         AND import_registry_inactive = TRUE`,
+      [],
+    );
+    const ids = sel.rows.map((r) => r.id);
+    if (ids.length === 0) {
+      return res.json({ deleted: 0, message: 'Нет записей для удаления' });
+    }
+    await query(
+      `DELETE FROM licenses
+       WHERE import_source = 'rpn_registry'
+         AND import_registry_inactive = TRUE`,
+      [],
+    );
+    await createAuditLog({
+      req,
+      action: 'LICENSES_PURGE_REGISTRY_INACTIVE',
+      entityType: 'LICENSE',
+      entityId: `count:${ids.length}`,
+      severity: 'WARNING',
+      changes: { deletedCount: ids.length, idsSample: ids.slice(0, 200) },
+    });
+    return res.json({ deleted: ids.length });
+  } catch (err) {
+    console.error('purge registry-inactive licenses:', err);
+    return res.status(500).json({ message: err.message || 'Ошибка удаления' });
+  }
 });
 
 /** Фоновая подтяжка наименований ФККО с РПН по всем кодам из одобренных лицензий → fkko_official_titles */
