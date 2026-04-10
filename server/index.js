@@ -1253,11 +1253,19 @@ app.get('/api/license-sites', async (req, res) => {
     const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
     const vids = vidRaw ? vidRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
 
-    if (!fkkoList.length || vids.length === 0) {
-      return res.status(400).json({ message: 'Фильтры обязательны: код ФККО и вид обращения.' });
+    if (vids.length === 0) {
+      return res.status(400).json({ message: 'Укажите вид обращения.' });
     }
 
-    const params = [region, fkkoList, vids];
+    const params = [region];
+    let fkkoClause = '';
+    if (fkkoList.length > 0) {
+      params.push(fkkoList);
+      fkkoClause = `AND sfa.fkko_code = ANY($${params.length}::text[])`;
+    }
+    params.push(vids);
+    const vidClause = `AND sfa.activity_type = ANY($${params.length}::text[])`;
+
     const sql = `
       SELECT DISTINCT
         s.id AS "siteId",
@@ -1278,8 +1286,8 @@ app.get('/api/license-sites', async (req, res) => {
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1)
-        AND sfa.fkko_code = ANY($2::text[])
-        AND sfa.activity_type = ANY($3::text[])
+        ${fkkoClause}
+        ${vidClause}
       ORDER BY s.id DESC
       LIMIT 200
     `;
@@ -1472,13 +1480,21 @@ app.get('/api/licenses', async (req, res) => {
           .filter(Boolean)
       : [];
 
-    if (!fkkoList.length || vids.length === 0) {
+    if (vids.length === 0) {
       return res.status(400).json({
-        message: 'Фильтры обязательны: код ФККО и вид обращения.',
+        message: 'Укажите вид обращения.',
       });
     }
 
-    const params = [region, fkkoList, vids];
+    const params = [region];
+    let fkkoClause = '';
+    if (fkkoList.length > 0) {
+      params.push(fkkoList);
+      fkkoClause = `AND sfa.fkko_code = ANY($${params.length}::text[])`;
+    }
+    params.push(vids);
+    const vidClause = `AND sfa.activity_type = ANY($${params.length}::text[])`;
+
     const sql = `
       SELECT DISTINCT
              l.id,
@@ -1498,8 +1514,8 @@ app.get('/api/licenses', async (req, res) => {
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
         AND ($1 = '' OR COALESCE(s.region, l.region) = $1 OR l.region = $1)
-        AND sfa.fkko_code = ANY($2::text[])
-        AND sfa.activity_type = ANY($3::text[])
+        ${fkkoClause}
+        ${vidClause}
       ORDER BY l.created_at DESC
       LIMIT 200
     `;

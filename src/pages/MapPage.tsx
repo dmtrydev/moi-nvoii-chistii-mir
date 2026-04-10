@@ -420,15 +420,15 @@ export default function MapPage(): JSX.Element {
           : fkkoCodesToQueryParam(filterFkko);
       const vid = (overrides?.vid ?? vidQuery).trim();
 
-      if (!fkkoStr || !vid) {
-        if (!overrides) setFilterValidationError('Заполните обязательные фильтры: ФККО и вид обращения.');
+      if (!vid) {
+        if (!overrides) setFilterValidationError('Укажите вид обращения.');
         return;
       }
       setFilterValidationError('');
 
       const qs = new URLSearchParams();
       if (region) qs.set('region', region);
-      qs.set('fkko', fkkoStr);
+      if (fkkoStr) qs.set('fkko', fkkoStr);
       qs.set('vid', vid);
 
       setHasSearched(true);
@@ -458,7 +458,7 @@ export default function MapPage(): JSX.Element {
     const r = searchParams.get('region') ?? '';
     const f = searchParams.get('fkko') ?? '';
     const v = searchParams.get('vid') ?? '';
-    if (!f || !v) return;
+    if (!v) return;
     const key = `${r}|${f}|${v}`;
     if (lastAutoSearchKey.current === key) return;
     lastAutoSearchKey.current = key;
@@ -573,7 +573,9 @@ export default function MapPage(): JSX.Element {
               </div>
             )}
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">ФККО *</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">
+                ФККО (необязательно)
+              </p>
               <MultiSelectDropdown
                 options={fkkoCatalogCodes}
                 selected={filterFkko}
@@ -639,7 +641,7 @@ export default function MapPage(): JSX.Element {
 
           {!hasSearched && (
             <div className="text-xs text-ink-muted">
-              Заполните обязательные фильтры (ФККО, вид обращения). Регион — необязателен.
+              Укажите вид обращения. Код ФККО и регион — по желанию.
             </div>
           )}
           {hasSearched && isSearching && <div className="text-xs text-ink-muted">Идёт поиск…</div>}
@@ -662,10 +664,9 @@ export default function MapPage(): JSX.Element {
                   const id = typeof it.id === 'number' ? it.id : null;
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
                   const r = filterRegion.trim();
-                  const mapParams = new URLSearchParams({
-                    fkko: fkkoCodesToQueryParam(filterFkko),
-                    vid: vidQuery.trim(),
-                  });
+                  const mapParams = new URLSearchParams({ vid: vidQuery.trim() });
+                  const fkkoQ = fkkoCodesToQueryParam(filterFkko);
+                  if (fkkoQ) mapParams.set('fkko', fkkoQ);
                   if (r) mapParams.set('region', r);
                   if (typeof it.siteId === 'number') mapParams.set('focusSite', String(it.siteId));
                   return (

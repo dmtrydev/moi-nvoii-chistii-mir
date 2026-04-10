@@ -208,8 +208,8 @@ export function HomeLanding(): JSX.Element {
     const r = filterRegion.trim();
     const f = fkkoCodesToQueryParam(filterFkko);
     const v = vidQuery.trim();
-    if (!f || !v) {
-      setValidationError('Заполните обязательные поля: ФККО и вид обращения.');
+    if (!v) {
+      setValidationError('Укажите вид обращения.');
       return;
     }
     setValidationError('');
@@ -217,7 +217,8 @@ export function HomeLanding(): JSX.Element {
     setIsSearching(true);
     setHasSearched(true);
     try {
-      const params = new URLSearchParams({ fkko: f, vid: v });
+      const params = new URLSearchParams({ vid: v });
+      if (f) params.set('fkko', f);
       if (r) params.set('region', r);
       const resp = await fetch(getApiUrl(`/api/licenses?${params.toString()}`));
       const data = await (resp.ok ? resp.json() : resp.json().catch(() => ({})));
@@ -234,10 +235,9 @@ export function HomeLanding(): JSX.Element {
   }, [filterRegion, filterFkko, vidQuery]);
 
   const toMapPath = useCallback((): string => {
-    const params = new URLSearchParams({
-      fkko: fkkoCodesToQueryParam(filterFkko),
-      vid: vidQuery.trim(),
-    });
+    const params = new URLSearchParams({ vid: vidQuery.trim() });
+    const f = fkkoCodesToQueryParam(filterFkko);
+    if (f) params.set('fkko', f);
     const r = filterRegion.trim();
     if (r) params.set('region', r);
     return `/map?${params.toString()}`;
