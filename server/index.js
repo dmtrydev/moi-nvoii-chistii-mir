@@ -1834,9 +1834,9 @@ app.post('/api/fkko/titles', async (req, res) => {
     }
     const fromDb = await loadFkkoTitlesFromDb(normalized);
     const titles = /** @type {Record<string, string>} */ ({ ...fromDb });
-    const missing = normalized.filter((c) => !titles[c]);
-    for (let i = 0; i < missing.length; i += FKKO_TITLES_CHUNK) {
-      const slice = missing.slice(i, i + FKKO_TITLES_CHUNK);
+    const codesNeedingRpn = normalized.filter((c) => !titles[c]);
+    for (let i = 0; i < codesNeedingRpn.length; i += FKKO_TITLES_CHUNK) {
+      const slice = codesNeedingRpn.slice(i, i + FKKO_TITLES_CHUNK);
       const part = await fetchFkkoTitlesBatched(slice, { concurrency: 2, delayMs: 300 });
       Object.assign(titles, part);
       if (Object.keys(part).length > 0) {
