@@ -440,6 +440,32 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               Перепроверка
             </button>
           ) : null}
+          {canModerate && (item?.status === 'pending' || item?.status === 'recheck') ? (
+            <button
+              type="button"
+              disabled={!item?.id}
+              onClick={() => {
+                void approveCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
+              }}
+              className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+              title="Одобрить объект"
+            >
+              Одобрить
+            </button>
+          ) : null}
+          {canModerate && (item?.status === 'pending' || item?.status === 'recheck') ? (
+            <button
+              type="button"
+              disabled={!item?.id}
+              onClick={() => {
+                void rejectCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
+              }}
+              className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+              title="Отклонить объект"
+            >
+              Отклонить
+            </button>
+          ) : null}
           {isSuperAdmin ? (
             <button
               type="button"
@@ -1106,28 +1132,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                         </button>
                       ) : null}
 
-                      {canModerate && (item.status === 'pending' || item.status === 'recheck') ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void approveCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
-                            }}
-                            className="px-5 py-2.5 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
-                          >
-                            Одобрить
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void rejectCurrent().catch((e) => alert(e instanceof Error ? e.message : 'Ошибка'));
-                            }}
-                            className="px-5 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors shadow-sm"
-                          >
-                            Отклонить
-                          </button>
-                        </>
-                      ) : null}
                     </div>
                   </div>
                 </section>
