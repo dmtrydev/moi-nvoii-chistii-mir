@@ -77,14 +77,34 @@ const SITE_FKKO_ACTIVITIES_CHUNK = 800;
 /**
  * @param {import('pg').Pool} pool
  * @param {string} innExpr
- * @returns {Promise<{ innSet: Set<string>, refSet: Set<string> }>}
+ * @returns {Promise<{
+ *   innSet: Set<string>,
+ *   refSet: Set<string>,
+ *   dbPrefetch: {
+ *     activeLicenseRows: number,
+ *     innRowsWithValidInn: number,
+ *     innUniqueInDb: number,
+ *     innDuplicateExtraRows: number,
+ *     refRowsWithValue: number,
+ *     refUniqueInDb: number,
+ *     refDuplicateExtraRows: number,
+ *   },
+ * }>}
  */
 async function loadImportDuplicateSets(pool, innExpr) {
+  const totalRes = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM licenses WHERE deleted_at IS NULL`,
+  );
+  const activeLicenseRows = Number(totalRes.rows[0]?.n ?? 0);
+
   const innRes = await pool.query(
     `SELECT ${innExpr} AS inn_norm FROM licenses
      WHERE deleted_at IS NULL AND length(${innExpr}) IN (10, 12)`,
   );
   const innSet = new Set(innRes.rows.map((r) => String(r.inn_norm ?? '').trim()).filter(Boolean));
+  const innRowsWithValidInn = innRes.rows.length;
+  const innUniqueInDb = innSet.size;
+  const innDuplicateExtraRows = Math.max(0, innRowsWithValidInn - innUniqueInDb);
 
   const refRes = await pool.query(
     `SELECT import_external_ref FROM licenses
@@ -93,8 +113,64 @@ async function loadImportDuplicateSets(pool, innExpr) {
   const refSet = new Set(
     refRes.rows.map((r) => String(r.import_external_ref ?? '').trim()).filter(Boolean),
   );
+  const refRowsWithValue = refRes.rows.length;
+  const refUniqueInDb = refSet.size;
+  const refDuplicateExtraRows = Math.max(0, refRowsWithValue - refUniqueInDb);
 
-  return { innSet, refSet };
+  return {
+    innSet,
+    refSet,
+    dbPrefetch: {
+      activeLicenseRows,
+      innRowsWithValidInn,
+      innUniqueInDb,
+      innDuplicateExtraRows,
+      refRowsWithValue,
+      refUniqueInDb,
+      refDuplicateExtraRows,
+    },
+  };
+}
+
+/**
+ * @param {{
+ *   activeLicenseRows: number,
+ *   innRowsWithValidInn: number,
+ *   innUniqueInDb: number,
+ *   innDuplicateExtraRows: number,
+ *   refRowsWithValue: number,
+ *   refUniqueInDb: number,
+ *   refDuplicateExtraRows: number,
+ * }} p
+ */
+function printDbPrefetchBeforeImport(p) {
+  console.log('');
+  console.log('=== База до импорта (кэш дублей) ===');
+  console.log('Активных лицензий (строк в таблице, не удалённых):', p.activeLicenseRows);
+  console.log(
+    'ИНН: всего строк с валидным ИНН (10–12 цифр):',
+    p.innRowsWithValidInn,
+    '| разных ИНН:',
+    p.innUniqueInDb,
+    '| лишних строк (несколько карточек на один ИНН):',
+    p.innDuplicateExtraRows,
+  );
+  console.log(
+    'Внешний номер (ref): всего строк с номером:',
+    p.refRowsWithValue,
+    '| разных номеров:',
+    p.refUniqueInDb,
+    '| лишних строк (повтор номера в нескольких карточках):',
+    p.refDuplicateExtraRows,
+  );
+  console.log(
+    'Кратко (как раньше): уникальных ИНН в кэше:',
+    p.innUniqueInDb,
+    '| уникальных ref в кэше:',
+    p.refUniqueInDb,
+  );
+  console.log('====================================');
+  console.log('');
 }
 
 /**
@@ -377,22 +453,92 @@ async function insertLicenseBundle(client, payload) {
 }
 
 /**
+ * @param {{
+ *   sourceEntries: number,
+ *   skippedUnmapped: number,
+ *   skippedNoFkko: number,
+ *   skippedNoData: number,
+ *   parsed: number,
+ *   skippedDupRef: number,
+ *   skippedDupRefFromDb: number,
+ *   skippedDupRefFromSameFile: number,
+ *   skippedDupInn: number,
+ *   skippedDupInnFromDb: number,
+ *   skippedDupInnFromSameFile: number,
+ *   inserted: number,
+ *   errors: number,
+ * }} stats
+ * @param {Set<string>} uniqueInnsInMapped
+ * @param {boolean} dryRun
+ */
+function printImportStatistics(stats, uniqueInnsInMapped, dryRun) {
+  const u = uniqueInnsInMapped.size;
+  const innRedundantRows = stats.parsed - u;
+
+  console.log('');
+  console.log('=== Статистика импорта ===');
+  console.log('Записей в файле (элементов JSON):', stats.sourceEntries);
+  console.log(
+    'Отброшено: нет данных для импорта (организация / ИНН / объекты с отходами / адрес и т.п.):',
+    stats.skippedUnmapped,
+  );
+  console.log('Отброшено: нет кодов ФККО после сборки:', stats.skippedNoFkko);
+  console.log('Итого отброшено по данным (unmapped + no_fkko):', stats.skippedNoData);
+  console.log('');
+  console.log('Пригодных записей после проверки полей (попали в разбор):', stats.parsed);
+  if (dryRun) {
+    console.log('(DRY-RUN: дубликаты по БД не проверялись, «вставлено» завышено)');
+  }
+  console.log('  Разных ИНН среди этих записей:', u);
+  console.log(
+    '  Строк с повтором ИНН внутри файла (вторая и далее с тем же ИНН):',
+    innRedundantRows,
+  );
+  console.log('');
+  console.log('Пропуск: номер лицензии (ref) уже был в базе до импорта:', stats.skippedDupRefFromDb);
+  console.log(
+    'Пропуск: тот же ref повторился в файле или только что вставлен в этом прогоне:',
+    stats.skippedDupRefFromSameFile,
+  );
+  console.log('Пропуск по номеру (ref), всего:', stats.skippedDupRef);
+  console.log('');
+  console.log('Пропуск: ИНН уже был в базе до импорта:', stats.skippedDupInnFromDb);
+  console.log(
+    'Пропуск: тот же ИНН повторился в файле или только что вставлен в этом прогоне:',
+    stats.skippedDupInnFromSameFile,
+  );
+  console.log('Пропуск по ИНН, всего:', stats.skippedDupInn);
+  console.log('');
+  console.log(dryRun ? 'Условно «импортировано» (dry-run):' : 'Новых записей в БД:', stats.inserted);
+  console.log('Ошибок при записи:', stats.errors);
+  console.log('==========================');
+  console.log('');
+}
+
+/**
  * @param {unknown} entry
  * @param {{
- *   stats: { parsed: number, skippedNoData: number, skippedDupInn: number, skippedDupRef: number, inserted: number, errors: number },
+ *   stats: object,
  *   pool: import('pg').Pool | null,
  *   dryRun: boolean,
  *   dupSets: { innSet: Set<string>, refSet: Set<string> } | null,
+ *   innDbSnapshot: Set<string> | null,
+ *   refDbSnapshot: Set<string> | null,
+ *   uniqueInnsInMapped: Set<string>,
  * }} ctx
  */
 async function importSingleEntry(entry, ctx) {
-  const { stats, pool, dryRun, dupSets } = ctx;
+  const { stats, pool, dryRun, dupSets, innDbSnapshot, refDbSnapshot, uniqueInnsInMapped } = ctx;
+  stats.sourceEntries += 1;
+
   const payload = mapRegistryEntryToSites(entry);
   if (!payload) {
+    stats.skippedUnmapped += 1;
     stats.skippedNoData += 1;
     return;
   }
   stats.parsed += 1;
+  uniqueInnsInMapped.add(payload.innNorm);
 
   if (dryRun) {
     stats.inserted += 1;
@@ -402,10 +548,14 @@ async function importSingleEntry(entry, ctx) {
   if (dupSets) {
     if (payload.externalRef && dupSets.refSet.has(payload.externalRef)) {
       stats.skippedDupRef += 1;
+      if (refDbSnapshot?.has(payload.externalRef)) stats.skippedDupRefFromDb += 1;
+      else stats.skippedDupRefFromSameFile += 1;
       return;
     }
     if (dupSets.innSet.has(payload.innNorm)) {
       stats.skippedDupInn += 1;
+      if (innDbSnapshot?.has(payload.innNorm)) stats.skippedDupInnFromDb += 1;
+      else stats.skippedDupInnFromSameFile += 1;
       return;
     }
   }
@@ -417,6 +567,7 @@ async function importSingleEntry(entry, ctx) {
     const result = await insertLicenseBundle(client, payload);
     if (!result.ok) {
       await client.query('ROLLBACK');
+      stats.skippedNoFkko += 1;
       stats.skippedNoData += 1;
       return;
     }
@@ -509,27 +660,48 @@ async function main() {
   }
 
   const stats = {
-    parsed: 0,
+    sourceEntries: 0,
+    skippedUnmapped: 0,
+    skippedNoFkko: 0,
     skippedNoData: 0,
-    skippedDupInn: 0,
+    parsed: 0,
     skippedDupRef: 0,
+    skippedDupRefFromDb: 0,
+    skippedDupRefFromSameFile: 0,
+    skippedDupInn: 0,
+    skippedDupInnFromDb: 0,
+    skippedDupInnFromSameFile: 0,
     inserted: 0,
     errors: 0,
   };
 
+  const uniqueInnsInMapped = new Set();
+
   const pool = dryRun ? null : getPool();
   const innExpr = LICENSE_INN_NORMALIZED_EXPR;
   let dupSets = null;
+  /** Снимок ИНН и ref в БД на старт импорта (для расшифровки «уже в базе» vs «повтор в файле»). */
+  let innDbSnapshot = null;
+  let refDbSnapshot = null;
+  /** Счётчики БД на момент старта (дублируются в JSON в конце). */
+  let dbPrefetchAtStart = null;
   if (pool) {
-    dupSets = await loadImportDuplicateSets(pool, innExpr);
-    console.log(
-      'Кэш дублей: ИНН',
-      dupSets.innSet.size,
-      '| внешних ref',
-      dupSets.refSet.size,
-    );
+    const loaded = await loadImportDuplicateSets(pool, innExpr);
+    dupSets = { innSet: loaded.innSet, refSet: loaded.refSet };
+    innDbSnapshot = new Set(loaded.innSet);
+    refDbSnapshot = new Set(loaded.refSet);
+    dbPrefetchAtStart = loaded.dbPrefetch;
+    printDbPrefetchBeforeImport(loaded.dbPrefetch);
   }
-  const ctx = { stats, pool, dryRun, dupSets };
+  const ctx = {
+    stats,
+    pool,
+    dryRun,
+    dupSets,
+    innDbSnapshot,
+    refDbSnapshot,
+    uniqueInnsInMapped,
+  };
 
   if (useStream) {
     console.log('Файл', (st.size / (1024 * 1024)).toFixed(1), 'МБ — режим потока.');
@@ -558,9 +730,18 @@ async function main() {
     await pool.end();
   }
 
+  printImportStatistics(stats, uniqueInnsInMapped, dryRun);
+
+  const statsForJson = {
+    ...stats,
+    uniqueInnsAmongMapped: uniqueInnsInMapped.size,
+    mappedRowsWithRepeatedInnInFile: Math.max(0, stats.parsed - uniqueInnsInMapped.size),
+    ...(dbPrefetchAtStart ? { dbPrefetchAtStart } : {}),
+  };
+
   console.log(
     dryRun ? 'DRY-RUN (записей в БД нет).' : 'Готово.',
-    JSON.stringify(stats, null, 0),
+    JSON.stringify(statsForJson, null, 0),
   );
 }
 
