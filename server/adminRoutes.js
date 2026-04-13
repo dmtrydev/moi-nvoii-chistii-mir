@@ -255,6 +255,7 @@ adminRouter.get('/licenses', async (req, res) => {
     offset = 0,
     status: statusQ,
     importSource: importSourceQ,
+    importRegistryStatus: importRegistryStatusQ,
     importRegistryInactive: importRegistryInactiveQ,
     needsReview: needsReviewQ,
     q: searchQ,
@@ -270,6 +271,18 @@ adminRouter.get('/licenses', async (req, res) => {
       : null;
 
   const importSourceStr = String(importSourceQ ?? '').trim();
+  const importRegistryStatusStr = String(importRegistryStatusQ ?? '').trim().toLowerCase();
+  const allowedRegistryStatuses = new Set([
+    'active',
+    'annulled',
+    'paused',
+    'pausedpart',
+    'terminated',
+    'unknown',
+  ]);
+  const importRegistryStatusFilter = allowedRegistryStatuses.has(importRegistryStatusStr)
+    ? importRegistryStatusStr
+    : null;
   const registryInactiveOnly = String(importRegistryInactiveQ ?? '').toLowerCase() === 'true';
 
   const needsReviewFilter = String(needsReviewQ ?? '').toLowerCase() === 'true';
@@ -296,6 +309,10 @@ adminRouter.get('/licenses', async (req, res) => {
     whereParts.push('import_registry_inactive = TRUE');
     whereParts.push(`import_source = $${pi++}`);
     countParams.push('rpn_registry');
+  }
+  if (importRegistryStatusFilter) {
+    whereParts.push(`import_registry_status = $${pi++}`);
+    countParams.push(importRegistryStatusFilter);
   }
   if (needsReviewFilter) {
     whereParts.push('import_needs_review = TRUE');
@@ -341,6 +358,8 @@ adminRouter.get('/licenses', async (req, res) => {
             deleted_by AS "deletedBy",
             created_at AS "createdAt",
             import_source AS "importSource",
+            import_registry_status AS "importRegistryStatus",
+            import_registry_status_ru AS "importRegistryStatusRu",
             import_needs_review AS "importNeedsReview",
             import_registry_inactive AS "importRegistryInactive"
      FROM licenses

@@ -114,6 +114,8 @@ export interface LicenseData {
   fileStoredName?: string | null;
   /** Импорт из внешнего реестра (например rpn_registry); null — ручная загрузка */
   importSource?: string | null;
+  importRegistryStatus?: string | null;
+  importRegistryStatusRu?: string | null;
   importNeedsReview?: boolean;
   /** Импорт из rpn_registry: в выгрузке реестра статус не active */
   importRegistryInactive?: boolean;

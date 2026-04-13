@@ -33,6 +33,8 @@ interface LicenseItem {
   deletedAt: string | null;
   createdAt: string;
   importSource?: string | null;
+  importRegistryStatus?: string | null;
+  importRegistryStatusRu?: string | null;
   importNeedsReview?: boolean;
   importRegistryInactive?: boolean;
 }
@@ -65,6 +67,14 @@ interface LicenseStats {
 const PAGE_SIZE = 25;
 const PENDING_QUEUE_LIMIT = 200;
 type AdminStatusFilter = 'all' | 'pending' | 'recheck' | 'approved' | 'rejected';
+type RegistryStatusFilter =
+  | 'all'
+  | 'active'
+  | 'annulled'
+  | 'paused'
+  | 'pausedpart'
+  | 'terminated'
+  | 'unknown';
 
 function parseImportListFilter(v: string | null): AdminImportListFilter {
   if (
@@ -87,6 +97,21 @@ function parseStatusFilter(v: string | null): AdminStatusFilter {
   return 'all';
 }
 
+function parseRegistryStatusFilter(v: string | null): RegistryStatusFilter {
+  if (
+    v === 'all' ||
+    v === 'active' ||
+    v === 'annulled' ||
+    v === 'paused' ||
+    v === 'pausedpart' ||
+    v === 'terminated' ||
+    v === 'unknown'
+  ) {
+    return v;
+  }
+  return 'all';
+}
+
 export default function AdminLicensesPage(): JSX.Element {
   const { accessToken } = useAuth();
   const location = useLocation();
@@ -94,6 +119,7 @@ export default function AdminLicensesPage(): JSX.Element {
   const initialPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
   const initialImportFilter = parseImportListFilter(searchParams.get('listFilter'));
   const initialStatusFilter = parseStatusFilter(searchParams.get('status'));
+  const initialRegistryStatusFilter = parseRegistryStatusFilter(searchParams.get('registryStatus'));
   const initialSearchQ = searchParams.get('q') ?? '';
   const [items, setItems] = useState<LicenseItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -112,6 +138,8 @@ export default function AdminLicensesPage(): JSX.Element {
   const [batchAiStatus, setBatchAiStatus] = useState('');
   const [importListFilter, setImportListFilter] = useState<AdminImportListFilter>(initialImportFilter);
   const [statusFilter, setStatusFilter] = useState<AdminStatusFilter>(initialStatusFilter);
+  const [registryStatusFilter, setRegistryStatusFilter] =
+    useState<RegistryStatusFilter>(initialRegistryStatusFilter);
   const [listSearchInput, setListSearchInput] = useState(initialSearchQ);
   const [listSearchQ, setListSearchQ] = useState(initialSearchQ);
   const didInitFiltersRef = useRef(false);
@@ -120,18 +148,22 @@ export default function AdminLicensesPage(): JSX.Element {
     page?: number;
     listFilter?: AdminImportListFilter;
     status?: AdminStatusFilter;
+    registryStatus?: RegistryStatusFilter;
     q?: string;
   }): void {
     const p = new URLSearchParams(searchParams);
     const nextPage = Math.max(1, next.page ?? page);
     const nextListFilter = next.listFilter ?? importListFilter;
     const nextStatus = next.status ?? statusFilter;
+    const nextRegistryStatus = next.registryStatus ?? registryStatusFilter;
     const nextQ = next.q ?? listSearchQ;
     p.set('page', String(nextPage));
     if (nextListFilter === 'all') p.delete('listFilter');
     else p.set('listFilter', nextListFilter);
     if (nextStatus === 'all') p.delete('status');
     else p.set('status', nextStatus);
+    if (nextRegistryStatus === 'all') p.delete('registryStatus');
+    else p.set('registryStatus', nextRegistryStatus);
     if (nextQ.trim()) p.set('q', nextQ.trim());
     else p.delete('q');
     setSearchParams(p, { replace: true });
@@ -148,10 +180,12 @@ export default function AdminLicensesPage(): JSX.Element {
     const urlPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
     const urlListFilter = parseImportListFilter(searchParams.get('listFilter'));
     const urlStatus = parseStatusFilter(searchParams.get('status'));
+    const urlRegistryStatus = parseRegistryStatusFilter(searchParams.get('registryStatus'));
     const urlQ = searchParams.get('q') ?? '';
     if (page !== urlPage) setPage(urlPage);
     if (importListFilter !== urlListFilter) setImportListFilter(urlListFilter);
     if (statusFilter !== urlStatus) setStatusFilter(urlStatus);
+    if (registryStatusFilter !== urlRegistryStatus) setRegistryStatusFilter(urlRegistryStatus);
     if (listSearchInput !== urlQ) setListSearchInput(urlQ);
     if (listSearchQ !== urlQ) setListSearchQ(urlQ);
   }, [searchParams]);
@@ -203,6 +237,7 @@ export default function AdminLicensesPage(): JSX.Element {
     if (importListFilter === 'registry_inactive') qs.set('importRegistryInactive', 'true');
     if (importListFilter === 'needs_review') qs.set('needsReview', 'true');
     if (statusFilter !== 'all') qs.set('status', statusFilter);
+    if (registryStatusFilter !== 'all') qs.set('importRegistryStatus', registryStatusFilter);
     if (listSearchQ) qs.set('q', listSearchQ);
     const res = await fetch(getApiUrl(`/api/admin/licenses?${qs}`), {
       headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
@@ -230,7 +265,7 @@ export default function AdminLicensesPage(): JSX.Element {
     }
     setPage(1);
     setListUrlState({ page: 1 });
-  }, [importListFilter, statusFilter, listSearchQ]);
+  }, [importListFilter, statusFilter, registryStatusFilter, listSearchQ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,7 +284,7 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, page, importListFilter, statusFilter, listSearchQ]);
+  }, [accessToken, page, importListFilter, statusFilter, registryStatusFilter, listSearchQ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
@@ -815,6 +850,19 @@ export default function AdminLicensesPage(): JSX.Element {
             <option value="registry_inactive">Неактивные в реестре</option>
             <option value="needs_review">Нужна перепроверка (импорт)</option>
           </select>
+          <select
+            className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
+            value={registryStatusFilter}
+            onChange={(e) => setRegistryStatusFilter(e.target.value as RegistryStatusFilter)}
+          >
+            <option value="all">Все статусы реестра</option>
+            <option value="active">Действующая</option>
+            <option value="annulled">Аннулирована</option>
+            <option value="paused">Приостановлена</option>
+            <option value="pausedpart">Частично приостановлена</option>
+            <option value="terminated">Прекращена</option>
+            <option value="unknown">Неизвестный</option>
+          </select>
         </div>
       </div>
       <div className="glass-table-wrap">
@@ -849,6 +897,11 @@ export default function AdminLicensesPage(): JSX.Element {
                       </span>
                       {lic.importRegistryInactive ? (
                         <div className="text-[11px] text-rose-800 font-medium">Неактивна (реестр)</div>
+                      ) : null}
+                      {lic.importRegistryStatusRu ? (
+                        <div className="text-[11px] text-ink-muted">
+                          Статус РПН: {lic.importRegistryStatusRu}
+                        </div>
                       ) : null}
                       {lic.importNeedsReview ? (
                         <div className="text-[11px] text-amber-800 font-medium">На перепроверку</div>
