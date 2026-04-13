@@ -66,7 +66,7 @@ export default function UserProfilePage(): JSX.Element {
             <UserAvatar name={user?.fullName ?? null} email={user?.email ?? null} size={52} />
             <div>
               <div className="glass-kicker">Профиль</div>
-              <h1 className="glass-title mt-1 mb-0 text-2xl">{displayName}</h1>
+              <h1 className="typo-h1 mt-1 mb-0">{displayName}</h1>
               <p className="text-sm glass-muted mt-1">{user?.email ?? '—'}</p>
               <p className="text-xs glass-muted mt-2">Роль: {user?.role ?? '—'}</p>
             </div>

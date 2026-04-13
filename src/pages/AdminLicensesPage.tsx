@@ -401,7 +401,7 @@ export default function AdminLicensesPage(): JSX.Element {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="glass-kicker">Moderation</div>
-            <h1 className="glass-title mt-1">Объекты (лицензии)</h1>
+            <h1 className="typo-h1 mt-1">Объекты (лицензии)</h1>
             {stats ? (
               <div className="mt-4 flex flex-wrap gap-2 text-sm">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-bg border border-black/[0.06] text-ink">
@@ -473,7 +473,7 @@ export default function AdminLicensesPage(): JSX.Element {
                 className="glass-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 id="dup-modal-title" className="glass-title">
+                <h2 id="dup-modal-title" className="typo-h2">
                   Дубли по ИНН
                 </h2>
                 {!dupGroups.length ? (

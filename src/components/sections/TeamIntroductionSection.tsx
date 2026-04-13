@@ -9,7 +9,7 @@ export function TeamIntroductionSection(): JSX.Element {
         <div className="flex items-start gap-10 relative self-stretch w-full flex-[0_0_auto]">
           <div className="flex-col w-[705px] items-start gap-[60px] pl-[50px] pr-0 py-0 flex relative">
             <div className="flex self-stretch w-full flex-[0_0_auto] flex-col items-start relative">
-              <h2 className="relative self-stretch mt-[-1.00px] font-manrope font-medium text-white text-[70px] tracking-[-0.70px] leading-[84px]">
+              <h2 className="typo-h2 relative self-stretch mt-[-1.00px] text-white">
                 Join us in building a <br />
                 greener future.
               </h2>

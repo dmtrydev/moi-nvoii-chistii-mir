@@ -122,7 +122,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
 
         <div className="flex gap-6 items-start">
           <aside className="w-full max-w-[320px] glass-panel p-4 sm:p-5 md:p-6">
-            <h2 className="text-sm font-semibold text-ink mb-3">Разделы</h2>
+            <h2 className="typo-h2 text-ink mb-3">Разделы</h2>
             <div className="space-y-2">
               {sections.map((s) => (
                 <button
@@ -144,7 +144,7 @@ export default function FkkoDirectoryPage(): JSX.Element {
 
           <section className="flex-1 glass-panel p-4 sm:p-5 md:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <h2 className="text-lg font-semibold text-ink">{activeSection === 'fkko' ? 'ФККО: коды отходов' : 'Раздел'}</h2>
+              <h2 className="typo-h2 text-ink">{activeSection === 'fkko' ? 'ФККО: коды отходов' : 'Раздел'}</h2>
 
               <div className="text-xs text-ink-muted">
                 {error ? '' : isLoading ? '' : `Показано: ${visibleCodes.length} / ${filteredCodes.length}`}

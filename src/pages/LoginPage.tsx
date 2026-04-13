@@ -47,7 +47,7 @@ export default function LoginPage(): JSX.Element {
       <div className="w-full max-w-md glass-shell p-8 space-y-5">
         <div>
           <div className="glass-kicker">Welcome</div>
-          <h1 className="text-[28px] font-semibold tracking-tight text-ink mt-2">Вход / Регистрация</h1>
+          <h1 className="typo-h1 tracking-tight text-ink mt-2">Вход / Регистрация</h1>
         </div>
 
         <div className="glass-panel p-1.5 flex gap-2">

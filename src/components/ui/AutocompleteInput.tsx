@@ -86,8 +86,9 @@ export function AutocompleteInput({
   };
 
   const panelClass =
-    dropdownClassName ?? 'liquid-dropdown absolute z-40 mt-1 w-full overflow-hidden rounded-xl';
-  const ulClass = listClassName ?? 'max-h-64 overflow-y-auto py-1';
+    dropdownClassName ??
+    "absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5";
+  const ulClass = listClassName ?? 'no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0';
 
   return (
     <div ref={rootRef} className="relative">
@@ -140,8 +141,8 @@ export function AutocompleteInput({
                 const highlighted = idx === highlightedIndex;
                 const optCls =
                   optionClassName?.({ index: idx, highlighted }) ??
-                  `block w-full px-3 py-2 text-left text-sm transition-colors ${
-                    highlighted ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg'
+                  `block w-full min-h-[60px] px-[15px] py-3 text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 ${
+                    highlighted ? 'bg-[#ffffff99]' : 'hover:bg-[#ffffff99]'
                   }`;
                 return (
                   <li key={`${option.value}-${idx}`}>
@@ -153,7 +154,7 @@ export function AutocompleteInput({
               })}
             </ul>
           ) : (
-            <div className={emptyClassName ?? 'px-3 py-2 text-sm text-ink-muted'}>{noResultsText}</div>
+            <div className={emptyClassName ?? 'px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]'}>{noResultsText}</div>
           )}
         </div>
       )}

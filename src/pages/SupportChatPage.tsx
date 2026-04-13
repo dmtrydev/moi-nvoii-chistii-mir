@@ -187,7 +187,7 @@ export default function SupportChatPage(): JSX.Element {
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
             <p className="glass-kicker">Support</p>
-            <h1 className="glass-title mt-1">Чат поддержки</h1>
+            <h1 className="typo-h1 mt-1">Чат поддержки</h1>
           </div>
           {isAdmin && (
             <div className="glass-chip">

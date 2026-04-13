@@ -61,7 +61,7 @@ export default function AdminLogsPage(): JSX.Element {
     <div className="space-y-4">
       <div className="glass-panel p-5">
         <div className="glass-kicker">Security</div>
-        <h1 className="glass-title mt-1">Аудит-логи</h1>
+        <h1 className="typo-h1 mt-1">Аудит-логи</h1>
       </div>
       {loading && <div className="glass-panel p-4 text-slate-600 text-sm">Загрузка...</div>}
       {error && <div className="glass-panel p-4 text-red-600 text-sm">{error}</div>}

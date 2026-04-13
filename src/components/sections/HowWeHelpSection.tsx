@@ -10,7 +10,7 @@ export function HowWeHelpSection(): JSX.Element {
           <header className="w-[1410px] items-end justify-between flex-[0_0_auto] flex relative">
             <div className="flex flex-1 grow flex-col items-start relative">
               <div className="flex flex-col items-start flex-[0_0_auto] relative self-stretch w-full">
-                <h2 className="relative flex items-center self-stretch mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-[70px] tracking-[-0.70px] leading-[84px]">
+                <h2 className="typo-h2 relative flex items-center self-stretch mt-[-1.00px] text-[#151e1b]">
                   How we help
                 </h2>
               </div>
@@ -75,7 +75,7 @@ export function HowWeHelpSection(): JSX.Element {
 
                       <div className="flex self-stretch w-full flex-[0_0_auto] flex-col items-start relative">
                         <div className="flex flex-col items-start pt-0 pb-[0.6px] px-0 relative self-stretch w-full flex-[0_0_auto]">
-                          <h3 className="relative self-stretch mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-[34px] tracking-[-1.02px] leading-[40.8px]">
+                          <h3 className="typo-h3 relative self-stretch mt-[-1.00px] text-[#151e1b]">
                             {card.title.split(' ').map((word, index, array) => {
                               if (card.id === 1) {
                                 if (index === 3 || index === 6) {

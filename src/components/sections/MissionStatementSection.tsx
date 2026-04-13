@@ -13,7 +13,7 @@ export function MissionStatementSection(): JSX.Element {
               <div className="relative self-stretch w-full h-[420px]">
                 <h1
                   id="mission-heading"
-                  className="absolute top-0 left-[calc(50.00%_-_385px)] w-[789px] h-[168px] font-manrope font-medium text-transparent text-[70px] text-center tracking-[-0.70px] leading-[84px]"
+                  className="typo-h1 absolute top-0 left-[calc(50.00%_-_385px)] w-[789px] h-[168px] text-transparent text-center"
                 >
                   <span className="text-[#151e1b] tracking-[-0.49px]">
                     Our mission is to create <br />

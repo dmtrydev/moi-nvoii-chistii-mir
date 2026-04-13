@@ -532,7 +532,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     />
                   </div>
                 ) : (
-                  <h1 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight leading-tight max-w-3xl text-ink">
+                  <h1 className="typo-h1 mt-3 tracking-tight max-w-3xl text-ink">
                     {display?.companyName || 'Организация'}
                   </h1>
                 )}
@@ -722,7 +722,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
 
                     <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                        <h3 className="typo-h3 uppercase tracking-[0.14em] text-ink-muted">
                           Площадки ({draft.sites?.length ?? 0})
                         </h3>
                         <button
@@ -961,7 +961,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     <section aria-labelledby="activity-strip-label">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <h2 id="activity-strip-label" className="text-base font-semibold text-ink">
+                          <h2 id="activity-strip-label" className="typo-h2 text-ink">
                             Виды деятельности
                           </h2>
                           <p className="mt-1 text-sm text-ink-muted max-w-xl">
@@ -978,14 +978,14 @@ export default function EnterpriseDetailsPage(): JSX.Element {
 
                     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="rounded-2xl bg-app-bg p-5 shadow-sm">
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">ИНН</h3>
+                        <h3 className="typo-h3 uppercase tracking-[0.14em] text-ink-muted">ИНН</h3>
                         <p className="mt-3 font-mono text-xl font-semibold text-ink tabular-nums">
                           {display?.inn || '—'}
                         </p>
                       </div>
                       {hazardClasses.length > 0 && (
                         <div className="rounded-2xl bg-app-bg p-5 shadow-sm sm:col-span-2 lg:col-span-1">
-                          <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                          <h3 className="typo-h3 uppercase tracking-[0.14em] text-ink-muted">
                             Классы опасности (по ФККО)
                           </h3>
                           <div className="mt-3 flex flex-wrap gap-2">
@@ -1003,13 +1003,13 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                     </section>
 
                     <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
-                      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">Адрес</h3>
+                      <h3 className="typo-h3 uppercase tracking-[0.14em] text-ink-muted">Адрес</h3>
                       <p className="mt-3 text-sm text-ink leading-relaxed">{display?.address || 'не указан'}</p>
                     </section>
 
                     {sites.length > 0 && (
                       <section className="rounded-2xl bg-app-bg p-5 sm:p-6 shadow-sm">
-                        <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-muted">
+                        <h3 className="typo-h3 uppercase tracking-[0.14em] text-ink-muted">
                           Площадки ({sites.length})
                         </h3>
                         <div className="mt-4 space-y-4">
@@ -1063,7 +1063,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
 
               {tab === 'fkko' && (
                 <section>
-                  <h2 className="text-xl font-semibold text-ink">Коды ФККО с расшифровкой</h2>
+                  <h2 className="typo-h2 text-ink">Коды ФККО с расшифровкой</h2>
                   <p className="mt-2 text-sm text-ink-muted">
                     Структура кода: класс, группа, подгруппа, вид, тип и класс опасности отхода.
                   </p>
@@ -1091,7 +1091,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                 item?.fileStoredName ||
                 item?.importSource) && (
                 <section className="mt-10 rounded-2xl bg-app-bg p-6 sm:p-7 shadow-sm">
-                  <h2 className="text-lg font-semibold text-ink">Модерация и документ</h2>
+                  <h2 className="typo-h2 text-ink">Модерация и документ</h2>
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-sm text-ink-muted">

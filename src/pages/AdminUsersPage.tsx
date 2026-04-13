@@ -79,7 +79,7 @@ export default function AdminUsersPage(): JSX.Element {
     <div className="space-y-4">
       <div className="glass-panel p-5">
         <div className="glass-kicker">Admin</div>
-        <h1 className="glass-title mt-1">Пользователи</h1>
+        <h1 className="typo-h1 mt-1">Пользователи</h1>
         <p className="mt-2 text-sm text-ink-muted">Только SUPERADMIN может назначать модераторов.</p>
       </div>
 

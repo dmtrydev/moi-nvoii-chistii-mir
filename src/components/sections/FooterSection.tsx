@@ -51,7 +51,7 @@ export function FooterSection(): JSX.Element {
             <div className="inline-flex flex-col items-start justify-center gap-7 relative flex-[0_0_auto]">
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#2e7d32] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <h3 className="typo-h3 relative flex items-center w-fit mt-[-1.00px] text-[#2e7d32] whitespace-nowrap">
                     Company
                   </h3>
                 </div>
@@ -89,7 +89,7 @@ export function FooterSection(): JSX.Element {
             <div className="inline-flex flex-col items-start justify-center gap-7 relative flex-[0_0_auto]">
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#2e7d32] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <h3 className="typo-h3 relative flex items-center w-fit mt-[-1.00px] text-[#2e7d32] whitespace-nowrap">
                     Useful Info
                   </h3>
                 </div>
@@ -121,7 +121,7 @@ export function FooterSection(): JSX.Element {
             <div className="inline-flex flex-col min-w-[151.27px] items-start justify-center gap-[27px] relative flex-[0_0_auto]">
               <div className="inline-flex flex-[0_0_auto] flex-col items-start relative">
                 <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                  <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#2e7d32] text-[22px] tracking-[-0.22px] leading-[24.2px] whitespace-nowrap">
+                  <h3 className="typo-h3 relative flex items-center w-fit mt-[-1.00px] text-[#2e7d32] whitespace-nowrap">
                     Services
                   </h3>
                 </div>
@@ -154,7 +154,7 @@ export function FooterSection(): JSX.Element {
 
           <div className="flex flex-col w-[465.3px] items-start gap-5 relative">
             <div className="flex self-stretch w-full flex-[0_0_auto] flex-col items-start relative">
-              <h3 className="relative flex items-center self-stretch mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-[22px] tracking-[-0.22px] leading-[24.2px]">
+              <h3 className="typo-h3 relative flex items-center self-stretch mt-[-1.00px] text-[#151e1b]">
                 Subscribe to our newsletter.
               </h3>
             </div>

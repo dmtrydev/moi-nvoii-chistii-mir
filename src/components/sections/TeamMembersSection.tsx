@@ -8,7 +8,7 @@ export function TeamMembersSection(): JSX.Element {
         <RevealOnScroll variant="reveal" className="flex max-w-[940px] w-full flex-[0_0_auto] flex-col items-start relative">
         <header className="flex max-w-[940px] w-full flex-[0_0_auto] flex-col items-start relative">
           <div className="h-[252px] relative self-stretch w-full">
-            <h2 className="absolute top-0 left-[calc(50.00%_-_466px)] w-[950px] h-[168px] font-manrope font-medium text-[#151e1b] text-[70px] text-center tracking-[-0.70px] leading-[84px]">
+            <h2 className="typo-h2 absolute top-0 left-[calc(50.00%_-_466px)] w-[950px] h-[168px] text-[#151e1b] text-center">
               Our team is the driving force <br />
               behind our mission to create
             </h2>
@@ -37,7 +37,7 @@ export function TeamMembersSection(): JSX.Element {
                 >
                   <div className="inline-flex flex-col items-start relative flex-[0_0_auto]">
                     <div className="flex flex-col items-start relative self-stretch w-full flex-[0_0_auto]">
-                      <h3 className="relative flex items-center w-fit mt-[-1.00px] font-manrope font-medium text-[#151e1b] text-xl tracking-[-0.20px] leading-6 whitespace-nowrap">
+                      <h3 className="typo-h3 relative flex items-center w-fit mt-[-1.00px] text-[#151e1b] whitespace-nowrap">
                         {member.name}
                       </h3>
                     </div>

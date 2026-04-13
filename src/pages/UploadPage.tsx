@@ -462,7 +462,7 @@ export default function UploadPage(): JSX.Element {
               <div className="w-14 h-14 rounded-full bg-accent-soft flex items-center justify-center mx-auto mb-4">
                 <MapPin className="w-7 h-7 text-[#1f5c14]" />
               </div>
-              <h2 className="text-xl font-semibold text-ink mb-2">Заявка отправлена на проверку</h2>
+              <h2 className="typo-h2 text-ink mb-2">Заявка отправлена на проверку</h2>
               <p className="text-ink-muted text-sm mb-6">
                 Мы отправили заявку администраторам. После проверки объект появится на карте.
               </p>

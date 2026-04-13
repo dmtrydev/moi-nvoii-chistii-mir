@@ -8,7 +8,7 @@ export function EcoSolutionsSection(): JSX.Element {
       <div className="flex-col max-w-[1510px] w-full justify-center gap-[120px] px-[50px] py-0 flex items-center relative">
         <RevealOnScroll variant="reveal-blur" className="items-start justify-between flex relative self-stretch w-full flex-[0_0_auto]">
           <div className="flex flex-1 grow flex-col items-start relative">
-            <h2 className="relative self-stretch mt-[-1.00px] text-slate-900 font-manrope font-medium text-[70px] tracking-[-0.70px] leading-[84px]">
+            <h2 className="typo-h2 relative self-stretch mt-[-1.00px] text-slate-900">
               Eco-friendly <br />
               solutions.
             </h2>

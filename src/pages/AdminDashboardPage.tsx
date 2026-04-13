@@ -258,7 +258,7 @@ export default function AdminDashboardPage(): JSX.Element {
       <div className="glass-panel p-5 flex items-start justify-between gap-4">
         <div>
           <div className="glass-kicker">Overview</div>
-          <h1 className="glass-title mt-1">Админ-панель</h1>
+          <h1 className="typo-h1 mt-1">Админ-панель</h1>
         </div>
       </div>
       {loading && <div className="glass-panel p-4 text-ink-muted text-sm">Загрузка...</div>}
@@ -266,7 +266,7 @@ export default function AdminDashboardPage(): JSX.Element {
       {data && (
         <div className="grid gap-4 md:grid-cols-2">
           <div className="glass-panel p-4">
-            <h2 className="text-sm font-semibold text-[#e8f7eb] mb-3">Новые объекты по дням</h2>
+            <h2 className="typo-h2 text-[#e8f7eb] mb-3">Новые объекты по дням</h2>
             <ul className="space-y-1 text-sm text-[#c3d7cb]">
               {data.licensesByDay.map((d) => (
                 <li key={d.day} className="flex justify-between glass-panel px-3 py-2.5">
@@ -277,7 +277,7 @@ export default function AdminDashboardPage(): JSX.Element {
             </ul>
           </div>
           <div className="glass-panel p-4">
-            <h2 className="text-sm font-semibold text-[#e8f7eb] mb-3">Очередь модерации</h2>
+            <h2 className="typo-h2 text-[#e8f7eb] mb-3">Очередь модерации</h2>
             <dl className="space-y-1 text-sm text-[#c3d7cb]">
               <div className="flex justify-between glass-panel px-3 py-2.5">
                 <dt>Ожидают</dt>
@@ -294,7 +294,7 @@ export default function AdminDashboardPage(): JSX.Element {
             </dl>
           </div>
           <div className="glass-panel p-4 md:col-span-2">
-            <h2 className="text-sm font-semibold text-[#e8f7eb] mb-2">Импорт реестра РПН: неактивные</h2>
+            <h2 className="typo-h2 text-[#e8f7eb] mb-2">Импорт реестра РПН: неактивные</h2>
             <p className="text-xs text-[#9bb5a8] mb-3 leading-relaxed">
               Записи с флагом «неактивна в выгрузке реестра» (в списке объектов отображаются как «Неактивна
               (реестр)»). Они не показываются на публичной карте и в поиске.
@@ -334,7 +334,7 @@ export default function AdminDashboardPage(): JSX.Element {
             )}
           </div>
           <div className="glass-panel p-4 md:col-span-2">
-            <h2 className="text-sm font-semibold text-[#e8f7eb] mb-2">Наименования ФККО (РПН)</h2>
+            <h2 className="typo-h2 text-[#e8f7eb] mb-2">Наименования ФККО (РПН)</h2>
             <p className="text-xs text-[#9bb5a8] mb-4 leading-relaxed">
               Один раз подтянуть официальные названия для всех кодов из одобренных лицензий и сохранить в базе.
               После этого главная, карта и справочник получают подписи из БД без лишних запросов к rpn.gov.ru и без
@@ -382,7 +382,7 @@ export default function AdminDashboardPage(): JSX.Element {
               {fkkoTitlesSync?.running ? 'Синхронизация выполняется…' : 'Обновить наименования ФККО из РПН'}
             </button>
             <div className="mt-8 pt-6 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-[#e8f7eb] mb-2">Коды без описания в базе</h3>
+              <h3 className="typo-h3 text-[#e8f7eb] mb-2">Коды без описания в базе</h3>
               <p className="text-xs text-[#9bb5a8] mb-4 leading-relaxed">
                 Список кодов из одобренных лицензий, для которых в{' '}
                 <span className="text-[#c3d7cb]">fkko_official_titles</span> ещё нет текста (РПН не вернул или код

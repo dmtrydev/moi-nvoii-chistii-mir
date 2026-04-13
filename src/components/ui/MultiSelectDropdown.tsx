@@ -6,6 +6,48 @@ function normalize(v: string): string {
 
 type LabelState = { isOpen: boolean; hasSelection: boolean };
 
+const unifiedPanelClass =
+  "absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5";
+const unifiedListClass = 'no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0';
+const unifiedOptionClass = ({
+  checked,
+  isLast,
+}: {
+  option: string;
+  checked: boolean;
+  index: number;
+  isLast: boolean;
+}): string =>
+  [
+    'block w-full min-h-[60px] text-left font-nunito font-semibold text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150',
+    checked ? 'bg-[#ffffff99]' : 'hover:bg-[#ffffff99]',
+    isLast ? 'rounded-b-[10px]' : '',
+  ].join(' ');
+
+function UnifiedCheckbox({ checked }: { checked: boolean }): JSX.Element {
+  if (checked) {
+    return (
+      <span className="relative block w-[35px] h-[35px]">
+        <span className="absolute inset-0 bg-[#b5d44a] rounded-[9px]" />
+        <svg className="absolute inset-0 w-full h-full p-[8px]" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path
+            d="M4 12L9 17L20 6"
+            stroke="#2b3335"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className="relative block w-[35px] h-[35px]">
+      <span className="absolute inset-0 bg-[#ffffff73] rounded-[9px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[''] before:absolute before:inset-0 before:p-px before:rounded-[9px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none" />
+    </span>
+  );
+}
+
 export function MultiSelectDropdown({
   options,
   selected,
@@ -101,7 +143,7 @@ export function MultiSelectDropdown({
       ? labelClassName({ isOpen, hasSelection })
       : (labelClassName ?? (selectedLabel ? 'text-ink' : 'text-ink-muted'));
 
-  const listScrollClass = dropdownListClassName ?? 'max-h-64 overflow-y-auto py-1';
+  const listScrollClass = dropdownListClassName ?? unifiedListClass;
   const normalizedInput = normalize(inputValue ?? '');
   const hasInputMode = typeof onInputValueChange === 'function';
   const visibleOptions = useMemo(() => {
@@ -196,28 +238,17 @@ export function MultiSelectDropdown({
 
       {isOpen && (
         <div
-          className={
-            dropdownPanelClassName ??
-            `liquid-dropdown absolute z-40 mt-1 w-full overflow-hidden rounded-xl ${maxHeightClassName}`
-          }
+          className={dropdownPanelClassName ?? `${unifiedPanelClass} ${maxHeightClassName}`}
         >
           <div className={listScrollClass}>
             {visibleOptions.map((opt, index) => {
               const checked = selectedSet.has(opt);
               const isLast = index === visibleOptions.length - 1;
               const labelText = formatOptionLabel ? formatOptionLabel(opt) : opt;
-              const defaultOptCls = [
-                'block w-full px-3 py-2 text-left text-sm transition-colors',
-                checked ? 'bg-accent-soft text-ink' : 'text-ink hover:bg-app-bg',
-              ].join(' ');
+              const defaultOptCls = unifiedOptionClass({ option: opt, checked, index, isLast });
               const btnCls =
                 optionButtonClassName?.({ option: opt, checked, index, isLast }) ?? defaultOptCls;
-              const defaultBox = [
-                'h-5 w-5 rounded-[4px] border flex items-center justify-center transition-colors',
-                checked
-                  ? 'bg-gradient-to-br from-accent-from to-accent-to border-transparent text-[#1a2e12]'
-                  : 'bg-white border-black/15 text-transparent',
-              ].join(' ');
+              const defaultBox = 'shrink-0';
               const boxCls = checkboxClassName?.(checked) ?? defaultBox;
 
               const labelCls =
@@ -241,15 +272,7 @@ export function MultiSelectDropdown({
                   >
                     <span className="inline-flex w-full min-h-[60px] items-center gap-3 pl-[15px] pr-2">
                       <span aria-hidden className={boxCls}>
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                          <path
-                            d="M4.2 10.6 8.2 14.6 16.2 6.6"
-                            stroke="currentColor"
-                            strokeWidth="2.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                        <UnifiedCheckbox checked={checked} />
                       </span>
                       <span className={checked ? 'shrink-0 text-[#2b3335]' : 'shrink-0 text-[#828583]'}>
                         {optionIcon(opt, index)}
@@ -318,23 +341,15 @@ export function MultiSelectDropdown({
                 >
                   <span className="inline-flex items-center gap-2">
                     <span aria-hidden className={boxCls}>
-                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                        <path
-                          d="M4.2 10.6 8.2 14.6 16.2 6.6"
-                          stroke="currentColor"
-                          strokeWidth="2.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                        <UnifiedCheckbox checked={checked} />
                     </span>
-                    <span>{labelText}</span>
+                      <span className="font-nunito font-semibold text-lg text-[#828583]">{labelText}</span>
                   </span>
                 </button>
               );
             })}
             {visibleOptions.length === 0 && (
-              <div className={emptyOptionsClassName ?? 'px-3 py-2 text-sm text-ink-muted'}>Нет вариантов</div>
+              <div className={emptyOptionsClassName ?? 'px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]'}>Нет вариантов</div>
             )}
           </div>
         </div>

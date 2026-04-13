@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
@@ -28,6 +28,15 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
+import { TopNavigationSection } from '@/components/home-landing/TopNavigationSection';
+import heroBackground from '@/assets/home-landing/hero-background.png';
+import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
+import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
+import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
+import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
+import routeBuildIconPlaceholder from '@/assets/map/route-build-icon-placeholder.svg';
+import backToHomeIconPlaceholder from '@/assets/map/back-to-home-icon-placeholder.svg';
+import collapseMenuIconPlaceholder from '@/assets/map/collapse-menu-icon-placeholder.svg';
 
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
@@ -39,8 +48,51 @@ function getApiUrl(p: string): string {
   return base ? `${base}${p.startsWith('/') ? p : `/${p}`}` : p;
 }
 
-const mapField = 'liquid-field !h-11';
-const mapFieldSm = 'liquid-field !h-10';
+const filterInputBase =
+  'relative z-[2] box-border w-full h-[60px] rounded-[10px] border-0 bg-transparent px-[15px] py-[18px] font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none';
+const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
+const HOME_INTRO_MOTION_MS = 2200;
+const HOME_INTRO_DELAY_NAV_MS = 40;
+const HOME_INTRO_DELAY_FILTER_MS = 160;
+const HOME_INTRO_DELAY_MAP_MS = 280;
+const ROUTE_POLY_A =
+  "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
+const ROUTE_POLY_B =
+  "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
+const POLY_IMG =
+  "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
+const filterCtaDurationClass = 'duration-[600ms]';
+const filterCtaLabelShiftClass = [
+  'transition-transform',
+  filterCtaDurationClass,
+  'ease-[cubic-bezier(0.22,1,0.36,1)]',
+  'motion-reduce:transition-none',
+  'motion-reduce:group-hover:translate-x-0',
+  'group-hover:translate-x-[calc((21px+0.625rem)/2)]',
+].join(' ');
+const filterFieldShell =
+  'relative w-full h-full rounded-[10px] border border-black/[0.06] bg-white shadow-sm transition-[background-color,box-shadow,backdrop-filter,border-color] duration-200 ease-out hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)] focus-within:border-transparent focus-within:bg-[#ffffffa6] focus-within:backdrop-blur-[10px] focus-within:shadow-none focus-within:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
+const glassDropdownPanelDown =
+  'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+const vidTriggerBase =
+  'relative z-[2] w-full h-[60px] px-[15px] text-left flex items-center justify-between transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';
+function vidTriggerClass(isOpen: boolean): string {
+  if (isOpen) {
+    return [
+      vidTriggerBase,
+      'rounded-[10px_10px_0px_0px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[\'\'] before:absolute before:inset-0 before:p-px before:rounded-[10px_10px_0px_0px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none',
+    ].join(' ');
+  }
+  return [
+    vidTriggerBase,
+    'rounded-[10px] border border-black/[0.06] bg-white shadow-sm',
+    'hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]',
+  ].join(' ');
+}
+const vidLabelClass = ({ isOpen, hasSelection }: { isOpen: boolean; hasSelection: boolean }): string =>
+  ['font-nunito font-semibold text-lg', isOpen || hasSelection ? 'text-[#2b3335]' : 'text-[#828583]'].join(' ');
+const mapSectionTitleClass =
+  'typo-h3 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]';
 
 /** Внешняя ПКК во iframe (тот же движок, что ik8map.roscadastres.com: векторные границы #D20404). См. .env.example */
 const CADASTRE_IFRAME_URL = String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim();
@@ -232,10 +284,16 @@ export default function MapPage(): JSX.Element {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusCenter, setFocusCenter] = useState<LatLngExpression | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [introVisible, setIntroVisible] = useState(false);
   const [searchError, setSearchError] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [baseMapStyle, setBaseMapStyle] = useState<'osm' | 'cadastral'>('osm');
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setIntroVisible(true), 30);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -536,42 +594,71 @@ export default function MapPage(): JSX.Element {
 
 
   return (
-    <div className="flex h-screen overflow-hidden glass-bg">
-      <aside
-        className={`relative z-30 overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar flex-shrink-0 transition-[width] duration-300 ease-out ${
-          menuVisible
-            ? 'w-full max-w-[380px] lg:max-w-[460px] px-5 py-6 md:px-7 md:py-8 m-3 md:m-4 rounded-3xl bg-white shadow-eco-float border border-black/[0.04]'
-            : 'w-0 min-w-0 overflow-hidden px-0 py-0 m-0 border-0'
-        }`}
+    <div className="relative h-screen w-full min-w-[1440px] overflow-auto bg-[#f9fbfe]">
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 bg-[#f9fbfe]"
+        style={{
+          backgroundImage: `url(${heroBackground})`,
+          backgroundRepeat: 'repeat-y',
+          backgroundPosition: 'top center',
+          backgroundSize: 'min(1920px, 100vw) auto',
+        }}
+      />
+      <div
+        className="relative z-40"
+        style={{
+          opacity: introVisible ? 1 : 0,
+          transform: introVisible ? 'translateY(0)' : 'translateY(24px)',
+          transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
+          transitionDelay: `${HOME_INTRO_DELAY_NAV_MS}ms`,
+        }}
       >
-        <div className={`min-w-0 w-full max-w-full h-full ${!menuVisible ? 'invisible' : ''}`}>
-        <div className="flex items-center justify-between gap-3 mb-6 min-w-0">
+        <TopNavigationSection />
+      </div>
+
+      <div className="absolute inset-x-0 top-[95px] bottom-5 z-10">
+        <div className="relative mx-auto h-full w-full max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)]">
+      <aside
+        className={`absolute left-0 top-0 z-30 overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar transition-all duration-300 ${
+          menuVisible
+            ? 'w-[619px] h-full rounded-[32.5px] bg-[#ffffff4c] p-[35px] backdrop-blur-[10px]'
+            : 'w-0 h-0 p-0 overflow-hidden'
+        }`}
+        style={{
+          opacity: introVisible ? 1 : 0,
+          transform: introVisible ? 'translateY(0)' : 'translateY(30px)',
+          transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
+          transitionDelay: `${HOME_INTRO_DELAY_FILTER_MS}ms`,
+        }}
+      >
+        <div className={`relative z-[2] ${!menuVisible ? 'invisible' : ''}`}>
+        <div className="mb-5 flex h-20 items-center justify-between rounded-[32.5px] border border-white bg-[#ffffff80] px-6 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors min-w-0 shrink"
+            className="inline-flex items-center gap-2 text-[#2b3335] text-[18px] font-semibold transition-opacity hover:opacity-80"
           >
-            <ArrowLeft className="w-4 h-4 flex-shrink-0" />
+            <img className="h-[21px] w-[21px] shrink-0 object-contain" alt="" src={backToHomeIconPlaceholder} />
             <span className="truncate">На главную</span>
           </Link>
           <button
             type="button"
             onClick={() => setMenuVisible(false)}
-            className="glass-btn-soft inline-flex items-center justify-center gap-2 flex-shrink-0 h-9 min-w-[100px] px-3 py-2 text-xs font-medium whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 rounded-[20px] px-4 py-2 text-[18px] font-semibold text-[#2b3335] transition-opacity hover:opacity-80"
             title="Свернуть меню"
           >
-            <PanelLeftClose className="w-4 h-4 flex-shrink-0" />
+            <img className="h-4 w-4 shrink-0 object-contain" alt="" src={collapseMenuIconPlaceholder} />
             Свернуть
           </button>
         </div>
-        <div className="mb-6">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">Управление</p>
-          <h2 className="mt-1 text-lg font-semibold text-ink">Рабочая площадка — карта</h2>
-        </div>
 
-        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
-            Фильтры
-          </h3>
+        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+          <div className="mb-4">
+            <h3 className={mapSectionTitleClass}>
+              управление
+            </h3>
+            <p className="text-lg font-semibold text-[#5e6567]">Рабочая площадка — карта</p>
+          </div>
           <div className="space-y-3">
             {filterValidationError && (
               <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2.5 shadow-sm">
@@ -579,7 +666,7 @@ export default function MapPage(): JSX.Element {
               </div>
             )}
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">
+              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">
                 ФККО (необязательно)
               </p>
               <MultiSelectDropdown
@@ -587,7 +674,18 @@ export default function MapPage(): JSX.Element {
                 selected={filterFkko}
                 onChange={setFilterFkko}
                 placeholder="Выберите коды ФККО"
-                buttonClassName={mapField}
+                buttonClassName={vidTriggerClass}
+                labelClassName={vidLabelClass}
+                renderChevron={(open) => (
+                  <img
+                    className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                    alt=""
+                    src={vidChevronClosed}
+                  />
+                )}
+                renderCheckbox={(checked) => (checked ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />)}
+                dropdownPanelClassName={glassDropdownPanelDown}
+                dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
                 maxHeightClassName="max-h-64"
                 formatOptionLabel={(code) => {
                   const key = normalizeFkkoDigits(code);
@@ -599,7 +697,7 @@ export default function MapPage(): JSX.Element {
               />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">
+              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">
                 Вид обращения *
               </p>
               <MultiSelectDropdown
@@ -607,46 +705,78 @@ export default function MapPage(): JSX.Element {
                 selected={filterVid}
                 onChange={setFilterVid}
                 placeholder="Вид обращения"
-                buttonClassName={mapField}
+                buttonClassName={vidTriggerClass}
+                labelClassName={vidLabelClass}
+                renderChevron={(open) => (
+                  <img
+                    className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                    alt=""
+                    src={vidChevronClosed}
+                  />
+                )}
+                renderCheckbox={(checked) => (checked ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />)}
+                dropdownPanelClassName={glassDropdownPanelDown}
+                dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
                 maxHeightClassName="max-h-64"
               />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Регион (необязательно)</p>
-              <AutocompleteInput
-                value={filterRegion}
-                onChange={setFilterRegion}
-                options={regionOptions}
-                placeholder="Начните вводить регион"
-                inputClassName={mapField}
-                maxItems={10}
-                noResultsText="Начните вводить"
-              />
+              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Регион (необязательно)</p>
+              <div className={`group/region ${filterFieldShell}`}>
+                <AutocompleteInput
+                  value={filterRegion}
+                  onChange={setFilterRegion}
+                  options={regionOptions}
+                  placeholder="Начните вводить регион"
+                  inputClassName={filterInputBase}
+                  maxItems={10}
+                  noResultsText="Начните вводить"
+                  dropdownClassName={glassDropdownPanelDown}
+                  listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
+                />
+                <img
+                  className="pointer-events-none absolute right-[15px] top-1/2 z-[3] w-3 -translate-y-1/2 transition-transform duration-200 group-focus-within/region:rotate-180"
+                  alt=""
+                  src={POLY_IMG}
+                />
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="text-xs text-ink-muted hover:text-ink transition-colors"
-            >
-              Сбросить фильтры
-            </button>
-            <button
-              type="button"
-              onClick={handleFindClick}
-              className="w-full glass-btn-dark !h-11 !rounded-2xl text-[11px] font-medium"
-            >
-              Найти объект
-            </button>
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleFindClick}
+                className="group relative home-find-button flex h-[60px] min-w-[220px] items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
+              >
+                <span className="relative z-[2] inline-flex items-center gap-2.5">
+                  <span className={`font-nunito font-semibold text-[#2b3335] text-xl ${filterCtaLabelShiftClass}`}>Найти</span>
+                  <span className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}>
+                    <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="" src={filterSearchIcon} />
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className={`group relative z-[2] flex h-[52px] flex-1 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
+              >
+                <span className="relative z-[2] inline-flex items-center gap-2.5">
+                  <span className={`relative mt-[-1px] whitespace-nowrap font-nunito font-semibold text-[#2b3335] text-base text-center tracking-[0] leading-[normal] ${filterCtaLabelShiftClass}`}>Сбросить фильтры</span>
+                  <span className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}>
+                    <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="" src={filterResetIcon} />
+                  </span>
+                </span>
+              </button>
+            </div>
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
+        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+          <h3 className={`${mapSectionTitleClass} mb-2`}>
             Результаты
           </h3>
 
           {!hasSearched && (
-            <div className="text-xs text-ink-muted">
+            <div className="text-sm font-semibold text-[#5e6567]">
               Укажите вид обращения. Код ФККО и регион — по желанию.
             </div>
           )}
@@ -669,7 +799,7 @@ export default function MapPage(): JSX.Element {
           )}
 
           {hasSearched && searchItems.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
               <div className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
                 Найдено: {searchItems.length}
               </div>
@@ -712,8 +842,8 @@ export default function MapPage(): JSX.Element {
           )}
         </section>
 
-        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
+        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+          <h3 className={`${mapSectionTitleClass} mb-3`}>
             Легенда
           </h3>
           <div className="space-y-2 text-xs text-ink-muted">
@@ -732,18 +862,18 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
+        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+          <h3 className={`${mapSectionTitleClass} mb-3`}>
             Подложка карты
           </h3>
-          <div className="flex rounded-2xl bg-app-bg border border-black/[0.06] p-1 gap-1">
+          <div className="flex rounded-[20px] bg-[#ffffff80] p-1 gap-1">
             <button
               type="button"
               onClick={() => setBaseMapStyle('osm')}
-              className={`flex-1 min-h-[36px] rounded-xl px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`typo-h2 flex-1 h-[52px] rounded-[16px] text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 baseMapStyle === 'osm'
-                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-xl !px-2'
-                  : 'text-ink-muted hover:text-ink hover:bg-white'
+                  ? 'shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
+                  : 'bg-transparent'
               }`}
             >
               Обычная
@@ -751,20 +881,22 @@ export default function MapPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setBaseMapStyle('cadastral')}
-              className={`flex-1 min-h-[36px] rounded-xl px-2 text-[11px] font-medium transition-colors whitespace-nowrap ${
+              className={`typo-h2 flex-1 h-[52px] rounded-[16px] text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 baseMapStyle === 'cadastral'
-                  ? 'glass-btn-dark !h-9 !min-h-0 !rounded-xl !px-2'
-                  : 'text-ink-muted hover:text-ink hover:bg-white'
+                  ? 'shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
+                  : 'bg-transparent'
               }`}
             >
               Кадастровая
             </button>
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
+          <p className="mt-3 font-nunito text-[12.5px] font-semibold text-[#5e6567] leading-[1.35] tracking-[0]">
             {CADASTRE_IFRAME_URL ? (
               baseMapStyle === 'cadastral' ? (
                 <>
-                  Встроена карта в стиле{' '}
+                  <span>
+                    Встроена карта в стиле{' '}
+                  </span>
                   <a
                     href="https://ik8map.roscadastres.com/map"
                     className="text-[#1f5c14] hover:text-[#2d7a1f] underline underline-offset-2"
@@ -773,72 +905,105 @@ export default function MapPage(): JSX.Element {
                   >
                     Роскадастр
                   </a>
-                  : красные границы и подписи. Маркеры лицензий на iframe не рисуются — переключите на «Обычная», чтобы
-                  видеть точки.
+                  <span>
+                    : красные границы и подписи. Маркеры лицензий на iframe не рисуются — переключите на «Обычная», чтобы видеть точки.
+                  </span>
                 </>
               ) : (
-                <>
-                  Задан <span className="text-ink font-medium">VITE_CADASTRE_IFRAME_URL</span>: в режиме «Кадастровая» откроется та же
+                <span>
+                  Задан <span className="font-bold text-[#2b3335]">VITE_CADASTRE_IFRAME_URL</span>: в режиме «Кадастровая» откроется та же
                   схема, что на ik8map.roscadastres.com (векторные тайлы, цвет #D20404).
-                </>
+                </span>
               )
             ) : (
-              <>
+              <span>
                 Векторные границы участков (GeoJSON с бэкенда) и клик по карте — запрос сведений ПКК. При зуме ≥ 14
                 подгружаются контуры; клик открывает карточку. Если API ПКК редиректится, настройте CADASTRE_PKK_API_BASE /
                 CADASTRE_MAPSERVER_BASE на сервере (см. server/.env.example). Альтернатива — iframe:{' '}
-                <span className="text-ink font-medium">VITE_CADASTRE_IFRAME_URL</span>.
-              </>
+                <span className="font-bold text-[#2b3335]">VITE_CADASTRE_IFRAME_URL</span>.
+              </span>
             )}
           </p>
         </section>
 
-        <section className="mt-auto rounded-2xl bg-app-bg p-4 sm:p-5 shadow-sm">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted mb-3">
+        <section className="rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+          <h3 className={`${mapSectionTitleClass} mb-4`}>
             Маршрут
           </h3>
-          <div className="space-y-3 text-xs text-ink-muted">
+          <div className="w-full space-y-3">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Точка А</p>
-              <input
-                type="text"
-                placeholder="Выберите объект"
-                className={mapFieldSm}
-              />
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-1.5">Точка B</p>
-              <input
-                type="text"
-                placeholder="Выберите объект"
-                className={mapFieldSm}
-              />
-            </div>
-            <div className="flex gap-2">
+              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка А</p>
               <button
                 type="button"
-                className="flex-1 glass-btn-dark !h-9 !rounded-xl text-[11px] font-medium"
+                className={vidTriggerClass(false)}
               >
-                Построить
-              </button>
-              <button
-                type="button"
-                className="flex-1 h-9 rounded-xl border border-black/[0.08] bg-white text-[11px] text-ink hover:shadow-eco-card transition-colors"
-              >
-                Сбросить
+                <span className={vidLabelClass({ isOpen: false, hasSelection: false })}>Выберите объект</span>
+                <img className="h-2.5 w-3 shrink-0" alt="" src={ROUTE_POLY_A} />
               </button>
             </div>
+            <div>
+              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка В</p>
+              <button
+                type="button"
+                className={vidTriggerClass(false)}
+              >
+                <span className={vidLabelClass({ isOpen: false, hasSelection: false })}>Выберите объект</span>
+                <img className="h-2.5 w-3 shrink-0" alt="" src={ROUTE_POLY_B} />
+              </button>
+            </div>
+          </div>
+          <div className="w-full h-[60px] mt-6 flex gap-3">
+            <button
+              type="button"
+              className="group relative home-find-button flex h-[60px] min-w-[220px] items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
+            >
+              <span className="relative z-[2] inline-flex items-center gap-2.5">
+                <span className={`font-nunito font-semibold text-[#2b3335] text-xl ${filterCtaLabelShiftClass}`}>
+                  Построить
+                </span>
+                <span
+                  className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}
+                >
+                  <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="Vector" src={routeBuildIconPlaceholder} />
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`group relative z-[2] mt-1 flex-1 h-[52px] flex items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
+              onClick={handleResetFilters}
+            >
+              <span className="relative z-[2] inline-flex items-center gap-2.5">
+                <span className={`relative mt-[-1px] whitespace-nowrap font-nunito font-semibold text-[#2b3335] text-base text-center tracking-[0] leading-[normal] ${filterCtaLabelShiftClass}`}>
+                  Сбросить
+                </span>
+                <span
+                  className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}
+                >
+                  <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="Vector" src={filterResetIcon} />
+                </span>
+              </span>
+            </button>
           </div>
         </section>
         </div>
       </aside>
 
-      <div className="flex-1 relative min-w-0 rounded-3xl overflow-hidden m-3 md:m-4 ml-0 md:ml-0 shadow-eco-float border border-black/[0.04] bg-app-bg">
+      <div className={`absolute top-0 bottom-0 right-0 z-10 overflow-hidden rounded-[32.5px] ${menuVisible ? 'left-[639px]' : 'left-0'}`}>
+        <div
+          className="absolute inset-0"
+          style={{
+            opacity: introVisible ? 1 : 0,
+            transform: introVisible ? 'translateY(0)' : 'translateY(36px)',
+            transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
+            transitionDelay: `${HOME_INTRO_DELAY_MAP_MS}ms`,
+          }}
+        >
         {cadastreUsesIframe ? (
           <iframe
             title="Публичная кадастровая карта"
             src={CADASTRE_IFRAME_URL}
-            className="absolute inset-0 z-0 h-full w-full min-h-0 border-0 bg-app-bg"
+            className="absolute inset-0 z-0 h-full w-full min-h-0 border-0"
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
           />
@@ -862,7 +1027,7 @@ export default function MapPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setMenuVisible(true)}
-            className="absolute left-4 top-4 z-20 glass-btn-soft inline-flex items-center justify-center gap-2 h-10 min-w-[88px] px-3 py-2 text-xs font-medium pointer-events-auto whitespace-nowrap shadow-eco-float"
+            className="absolute left-4 top-4 z-20 inline-flex items-center justify-center gap-2 h-10 min-w-[88px] px-3 py-2 text-xs font-medium pointer-events-auto whitespace-nowrap rounded-[20px] bg-white/90 shadow-eco-float"
             title="Показать меню"
           >
             <PanelLeft className="w-4 h-4 flex-shrink-0" />
@@ -870,9 +1035,7 @@ export default function MapPage(): JSX.Element {
           </button>
         )}
         <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none gap-3">
-          <div
-            className={`pointer-events-auto inline-flex items-center gap-1 rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.06] shadow-eco-float p-1 ${!menuVisible ? 'ml-14' : ''}`}
-          >
+          <div className={`pointer-events-auto inline-flex items-center gap-1 rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.06] shadow-eco-float p-1 ${!menuVisible ? 'ml-14' : ''}`}>
             <button
               type="button"
               className="h-9 min-w-[72px] rounded-xl px-3 text-[11px] font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to transition-colors whitespace-nowrap shadow-sm"
@@ -892,6 +1055,9 @@ export default function MapPage(): JSX.Element {
           >
             Разместить объект
           </Link>
+        </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

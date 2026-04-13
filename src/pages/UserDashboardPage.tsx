@@ -121,7 +121,7 @@ export default function UserDashboardPage(): JSX.Element {
         <div className="glass-panel p-5 flex items-center justify-between gap-4">
           <div>
             <div className="glass-kicker">Personal Space</div>
-            <h1 className="glass-title mt-1">Личный кабинет</h1>
+            <h1 className="typo-h1 mt-1">Личный кабинет</h1>
             <p className="text-sm glass-muted mt-1">{user?.email ?? 'Пользователь'}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export default function UserDashboardPage(): JSX.Element {
         <section className="glass-panel p-5 space-y-4">
           <div>
             <p className="glass-kicker">Enterprise Search</p>
-            <h2 className="text-base font-semibold text-ink mt-1">Поиск организации</h2>
+            <h2 className="typo-h2 text-ink mt-1">Поиск организации</h2>
             <p className="text-xs glass-muted mt-1">Введите название компании или ИНН — достаточно одного</p>
           </div>
 
@@ -252,7 +252,7 @@ export default function UserDashboardPage(): JSX.Element {
           <>
             <section className="glass-panel p-3">
               <div className="px-3 py-2">
-                <h2 className="text-base font-semibold text-ink">Мои лицензии</h2>
+                <h2 className="typo-h2 text-ink">Мои лицензии</h2>
               </div>
               <div className="glass-table-wrap">
               <table className="glass-table">
@@ -302,7 +302,7 @@ export default function UserDashboardPage(): JSX.Element {
 
             <section className="glass-panel p-3">
               <div className="px-3 py-2">
-                <h2 className="text-base font-semibold text-ink">История начислений</h2>
+                <h2 className="typo-h2 text-ink">История начислений</h2>
               </div>
               <div className="glass-table-wrap">
               <table className="glass-table">

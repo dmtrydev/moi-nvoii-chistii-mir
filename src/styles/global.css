@@ -106,6 +106,43 @@
 }
 
 @layer components {
+  .typo-h1 {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .typo-h2 {
+    font-family: var(--font-heading-nunito);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: normal;
+  }
+  .typo-h3 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .typo-h4 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .typo-h5 {
+    font-family: var(--font-heading-nunito);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: normal;
+  }
+  .typo-h6 {
+    font-family: var(--font-heading-nunito);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: normal;
+  }
+
   /**
    * Кнопка «Найти» на главной: три градиента (default / hover / active) из макета.
    * Иконка: один SVG или отдельные find-button-search-*.svg — см. assets/home-landing/README.txt
