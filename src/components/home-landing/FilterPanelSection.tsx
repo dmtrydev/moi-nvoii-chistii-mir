@@ -37,28 +37,6 @@ const filterFieldShell =
 const glassDropdownPanelDown =
   'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
 
-const fkkoOptionCls = ({ highlighted }: { index: number; highlighted: boolean }): string =>
-  [
-    'block w-full min-h-[60px] px-[15px] py-3 text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150',
-    highlighted ? 'bg-[#ffffff99]' : 'hover:bg-[#ffffff99]',
-  ].join(' ');
-
-/** Как строки ФККО/региона (fkkoOptionCls) + отметка multiselect через чекбокс. */
-const vidOptionCls = ({
-  checked,
-  isLast,
-}: {
-  option: string;
-  checked: boolean;
-  index: number;
-  isLast: boolean;
-}): string =>
-  [
-    'block w-full min-h-[60px] text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150',
-    checked ? 'bg-[#ffffff99]' : 'hover:bg-[#ffffff99]',
-    isLast ? 'rounded-b-[10px]' : '',
-  ].join(' ');
-
 const vidTriggerBase =
   'relative z-[2] w-full h-[60px] px-[15px] text-left flex items-center justify-between transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';
 
@@ -283,7 +261,7 @@ export function FilterPanelSection({
             options={fkkoOptions}
             selected={filterFkko}
             onChange={onFilterFkkoChange}
-            placeholder="ФККО"
+            placeholder="Выберите коды ФККО"
             buttonClassName={vidTriggerClass}
             labelClassName={vidLabelClass}
             formatOptionLabel={(code) => fkkoOptionLabel(code, fkkoTitleByCode)}
@@ -304,9 +282,7 @@ export function FilterPanelSection({
             }
             dropdownPanelClassName={glassDropdownPanelDown}
             dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
-            optionButtonClassName={vidOptionCls}
-            maxHeightClassName=""
-            emptyOptionsClassName="px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]"
+            maxHeightClassName="max-h-64"
           />
         </div>
       </div>
@@ -333,8 +309,7 @@ export function FilterPanelSection({
             }
             dropdownPanelClassName={glassDropdownPanelDown}
             dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
-            optionButtonClassName={vidOptionCls}
-            maxHeightClassName=""
+            maxHeightClassName="max-h-64"
           />
         </div>
       </div>
@@ -352,8 +327,6 @@ export function FilterPanelSection({
             noResultsText="Начните вводить"
             dropdownClassName={glassDropdownPanelDown}
             listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
-            optionClassName={fkkoOptionCls}
-            emptyClassName="px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]"
           />
           <img
             className="pointer-events-none absolute right-[15px] top-1/2 z-[3] w-3 -translate-y-1/2 transition-transform duration-200 group-focus-within/region:rotate-180"
