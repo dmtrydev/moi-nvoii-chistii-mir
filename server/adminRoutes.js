@@ -412,13 +412,11 @@ adminRouter.get('/licenses/duplicate-groups', async (_req, res) => {
 });
 
 adminRouter.post('/licenses/resolve-duplicate-inns', async (req, res) => {
-  const deductEcoCoins = Boolean(req.body?.deductEcoCoins);
   const adminId = req.user?.id ?? null;
 
   const pool = getPool();
   const client = await pool.connect();
   let removedCount = 0;
-  let clawbackTotal = 0;
   const removedLicenseIds = [];
 
   try {
@@ -441,36 +439,12 @@ adminRouter.post('/licenses/resolve-duplicate-inns', async (req, res) => {
 
       for (const rid of removeIds) {
         const licRes = await client.query(
-          `SELECT id, status, owner_user_id AS "ownerUserId"
-           FROM licenses
+          `SELECT id FROM licenses
            WHERE id = $1 AND deleted_at IS NULL
            LIMIT 1`,
           [rid],
         );
         if (!licRes.rows.length) continue;
-
-        const row = licRes.rows[0];
-        if (deductEcoCoins && row.status === 'approved') {
-          const txRes = await client.query(
-            `SELECT user_id AS "userId", amount
-             FROM transactions
-             WHERE license_id = $1
-             LIMIT 1`,
-            [rid],
-          );
-          if (txRes.rows.length) {
-            const { userId, amount } = txRes.rows[0];
-            const amt = Number(amount);
-            await client.query(
-              `UPDATE users
-               SET eco_coins = GREATEST(0, eco_coins - $2)
-               WHERE id = $1`,
-              [userId, amt],
-            );
-            await client.query(`DELETE FROM transactions WHERE license_id = $1`, [rid]);
-            clawbackTotal += amt;
-          }
-        }
 
         await client.query(
           `UPDATE licenses
@@ -494,19 +468,12 @@ adminRouter.post('/licenses/resolve-duplicate-inns', async (req, res) => {
       metadata: {
         removedCount,
         removedLicenseIds,
-        deductEcoCoins,
-        clawbackTotal,
       },
     });
 
     return res.json({
-      message:
-        removedCount > 0
-          ? `Удалено дублей: ${removedCount}${deductEcoCoins && clawbackTotal > 0 ? `. Списано экокоинов: ${clawbackTotal}` : ''}`
-          : 'Дублей по ИНН не найдено',
+      message: removedCount > 0 ? `Удалено дублей: ${removedCount}` : 'Дублей по ИНН не найдено',
       removedCount,
-      deductEcoCoins,
-      clawbackTotal,
     });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -767,13 +734,8 @@ adminRouter.post('/licenses/:id/approve', async (req, res) => {
         ...(approveResult.manualOverrideFromRejected ? { manualOverrideFromRejected: true } : {}),
       },
     });
-    const noOwner = approveResult.before?.ownerUserId == null;
     return res.json({
-      message: approveResult.rewardGranted
-        ? 'Лицензия одобрена, экокоины начислены'
-        : noOwner
-          ? 'Лицензия одобрена. Экокоины не начислены: у карточки нет заявителя (импорт из реестра).'
-          : 'Лицензия одобрена',
+      message: 'Лицензия одобрена',
       license: approveResult.after,
     });
   } catch (err) {

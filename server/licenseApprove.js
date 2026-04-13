@@ -35,9 +35,6 @@ export async function approveLicenseInTx(client, licenseId, adminId) {
     );
   }
 
-  const ownerId = before.ownerUserId;
-  const rewardAmount = Number(before.reward ?? 100);
-
   const updated = await client.query(
     `UPDATE licenses
      SET status = 'approved',
@@ -55,30 +52,10 @@ export async function approveLicenseInTx(client, licenseId, adminId) {
     [licenseId, adminId ?? null],
   );
 
-  let rewardGranted = false;
-  if (ownerId) {
-    const txInsert = await client.query(
-      `INSERT INTO transactions (user_id, license_id, amount, type)
-       VALUES ($1, $2, $3, 'LICENSE_REWARD')
-       ON CONFLICT (license_id) DO NOTHING
-       RETURNING id`,
-      [ownerId, licenseId, rewardAmount],
-    );
-    if (txInsert.rowCount > 0) {
-      await client.query(
-        `UPDATE users
-         SET eco_coins = eco_coins + $2
-         WHERE id = $1`,
-        [ownerId, rewardAmount],
-      );
-      rewardGranted = true;
-    }
-  }
-
   return {
     before,
     after: updated.rows[0],
-    rewardGranted,
+    rewardGranted: false,
     manualOverrideFromRejected: before.status === 'rejected',
   };
 }

@@ -104,11 +104,6 @@ export async function runBatchAiApproveChunk(pool, opts) {
   for (const lic of licenses) {
     const licId = lic.id;
 
-    if (!lic.ownerUserId) {
-      prelim.set(licId, { action: 'skipped', reason: 'no_owner' });
-      continue;
-    }
-
     const innRaw = lic.inn == null ? '' : String(lic.inn).trim();
     const innNorm = normalizeInn(innRaw);
     if (innRaw && !innNorm) {

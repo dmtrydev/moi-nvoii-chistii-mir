@@ -6,21 +6,8 @@ const userRouter = express.Router();
 
 userRouter.use(requireAuth);
 
-userRouter.get('/balance', async (req, res) => {
-  const userId = Number(req.user?.id);
-  if (!Number.isFinite(userId) || userId <= 0) {
-    return res.status(401).json({ message: 'Требуется аутентификация' });
-  }
-
-  const result = await query(
-    `SELECT eco_coins AS "ecoCoins"
-     FROM users
-     WHERE id = $1
-     LIMIT 1`,
-    [userId],
-  );
-
-  return res.json({ balance: result.rows[0]?.ecoCoins ?? 0 });
+userRouter.get('/balance', async (_req, res) => {
+  return res.json({ balance: 0 });
 });
 
 userRouter.get('/licenses', async (req, res) => {
@@ -56,27 +43,8 @@ userRouter.get('/licenses', async (req, res) => {
   return res.json({ items: result.rows });
 });
 
-userRouter.get('/transactions', async (req, res) => {
-  const userId = Number(req.user?.id);
-  if (!Number.isFinite(userId) || userId <= 0) {
-    return res.status(401).json({ message: 'Требуется аутентификация' });
-  }
-
-  const result = await query(
-    `SELECT t.id,
-            t.amount,
-            t.type,
-            t.license_id AS "licenseId",
-            t.created_at AS "createdAt",
-            l.company_name AS "companyName"
-     FROM transactions t
-     LEFT JOIN licenses l ON l.id = t.license_id
-     WHERE t.user_id = $1
-     ORDER BY t.created_at DESC`,
-    [userId],
-  );
-
-  return res.json({ items: result.rows });
+userRouter.get('/transactions', async (_req, res) => {
+  return res.json({ items: [] });
 });
 
 export default userRouter;

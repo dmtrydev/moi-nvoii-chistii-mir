@@ -16,26 +16,14 @@ interface UserLicense {
   id: number;
   companyName: string;
   status: 'pending' | 'approved' | 'rejected' | 'recheck';
-  reward: number;
   region: string | null;
   rejectionNote: string | null;
   createdAt: string;
 }
 
-interface UserTransaction {
-  id: number;
-  amount: number;
-  type: string;
-  licenseId: number;
-  companyName: string | null;
-  createdAt: string;
-}
-
 export default function UserDashboardPage(): JSX.Element {
   const { accessToken, user, logout } = useAuth();
-  const [balance, setBalance] = useState(0);
   const [licenses, setLicenses] = useState<UserLicense[]>([]);
-  const [transactions, setTransactions] = useState<UserTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,32 +64,19 @@ export default function UserDashboardPage(): JSX.Element {
       setError(null);
       try {
         const headers = { Authorization: accessToken ? `Bearer ${accessToken}` : '' };
-        const [balanceRes, licensesRes, txRes] = await Promise.all([
-          fetch(getApiUrl('/api/user/balance'), { credentials: 'include', headers }),
-          fetch(getApiUrl('/api/user/licenses'), { credentials: 'include', headers }),
-          fetch(getApiUrl('/api/user/transactions'), { credentials: 'include', headers }),
-        ]);
+        const licensesRes = await fetch(getApiUrl('/api/user/licenses'), { credentials: 'include', headers });
+        const licensesBody = await licensesRes.json().catch(() => ({}));
 
-        const [balanceBody, licensesBody, txBody] = await Promise.all([
-          balanceRes.json().catch(() => ({})),
-          licensesRes.json().catch(() => ({})),
-          txRes.json().catch(() => ({})),
-        ]);
-
-        if (!balanceRes.ok) {
-          throw new Error((balanceBody as { message?: string }).message ?? 'Ошибка загрузки баланса');
-        }
         if (!licensesRes.ok) {
           throw new Error((licensesBody as { message?: string }).message ?? 'Ошибка загрузки лицензий');
         }
-        if (!txRes.ok) {
-          throw new Error((txBody as { message?: string }).message ?? 'Ошибка загрузки транзакций');
-        }
 
         if (!cancelled) {
-          setBalance(Number((balanceBody as { balance?: number }).balance ?? 0));
-          setLicenses(Array.isArray((licensesBody as { items?: UserLicense[] }).items) ? (licensesBody as { items: UserLicense[] }).items : []);
-          setTransactions(Array.isArray((txBody as { items?: UserTransaction[] }).items) ? (txBody as { items: UserTransaction[] }).items : []);
+          setLicenses(
+            Array.isArray((licensesBody as { items?: UserLicense[] }).items)
+              ? (licensesBody as { items: UserLicense[] }).items
+              : [],
+          );
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
@@ -138,11 +113,6 @@ export default function UserDashboardPage(): JSX.Element {
               Выйти
             </button>
           </div>
-        </div>
-
-        <div className="glass-panel p-5">
-          <p className="glass-kicker">Balance</p>
-          <p className="text-3xl font-bold text-ink mt-1">{balance} Экокоинов</p>
         </div>
 
         <section className="glass-panel p-5 space-y-4">
@@ -260,7 +230,6 @@ export default function UserDashboardPage(): JSX.Element {
                   <tr>
                     <th className="text-left px-4 py-2">Организация</th>
                     <th className="text-left px-4 py-2">Статус</th>
-                    <th className="text-left px-4 py-2">Награда</th>
                     <th className="text-left px-4 py-2">Дата</th>
                   </tr>
                 </thead>
@@ -284,49 +253,13 @@ export default function UserDashboardPage(): JSX.Element {
                           <div className="text-xs glass-danger mt-1">{item.rejectionNote}</div>
                         ) : null}
                       </td>
-                      <td className="px-4 py-2">+{item.reward}</td>
                       <td className="px-4 py-2">{new Date(item.createdAt).toLocaleDateString()}</td>
                     </tr>
                   ))}
                   {licenses.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-3 text-center text-ink-muted">
+                      <td colSpan={3} className="px-4 py-3 text-center text-ink-muted">
                         Лицензии пока не загружены
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-              </div>
-            </section>
-
-            <section className="glass-panel p-3">
-              <div className="px-3 py-2">
-                <h2 className="typo-h2 text-ink">История начислений</h2>
-              </div>
-              <div className="glass-table-wrap">
-              <table className="glass-table">
-                <thead>
-                  <tr>
-                    <th className="text-left px-4 py-2">Дата</th>
-                    <th className="text-left px-4 py-2">Лицензия</th>
-                    <th className="text-left px-4 py-2">Тип</th>
-                    <th className="text-left px-4 py-2">Сумма</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((item) => (
-                    <tr key={item.id} className="border-t border-slate-100">
-                      <td className="px-4 py-2">{new Date(item.createdAt).toLocaleString()}</td>
-                      <td className="px-4 py-2">{item.companyName ?? `#${item.licenseId}`}</td>
-                      <td className="px-4 py-2">{item.type}</td>
-                      <td className="px-4 py-2 text-[#1f5c14] font-semibold">+{item.amount}</td>
-                    </tr>
-                  ))}
-                  {transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-3 text-center text-ink-muted">
-                        Начислений пока нет
                       </td>
                     </tr>
                   ) : null}

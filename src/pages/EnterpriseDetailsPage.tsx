@@ -1086,7 +1086,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               )}
 
               {(item?.status ||
-                item?.reward ||
                 item?.rejectionNote ||
                 item?.fileStoredName ||
                 item?.importSource) && (
@@ -1109,11 +1108,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                       ) : (
                         <span>Статус не указан</span>
                       )}
-                      {typeof item.reward === 'number' ? (
-                        <div className="mt-1">
-                          Награда: <span className="font-semibold text-[#1f5c14]">+{item.reward} Экокоинов</span>
-                        </div>
-                      ) : null}
                       {item.status === 'rejected' && item.rejectionNote ? (
                         <div className="mt-1 glass-danger text-sm">Причина: {item.rejectionNote}</div>
                       ) : null}

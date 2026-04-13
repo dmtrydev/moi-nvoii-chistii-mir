@@ -342,11 +342,14 @@ export default function AdminLicensesPage(): JSX.Element {
     }
   }
 
-  async function handleResolveDuplicates(deductEcoCoins: boolean): Promise<void> {
-    const msg = deductEcoCoins
-      ? 'Удалить все дубли по ИНН (оставить запись с минимальным ID) и списать экокоины за одобренные лишние копии?'
-      : 'Удалить все дубли по ИНН (оставить запись с минимальным ID) без списания экокоинов?';
-    if (!window.confirm(msg)) return;
+  async function handleResolveDuplicates(): Promise<void> {
+    if (
+      !window.confirm(
+        'Удалить все дубли по ИНН (оставить запись с минимальным ID)? Остальные будут помечены как удалённые.',
+      )
+    ) {
+      return;
+    }
 
     setDupResolveLoading(true);
     try {
@@ -357,7 +360,7 @@ export default function AdminLicensesPage(): JSX.Element {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ deductEcoCoins }),
+        body: JSON.stringify({}),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -519,21 +522,11 @@ export default function AdminLicensesPage(): JSX.Element {
                         type="button"
                         disabled={dupResolveLoading}
                         onClick={() => {
-                          void handleResolveDuplicates(false);
+                          void handleResolveDuplicates();
                         }}
-                        className="glass-btn-soft !h-10 !px-4"
+                        className="glass-btn-dark !h-10 !px-4"
                       >
-                        Удалить дубли, не списывать экокоины
-                      </button>
-                      <button
-                        type="button"
-                        disabled={dupResolveLoading}
-                        onClick={() => {
-                          void handleResolveDuplicates(true);
-                        }}
-                        className="glass-btn-dark !h-10 !px-4 !bg-[#7f1d1d] !border-[#7f1d1d] hover:!bg-[#991b1b]"
-                      >
-                        Удалить дубли и списать экокоины
+                        Удалить дубли
                       </button>
                     </div>
                   </>
@@ -624,7 +617,6 @@ export default function AdminLicensesPage(): JSX.Element {
               <th className="px-3 py-2 text-left">ИНН</th>
               <th className="px-3 py-2 text-left">Источник</th>
               <th className="px-3 py-2 text-left">Статус</th>
-              <th className="px-3 py-2 text-left">Награда</th>
               <th className="px-3 py-2 text-left">Создан</th>
               <th className="px-3 py-2 text-left">Удалён</th>
               <th className="px-3 py-2 text-left">Действия</th>
@@ -670,7 +662,6 @@ export default function AdminLicensesPage(): JSX.Element {
                     <div className="text-[11px] text-red-600 mt-1">{lic.rejectionNote}</div>
                   ) : null}
                 </td>
-                <td className="px-3 py-1.5">+{lic.reward}</td>
                 <td className="px-3 py-1.5">{new Date(lic.createdAt).toLocaleDateString()}</td>
                 <td className="px-3 py-1.5">
                   {lic.deletedAt ? new Date(lic.deletedAt).toLocaleDateString() : '—'}
@@ -729,7 +720,7 @@ export default function AdminLicensesPage(): JSX.Element {
             ))}
             {!loading && !items.length && (
               <tr>
-                <td colSpan={9} className="px-3 py-3 text-center text-slate-500">
+                <td colSpan={8} className="px-3 py-3 text-center text-slate-500">
                   Объектов нет
                 </td>
               </tr>
