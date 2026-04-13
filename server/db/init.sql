@@ -31,9 +31,10 @@ ALTER TABLE licenses ADD COLUMN IF NOT EXISTS file_stored_name TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS deleted_by INTEGER;
 
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_source TEXT;
-ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_external_ref TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_needs_review BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_inactive BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_status TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_status_ru TEXT;
 
 DO $$
 BEGIN
@@ -54,10 +55,6 @@ $$;
 CREATE INDEX IF NOT EXISTS idx_licenses_import_source
   ON licenses (import_source)
   WHERE import_source IS NOT NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_import_external_ref_active
-  ON licenses (import_external_ref)
-  WHERE import_external_ref IS NOT NULL AND deleted_at IS NULL;
 
 -- Площадки (адреса осуществления деятельности) в рамках одной лицензии.
 -- Здесь хранится привязка: адрес -> виды работ -> коды ФККО.

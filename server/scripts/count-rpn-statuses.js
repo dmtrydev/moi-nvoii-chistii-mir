@@ -62,9 +62,11 @@ async function main() {
     console.error('Файл не найден:', abs);
     process.exit(1);
   }
+  const fileSize = fs.statSync(abs).size;
 
   const pattern = jsonStreamPath || detectJsonStreamPath(abs);
   console.log('JSONStream path:', pattern);
+  console.log('Размер файла, МБ:', (fileSize / (1024 * 1024)).toFixed(1));
 
   const counts = new Map();
   let totalEntries = 0;
@@ -72,6 +74,15 @@ async function main() {
 
   const readStream = fs.createReadStream(abs, { encoding: 'utf8' });
   const parser = JSONStream.parse(pattern);
+  let lastProgressTs = Date.now();
+
+  const printProgress = () => {
+    const bytes = readStream.bytesRead || 0;
+    const pct = fileSize > 0 ? ((bytes / fileSize) * 100).toFixed(2) : '0.00';
+    console.log(
+      `Прогресс: ${pct}% | прочитано ${(bytes / (1024 * 1024)).toFixed(1)} МБ / ${(fileSize / (1024 * 1024)).toFixed(1)} МБ | записей: ${totalEntries}`,
+    );
+  };
 
   await new Promise((resolve, reject) => {
     const fail = (err) => {
@@ -88,9 +99,18 @@ async function main() {
       if (!statusNorm) missingStatus += 1;
       const prev = counts.get(statusNorm) ?? 0;
       counts.set(statusNorm, prev + 1);
+
+      const now = Date.now();
+      if (now - lastProgressTs >= 10000) {
+        lastProgressTs = now;
+        printProgress();
+      }
     });
 
-    parser.on('end', () => resolve());
+    parser.on('end', () => {
+      printProgress();
+      resolve();
+    });
     readStream.pipe(parser);
   });
 

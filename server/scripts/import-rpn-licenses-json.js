@@ -42,6 +42,18 @@ const RPN_FLAG_TO_ACTIVITY = [
   ['accommodation', 'Размещение'],
 ];
 
+const STATUS_LABEL_RU = {
+  active: 'Действующая',
+  annulled: 'Аннулирована',
+  paused: 'Приостановлена',
+  pausedpart: 'Частично приостановлена',
+  terminated: 'Прекращена',
+};
+
+const UNKNOWN_COMPANY_PREFIX = 'Неизвестная организация (импорт РПН)';
+const UNKNOWN_ADDRESS = 'Адрес не указан (импорт РПН)';
+const UNKNOWN_REGION = 'Регион не указан';
+
 function guessRegionFromAddress(address) {
   const a = String(address || '').trim();
   if (!a) return '';
@@ -79,15 +91,11 @@ const SITE_FKKO_ACTIVITIES_CHUNK = 800;
  * @param {string} innExpr
  * @returns {Promise<{
  *   innSet: Set<string>,
- *   refSet: Set<string>,
  *   dbPrefetch: {
  *     activeLicenseRows: number,
  *     innRowsWithValidInn: number,
  *     innUniqueInDb: number,
  *     innDuplicateExtraRows: number,
- *     refRowsWithValue: number,
- *     refUniqueInDb: number,
- *     refDuplicateExtraRows: number,
  *   },
  * }>}
  */
@@ -106,28 +114,13 @@ async function loadImportDuplicateSets(pool, innExpr) {
   const innUniqueInDb = innSet.size;
   const innDuplicateExtraRows = Math.max(0, innRowsWithValidInn - innUniqueInDb);
 
-  const refRes = await pool.query(
-    `SELECT import_external_ref FROM licenses
-     WHERE deleted_at IS NULL AND import_external_ref IS NOT NULL`,
-  );
-  const refSet = new Set(
-    refRes.rows.map((r) => String(r.import_external_ref ?? '').trim()).filter(Boolean),
-  );
-  const refRowsWithValue = refRes.rows.length;
-  const refUniqueInDb = refSet.size;
-  const refDuplicateExtraRows = Math.max(0, refRowsWithValue - refUniqueInDb);
-
   return {
     innSet,
-    refSet,
     dbPrefetch: {
       activeLicenseRows,
       innRowsWithValidInn,
       innUniqueInDb,
       innDuplicateExtraRows,
-      refRowsWithValue,
-      refUniqueInDb,
-      refDuplicateExtraRows,
     },
   };
 }
@@ -138,9 +131,6 @@ async function loadImportDuplicateSets(pool, innExpr) {
  *   innRowsWithValidInn: number,
  *   innUniqueInDb: number,
  *   innDuplicateExtraRows: number,
- *   refRowsWithValue: number,
- *   refUniqueInDb: number,
- *   refDuplicateExtraRows: number,
  * }} p
  */
 function printDbPrefetchBeforeImport(p) {
@@ -155,20 +145,7 @@ function printDbPrefetchBeforeImport(p) {
     '| лишних строк (несколько карточек на один ИНН):',
     p.innDuplicateExtraRows,
   );
-  console.log(
-    'Внешний номер (ref): всего строк с номером:',
-    p.refRowsWithValue,
-    '| разных номеров:',
-    p.refUniqueInDb,
-    '| лишних строк (повтор номера в нескольких карточках):',
-    p.refDuplicateExtraRows,
-  );
-  console.log(
-    'Кратко (как раньше): уникальных ИНН в кэше:',
-    p.innUniqueInDb,
-    '| уникальных ref в кэше:',
-    p.refUniqueInDb,
-  );
+  console.log('Кратко: уникальных ИНН в кэше:', p.innUniqueInDb);
   console.log('====================================');
   console.log('');
 }
@@ -275,8 +252,10 @@ function printJsonParseDiagnostics(raw, err) {
  * @returns {null | {
  *   companyName: string,
  *   inn: string | null,
+ *   innNorm: string | null,
+ *   registryStatus: string,
+ *   registryStatusRu: string,
  *   registryInactive: boolean,
- *   externalRef: string | null,
  *   sites: Array<{
  *     address: string | null,
  *     region: string | null,
@@ -291,27 +270,27 @@ function printJsonParseDiagnostics(raw, err) {
  */
 export function mapRegistryEntryToSites(entry) {
   if (!entry || typeof entry !== 'object') return null;
-  const statusRaw = String(entry.status ?? '').toLowerCase();
-  const registryInactive = Boolean(statusRaw && statusRaw !== 'active');
+  const statusRaw = String(entry.status ?? '').trim().toLowerCase();
+  const registryStatus = statusRaw || 'unknown';
+  const registryStatusRu = STATUS_LABEL_RU[registryStatus] || `Неизвестный статус: ${registryStatus}`;
+  const registryInactive = registryStatus !== 'active';
 
   const org = entry.subject?.data?.organization;
-  if (!org || typeof org !== 'object') return null;
+  const orgObj = org && typeof org === 'object' ? org : {};
 
-  const companyName = String(org.shortName ?? org.fullName ?? '').trim();
-  if (!companyName) return null;
+  const fallbackRef = String(entry._id ?? '').trim();
+  const fallbackSuffix = fallbackRef || `row-${Date.now()}`;
+  const companyNameRaw = String(orgObj.shortName ?? orgObj.fullName ?? '').trim();
+  const companyName = companyNameRaw || `${UNKNOWN_COMPANY_PREFIX} ${fallbackSuffix}`;
+  const innRawStr = String(orgObj.inn ?? '').trim();
+  const innNorm = normalizeInn(innRawStr);
+  const innRaw = innNorm ? innRawStr : null;
 
-  const innRaw = org.inn == null ? null : String(org.inn).trim();
-  const innNorm = normalizeInn(innRaw);
-  if (!innNorm) return null;
-
-  const externalRefRaw = String(entry.number ?? '').trim();
-  const externalRef = externalRefRaw || null;
-
-  const regPart = org.registrationAddress?.unrecognizablePart;
+  const regPart = orgObj.registrationAddress?.unrecognizablePart;
   const regAddr = regPart == null ? '' : String(regPart).trim();
 
-  const objects = entry.licensingActivityRegistryWasteRPN?.objects;
-  if (!Array.isArray(objects) || objects.length === 0) return null;
+  const objectsRaw = entry.licensingActivityRegistryWasteRPN?.objects;
+  const objects = Array.isArray(objectsRaw) ? objectsRaw : [];
 
   const sites = [];
   for (let idx = 0; idx < objects.length; idx++) {
@@ -353,20 +332,33 @@ export function mapRegistryEntryToSites(entry) {
     });
   }
 
-  if (sites.length === 0) return null;
+  if (sites.length === 0) {
+    sites.push({
+      address: regAddr || UNKNOWN_ADDRESS,
+      region: regAddr ? guessRegionFromAddress(regAddr) || UNKNOWN_REGION : UNKNOWN_REGION,
+      siteLabel: 'Основная площадка',
+      lat: null,
+      lng: null,
+      fkkoCodes: [],
+      activityTypes: [],
+      entries: [],
+    });
+  }
 
-  const primaryAddr = sites[0]?.address || regAddr || null;
-  if (!primaryAddr) return null;
+  const primaryAddr = sites[0]?.address || regAddr || UNKNOWN_ADDRESS;
+  const primaryRegion =
+    sites[0]?.region || guessRegionFromAddress(primaryAddr) || UNKNOWN_REGION;
 
   return {
     companyName,
     inn: innRaw,
     innNorm,
+    registryStatus,
+    registryStatusRu,
     registryInactive,
-    externalRef,
     sites,
     primaryAddr,
-    primaryRegion: sites[0]?.region || guessRegionFromAddress(primaryAddr) || null,
+    primaryRegion,
   };
 }
 
@@ -398,11 +390,12 @@ async function insertLicenseBundle(client, payload) {
       (company_name, inn, address, region, lat, lng, fkko_codes, activity_types,
        status, reward, owner_user_id, moderated_at, moderated_comment,
        file_original_name, file_stored_name,
-       import_source, import_external_ref, import_needs_review, import_registry_inactive)
+       import_source, import_needs_review, import_registry_inactive,
+       import_registry_status, import_registry_status_ru)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
        'approved', 100, NULL, NOW(), $9,
        NULL, NULL,
-       $10, $11, TRUE, $12)
+       $10, TRUE, $11, $12, $13)
      RETURNING id`,
     [
       payload.companyName,
@@ -415,8 +408,9 @@ async function insertLicenseBundle(client, payload) {
       activityArr,
       moderatedComment,
       IMPORT_SOURCE,
-      payload.externalRef,
       Boolean(payload.registryInactive),
+      payload.registryStatus,
+      payload.registryStatusRu,
     ],
   );
 
@@ -459,9 +453,7 @@ async function insertLicenseBundle(client, payload) {
  *   skippedNoFkko: number,
  *   skippedNoData: number,
  *   parsed: number,
- *   skippedDupRef: number,
- *   skippedDupRefFromDb: number,
- *   skippedDupRefFromSameFile: number,
+ *   parsedWithoutValidInn: number,
  *   skippedDupInn: number,
  *   skippedDupInnFromDb: number,
  *   skippedDupInnFromSameFile: number,
@@ -473,35 +465,28 @@ async function insertLicenseBundle(client, payload) {
  */
 function printImportStatistics(stats, uniqueInnsInMapped, dryRun) {
   const u = uniqueInnsInMapped.size;
-  const innRedundantRows = stats.parsed - u;
+  const innRedundantRows = Math.max(0, stats.parsed - stats.parsedWithoutValidInn - u);
 
   console.log('');
   console.log('=== Статистика импорта ===');
   console.log('Записей в файле (элементов JSON):', stats.sourceEntries);
   console.log(
-    'Отброшено: нет данных для импорта (организация / ИНН / объекты с отходами / адрес и т.п.):',
+    'Отброшено: сломанные записи (необъект/битый JSON-элемент):',
     stats.skippedUnmapped,
   );
   console.log('Отброшено: нет кодов ФККО после сборки:', stats.skippedNoFkko);
   console.log('Итого отброшено по данным (unmapped + no_fkko):', stats.skippedNoData);
   console.log('');
   console.log('Пригодных записей после проверки полей (попали в разбор):', stats.parsed);
+  console.log('  Из них без валидного ИНН (оставлены с заглушками):', stats.parsedWithoutValidInn);
   if (dryRun) {
     console.log('(DRY-RUN: дубликаты по БД не проверялись, «вставлено» завышено)');
   }
   console.log('  Разных ИНН среди этих записей:', u);
   console.log(
-    '  Строк с повтором ИНН внутри файла (вторая и далее с тем же ИНН):',
+    '  Строк с повтором ИНН внутри файла (только среди записей с валидным ИНН):',
     innRedundantRows,
   );
-  console.log('');
-  console.log('Пропуск: номер лицензии (ref) уже был в базе до импорта:', stats.skippedDupRefFromDb);
-  console.log(
-    'Пропуск: тот же ref повторился в файле или только что вставлен в этом прогоне:',
-    stats.skippedDupRefFromSameFile,
-  );
-  console.log('Пропуск по номеру (ref), всего:', stats.skippedDupRef);
-  console.log('');
   console.log('Пропуск: ИНН уже был в базе до импорта:', stats.skippedDupInnFromDb);
   console.log(
     'Пропуск: тот же ИНН повторился в файле или только что вставлен в этом прогоне:',
@@ -521,14 +506,13 @@ function printImportStatistics(stats, uniqueInnsInMapped, dryRun) {
  *   stats: object,
  *   pool: import('pg').Pool | null,
  *   dryRun: boolean,
- *   dupSets: { innSet: Set<string>, refSet: Set<string> } | null,
+ *   dupSets: { innSet: Set<string> } | null,
  *   innDbSnapshot: Set<string> | null,
- *   refDbSnapshot: Set<string> | null,
  *   uniqueInnsInMapped: Set<string>,
  * }} ctx
  */
 async function importSingleEntry(entry, ctx) {
-  const { stats, pool, dryRun, dupSets, innDbSnapshot, refDbSnapshot, uniqueInnsInMapped } = ctx;
+  const { stats, pool, dryRun, dupSets, innDbSnapshot, uniqueInnsInMapped } = ctx;
   stats.sourceEntries += 1;
 
   const payload = mapRegistryEntryToSites(entry);
@@ -538,7 +522,8 @@ async function importSingleEntry(entry, ctx) {
     return;
   }
   stats.parsed += 1;
-  uniqueInnsInMapped.add(payload.innNorm);
+  if (!payload.innNorm) stats.parsedWithoutValidInn += 1;
+  if (payload.innNorm) uniqueInnsInMapped.add(payload.innNorm);
 
   if (dryRun) {
     stats.inserted += 1;
@@ -546,13 +531,7 @@ async function importSingleEntry(entry, ctx) {
   }
 
   if (dupSets) {
-    if (payload.externalRef && dupSets.refSet.has(payload.externalRef)) {
-      stats.skippedDupRef += 1;
-      if (refDbSnapshot?.has(payload.externalRef)) stats.skippedDupRefFromDb += 1;
-      else stats.skippedDupRefFromSameFile += 1;
-      return;
-    }
-    if (dupSets.innSet.has(payload.innNorm)) {
+    if (payload.innNorm && dupSets.innSet.has(payload.innNorm)) {
       stats.skippedDupInn += 1;
       if (innDbSnapshot?.has(payload.innNorm)) stats.skippedDupInnFromDb += 1;
       else stats.skippedDupInnFromSameFile += 1;
@@ -574,19 +553,14 @@ async function importSingleEntry(entry, ctx) {
 
     await client.query('COMMIT');
     stats.inserted += 1;
-    if (payload.externalRef) dupSets?.refSet.add(payload.externalRef);
-    dupSets?.innSet.add(payload.innNorm);
+    if (payload.innNorm) dupSets?.innSet.add(payload.innNorm);
     if (stats.inserted % 50 === 0) {
       console.log('Импортировано:', stats.inserted);
     }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     stats.errors += 1;
-    console.error(
-      'Ошибка записи:',
-      payload.externalRef ?? '(без номера)',
-      err instanceof Error ? err.message : err,
-    );
+    console.error('Ошибка записи:', err instanceof Error ? err.message : err);
   } finally {
     client.release();
   }
@@ -665,9 +639,7 @@ async function main() {
     skippedNoFkko: 0,
     skippedNoData: 0,
     parsed: 0,
-    skippedDupRef: 0,
-    skippedDupRefFromDb: 0,
-    skippedDupRefFromSameFile: 0,
+    parsedWithoutValidInn: 0,
     skippedDupInn: 0,
     skippedDupInnFromDb: 0,
     skippedDupInnFromSameFile: 0,
@@ -680,16 +652,14 @@ async function main() {
   const pool = dryRun ? null : getPool();
   const innExpr = LICENSE_INN_NORMALIZED_EXPR;
   let dupSets = null;
-  /** Снимок ИНН и ref в БД на старт импорта (для расшифровки «уже в базе» vs «повтор в файле»). */
+  /** Снимок ИНН в БД на старт импорта (для расшифровки «уже в базе» vs «повтор в файле»). */
   let innDbSnapshot = null;
-  let refDbSnapshot = null;
   /** Счётчики БД на момент старта (дублируются в JSON в конце). */
   let dbPrefetchAtStart = null;
   if (pool) {
     const loaded = await loadImportDuplicateSets(pool, innExpr);
-    dupSets = { innSet: loaded.innSet, refSet: loaded.refSet };
+    dupSets = { innSet: loaded.innSet };
     innDbSnapshot = new Set(loaded.innSet);
-    refDbSnapshot = new Set(loaded.refSet);
     dbPrefetchAtStart = loaded.dbPrefetch;
     printDbPrefetchBeforeImport(loaded.dbPrefetch);
   }
@@ -699,7 +669,6 @@ async function main() {
     dryRun,
     dupSets,
     innDbSnapshot,
-    refDbSnapshot,
     uniqueInnsInMapped,
   };
 

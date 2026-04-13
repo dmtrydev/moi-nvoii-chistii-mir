@@ -33,7 +33,6 @@ interface LicenseItem {
   deletedAt: string | null;
   createdAt: string;
   importSource?: string | null;
-  importExternalRef?: string | null;
   importNeedsReview?: boolean;
   importRegistryInactive?: boolean;
 }
@@ -844,7 +843,7 @@ export default function AdminLicensesPage(): JSX.Element {
                     <div className="space-y-1">
                       <span
                         className="inline-flex px-2 py-0.5 rounded-lg bg-sky-100 text-sky-950 text-[11px] font-semibold"
-                        title={lic.importExternalRef ?? ''}
+                        title={lic.importSource ?? 'rpn_registry'}
                       >
                         Реестр
                       </span>
@@ -853,11 +852,6 @@ export default function AdminLicensesPage(): JSX.Element {
                       ) : null}
                       {lic.importNeedsReview ? (
                         <div className="text-[11px] text-amber-800 font-medium">На перепроверку</div>
-                      ) : null}
-                      {lic.importExternalRef ? (
-                        <div className="text-[10px] text-ink-muted break-all max-w-[140px]">
-                          {lic.importExternalRef}
-                        </div>
                       ) : null}
                     </div>
                   ) : (

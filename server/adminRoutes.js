@@ -43,7 +43,6 @@ function sqlAdminLicenseTokenClause(paramPlaceholder) {
     OR position(${paramPlaceholder} in lower(coalesce(inn, ''))) > 0
     OR position(${paramPlaceholder} in lower(coalesce(address, ''))) > 0
     OR position(${paramPlaceholder} in lower(coalesce(region, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(import_external_ref, ''))) > 0
     OR position(${paramPlaceholder} in lower(coalesce(import_source, ''))) > 0
     OR position(${paramPlaceholder} in lower(coalesce(file_original_name, ''))) > 0
     OR position(${paramPlaceholder} in lower(coalesce(file_stored_name, ''))) > 0
@@ -342,7 +341,6 @@ adminRouter.get('/licenses', async (req, res) => {
             deleted_by AS "deletedBy",
             created_at AS "createdAt",
             import_source AS "importSource",
-            import_external_ref AS "importExternalRef",
             import_needs_review AS "importNeedsReview",
             import_registry_inactive AS "importRegistryInactive"
      FROM licenses
