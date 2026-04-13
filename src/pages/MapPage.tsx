@@ -652,7 +652,7 @@ export default function MapPage(): JSX.Element {
           </button>
         </div>
 
-        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+        <section className="relative z-30 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
           <div className="mb-4">
             <h3 className={mapSectionTitleClass}>
               управление
@@ -770,7 +770,7 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+        <section className="relative z-10 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
           <h3 className={`${mapSectionTitleClass} mb-2`}>
             Результаты
           </h3>
@@ -842,7 +842,7 @@ export default function MapPage(): JSX.Element {
           )}
         </section>
 
-        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+        <section className="relative z-10 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
           <h3 className={`${mapSectionTitleClass} mb-3`}>
             Легенда
           </h3>
@@ -862,7 +862,7 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+        <section className="relative z-10 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
           <h3 className={`${mapSectionTitleClass} mb-3`}>
             Подложка карты
           </h3>
@@ -926,7 +926,7 @@ export default function MapPage(): JSX.Element {
           </p>
         </section>
 
-        <section className="rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
+        <section className="relative z-10 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
           <h3 className={`${mapSectionTitleClass} mb-4`}>
             Маршрут
           </h3>
