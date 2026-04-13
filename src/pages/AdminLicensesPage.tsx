@@ -15,8 +15,7 @@ type AdminImportListFilter =
   | 'rpn_registry'
   | 'registry_any'
   | 'manual'
-  | 'registry_inactive'
-  | 'needs_review';
+  | 'registry_inactive';
 
 interface LicenseItem {
   id: number;
@@ -34,7 +33,6 @@ interface LicenseItem {
   importSource?: string | null;
   importRegistryStatus?: string | null;
   importRegistryStatusRu?: string | null;
-  importNeedsReview?: boolean;
   importRegistryInactive?: boolean;
 }
 
@@ -75,14 +73,7 @@ type RegistryStatusFilter =
   | 'unknown';
 
 function parseImportListFilter(v: string | null): AdminImportListFilter {
-  if (
-    v === 'all' ||
-    v === 'rpn_registry' ||
-    v === 'registry_any' ||
-    v === 'manual' ||
-    v === 'registry_inactive' ||
-    v === 'needs_review'
-  ) {
+  if (v === 'all' || v === 'rpn_registry' || v === 'registry_any' || v === 'manual' || v === 'registry_inactive') {
     return v;
   }
   return 'all';
@@ -214,7 +205,6 @@ export default function AdminLicensesPage(): JSX.Element {
     if (importListFilter === 'registry_any') qs.set('importSource', 'any');
     if (importListFilter === 'manual') qs.set('importSource', 'manual');
     if (importListFilter === 'registry_inactive') qs.set('importRegistryInactive', 'true');
-    if (importListFilter === 'needs_review') qs.set('needsReview', 'true');
     if (statusFilter !== 'all') qs.set('status', statusFilter);
     if (registryStatusFilter !== 'all') qs.set('importRegistryStatus', registryStatusFilter);
     if (listSearchQ) qs.set('q', listSearchQ);
@@ -382,23 +372,6 @@ export default function AdminLicensesPage(): JSX.Element {
       alert(e instanceof Error ? e.message : 'Ошибка слияния дублей');
     } finally {
       setDupResolveLoading(false);
-    }
-  }
-
-  async function handleMarkImportReviewed(id: number): Promise<void> {
-    try {
-      const res = await fetch(getApiUrl(`/api/admin/licenses/${id}/import-mark-reviewed`), {
-        method: 'POST',
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
-        credentials: 'include',
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error((body as { message?: string }).message ?? 'Ошибка');
-      }
-      await reload();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Ошибка');
     }
   }
 
@@ -626,7 +599,6 @@ export default function AdminLicensesPage(): JSX.Element {
             <option value="manual">Загрузка лицензии с сайта (PDF)</option>
             <option value="registry_any">Любой импорт из реестра</option>
             <option value="registry_inactive">Неактивные в реестре</option>
-            <option value="needs_review">Нужна перепроверка (импорт)</option>
           </select>
           <select
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
@@ -681,9 +653,6 @@ export default function AdminLicensesPage(): JSX.Element {
                           Статус РПН: {lic.importRegistryStatusRu}
                         </div>
                       ) : null}
-                      {lic.importNeedsReview ? (
-                        <div className="text-[11px] text-amber-800 font-medium">На перепроверку</div>
-                      ) : null}
                     </div>
                   ) : (
                     '—'
@@ -721,6 +690,22 @@ export default function AdminLicensesPage(): JSX.Element {
                           {lic.status === 'rejected' ? 'Одобрить вручную' : 'Одобрить'}
                         </button>
                       ) : null}
+                      {lic.status !== 'rejected' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleReject(lic.id);
+                          }}
+                          className="glass-btn-soft !h-8 !text-[11px]"
+                          style={{
+                            background: 'rgba(127, 29, 29, 0.42)',
+                            borderColor: 'rgba(127, 29, 29, 0.35)',
+                            color: '#f5fff7',
+                          }}
+                        >
+                          Отклонить
+                        </button>
+                      ) : null}
                       <Link
                         to={`/admin/licenses/${lic.id}`}
                         state={{ from: `${location.pathname}${location.search}` }}
@@ -737,18 +722,6 @@ export default function AdminLicensesPage(): JSX.Element {
                       >
                         Удалить
                       </button>
-                      {lic.importSource && lic.importNeedsReview ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleMarkImportReviewed(lic.id);
-                          }}
-                          className="glass-btn-soft !h-8 !text-[11px]"
-                          title="Снять пометку «нужна перепроверка»"
-                        >
-                          Проверено
-                        </button>
-                      ) : null}
                     </div>
                   ) : null}
                 </td>

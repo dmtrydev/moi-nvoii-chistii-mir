@@ -24,7 +24,6 @@ export async function fetchLicenseExtendedJson(client, id) {
             file_stored_name AS "fileStoredName",
             created_at AS "createdAt",
             import_source AS "importSource",
-            import_needs_review AS "importNeedsReview",
             import_registry_inactive AS "importRegistryInactive"
      FROM licenses
      WHERE id = $1

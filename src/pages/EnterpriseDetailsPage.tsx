@@ -440,7 +440,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               Перепроверка
             </button>
           ) : null}
-          {canModerate && (item?.status === 'pending' || item?.status === 'recheck') ? (
+          {canModerate && item?.status !== 'approved' ? (
             <button
               type="button"
               disabled={!item?.id}
@@ -453,7 +453,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
               Одобрить
             </button>
           ) : null}
-          {canModerate && (item?.status === 'pending' || item?.status === 'recheck') ? (
+          {canModerate && item?.status !== 'rejected' ? (
             <button
               type="button"
               disabled={!item?.id}

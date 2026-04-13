@@ -257,7 +257,6 @@ adminRouter.get('/licenses', async (req, res) => {
     importSource: importSourceQ,
     importRegistryStatus: importRegistryStatusQ,
     importRegistryInactive: importRegistryInactiveQ,
-    needsReview: needsReviewQ,
     q: searchQ,
   } = req.query;
   const showDeleted = String(includeDeleted).toLowerCase() === 'true';
@@ -285,8 +284,6 @@ adminRouter.get('/licenses', async (req, res) => {
     : null;
   const registryInactiveOnly = String(importRegistryInactiveQ ?? '').toLowerCase() === 'true';
 
-  const needsReviewFilter = String(needsReviewQ ?? '').toLowerCase() === 'true';
-
   const whereParts = [];
   const countParams = [];
   let pi = 1;
@@ -313,9 +310,6 @@ adminRouter.get('/licenses', async (req, res) => {
   if (importRegistryStatusFilter) {
     whereParts.push(`import_registry_status = $${pi++}`);
     countParams.push(importRegistryStatusFilter);
-  }
-  if (needsReviewFilter) {
-    whereParts.push('import_needs_review = TRUE');
   }
 
   const searchTokens = tokenizeAdminLicenseSearch(searchQ);
@@ -360,7 +354,6 @@ adminRouter.get('/licenses', async (req, res) => {
             import_source AS "importSource",
             import_registry_status AS "importRegistryStatus",
             import_registry_status_ru AS "importRegistryStatusRu",
-            import_needs_review AS "importNeedsReview",
             import_registry_inactive AS "importRegistryInactive"
      FROM licenses
      ${whereSql}
@@ -734,41 +727,6 @@ adminRouter.post('/licenses/batch-ai-approve', async (req, res) => {
   } catch (err) {
     console.error('batch-ai-approve:', err);
     return res.status(500).json({ message: 'Ошибка пакетной модерации' });
-  }
-});
-
-/** Снять флаг «нужна перепроверка» у записи, импортированной из внешнего реестра. */
-adminRouter.post('/licenses/:id/import-mark-reviewed', async (req, res) => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) {
-    return res.status(400).json({ message: 'Некорректный id' });
-  }
-  try {
-    const { rows } = await query(
-      `UPDATE licenses
-       SET import_needs_review = FALSE
-       WHERE id = $1
-         AND deleted_at IS NULL
-         AND import_source IS NOT NULL
-       RETURNING id`,
-      [id],
-    );
-    if (!rows.length) {
-      return res.status(404).json({
-        message: 'Объект не найден, удалён или не является импортом из реестра',
-      });
-    }
-    await createAuditLog({
-      req,
-      action: 'LICENSE_IMPORT_MARK_REVIEWED',
-      entityType: 'LICENSE',
-      entityId: String(id),
-      severity: 'INFO',
-    });
-    return res.json({ ok: true, id: rows[0].id });
-  } catch (err) {
-    console.error('import-mark-reviewed:', err);
-    return res.status(500).json({ message: 'Ошибка обновления' });
   }
 });
 

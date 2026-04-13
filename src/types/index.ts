@@ -116,7 +116,6 @@ export interface LicenseData {
   importSource?: string | null;
   importRegistryStatus?: string | null;
   importRegistryStatusRu?: string | null;
-  importNeedsReview?: boolean;
   /** Импорт из rpn_registry: в выгрузке реестра статус не active */
   importRegistryInactive?: boolean;
   /** Установлено /api/analyze-license при переданном Bearer, если ИНН уже есть в БД */
