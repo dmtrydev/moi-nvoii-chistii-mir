@@ -767,8 +767,13 @@ adminRouter.post('/licenses/:id/approve', async (req, res) => {
         ...(approveResult.manualOverrideFromRejected ? { manualOverrideFromRejected: true } : {}),
       },
     });
+    const noOwner = approveResult.before?.ownerUserId == null;
     return res.json({
-      message: approveResult.rewardGranted ? 'Лицензия одобрена, экокоины начислены' : 'Лицензия одобрена',
+      message: approveResult.rewardGranted
+        ? 'Лицензия одобрена, экокоины начислены'
+        : noOwner
+          ? 'Лицензия одобрена. Экокоины не начислены: у карточки нет заявителя (импорт из реестра).'
+          : 'Лицензия одобрена',
       license: approveResult.after,
     });
   } catch (err) {

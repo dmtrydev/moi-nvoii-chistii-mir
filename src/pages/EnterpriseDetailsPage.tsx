@@ -240,8 +240,8 @@ export default function EnterpriseDetailsPage(): JSX.Element {
       headers: { Authorization: `Bearer ${accessToken}` },
       credentials: 'include',
     });
-    if (!res.ok) throw new Error('Не удалось одобрить');
-    const body = await res.json().catch(() => ({}));
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    if (!res.ok) throw new Error(body.message ?? 'Не удалось одобрить');
     if (!body?.license) {
       // ничего не делаем, просто обновим карточку
     }
