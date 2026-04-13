@@ -379,8 +379,6 @@ async function insertLicenseBundle(client, payload) {
   const { fkkoArr, activityArr } = aggregateFkkoAndActivityFromSites(payload.sites);
   if (fkkoArr.length === 0) return { ok: false, reason: 'no_fkko' };
 
-  const moderatedComment = `Импорт ${IMPORT_SOURCE} (${new Date().toISOString().slice(0, 10)})`;
-
   const latNum = null;
   const lngNum = null;
   const sitesForInsert = payload.sites.map((s) => ({ ...s }));
@@ -393,9 +391,9 @@ async function insertLicenseBundle(client, payload) {
        import_source, import_needs_review, import_registry_inactive,
        import_registry_status, import_registry_status_ru)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-       'approved', 100, NULL, NOW(), $9,
+       'pending', 100, NULL, NULL, NULL,
        NULL, NULL,
-       $10, TRUE, $11, $12, $13)
+       $9, TRUE, $10, $11, $12)
      RETURNING id`,
     [
       payload.companyName,
@@ -406,7 +404,6 @@ async function insertLicenseBundle(client, payload) {
       lngNum,
       fkkoArr,
       activityArr,
-      moderatedComment,
       IMPORT_SOURCE,
       Boolean(payload.registryInactive),
       payload.registryStatus,

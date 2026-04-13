@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
-import { formatFkkoHuman } from '@/utils/fkko';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -65,7 +64,6 @@ interface LicenseStats {
 }
 
 const PAGE_SIZE = 25;
-const PENDING_QUEUE_LIMIT = 200;
 type AdminStatusFilter = 'all' | 'pending' | 'recheck' | 'approved' | 'rejected';
 type RegistryStatusFilter =
   | 'all'
@@ -125,7 +123,6 @@ export default function AdminLicensesPage(): JSX.Element {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(initialPage);
   const [stats, setStats] = useState<LicenseStats | null>(null);
-  const [pendingItems, setPendingItems] = useState<LicenseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,8 +131,6 @@ export default function AdminLicensesPage(): JSX.Element {
   const [dupScanLoading, setDupScanLoading] = useState(false);
   const [dupResolveLoading, setDupResolveLoading] = useState(false);
 
-  const [batchAiRunning, setBatchAiRunning] = useState(false);
-  const [batchAiStatus, setBatchAiStatus] = useState('');
   const [importListFilter, setImportListFilter] = useState<AdminImportListFilter>(initialImportFilter);
   const [statusFilter, setStatusFilter] = useState<AdminStatusFilter>(initialStatusFilter);
   const [registryStatusFilter, setRegistryStatusFilter] =
@@ -210,22 +205,6 @@ export default function AdminLicensesPage(): JSX.Element {
     });
   }
 
-  async function fetchPendingQueue(): Promise<void> {
-    const res = await fetch(
-      getApiUrl(`/api/admin/licenses?status=pending&limit=${PENDING_QUEUE_LIMIT}&offset=0`),
-      {
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
-        credentials: 'include',
-      },
-    );
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки очереди');
-    }
-    const data = body as { items?: LicenseItem[] };
-    setPendingItems(Array.isArray(data.items) ? data.items : []);
-  }
-
   async function fetchTablePage(forPage: number): Promise<void> {
     const offset = (forPage - 1) * PAGE_SIZE;
     const qs = new URLSearchParams();
@@ -273,7 +252,7 @@ export default function AdminLicensesPage(): JSX.Element {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([fetchStats(), fetchPendingQueue(), fetchTablePage(page)]);
+        await Promise.all([fetchStats(), fetchTablePage(page)]);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка');
       } finally {
@@ -292,7 +271,7 @@ export default function AdminLicensesPage(): JSX.Element {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([fetchStats(), fetchPendingQueue(), fetchTablePage(page)]);
+      await Promise.all([fetchStats(), fetchTablePage(page)]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка');
     } finally {
@@ -403,87 +382,6 @@ export default function AdminLicensesPage(): JSX.Element {
       alert(e instanceof Error ? e.message : 'Ошибка слияния дублей');
     } finally {
       setDupResolveLoading(false);
-    }
-  }
-
-  async function handleBatchAiApproveAll(): Promise<void> {
-    if (
-      !window.confirm(
-        'По очереди будут обработаны все заявки «на проверке»: проверка дубля ИНН, затем ИИ по PDF и данным; при одобрении — публикация и начисление экокоинов, при отклонении — статус «отклонено» с пометкой [ИИ]. Это может занять несколько минут и расходует лимиты Timeweb AI. Продолжить?',
-      )
-    ) {
-      return;
-    }
-
-    setBatchAiRunning(true);
-    let cursor = 0;
-    const acc = {
-      approved: 0,
-      rejected: 0,
-      skipped: 0,
-      errors: 0,
-    };
-    let chunks = 0;
-    let more = true;
-    let emptyQueue = false;
-    try {
-      while (more) {
-        chunks += 1;
-        setBatchAiStatus(`Партия ${chunks}…`);
-        const res = await fetch(getApiUrl('/api/admin/licenses/batch-ai-approve'), {
-          method: 'POST',
-          headers: {
-            Authorization: accessToken ? `Bearer ${accessToken}` : '',
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ cursor, batchSize: 10, dryRun: false }),
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error((body as { message?: string }).message ?? `Ошибка партии ${chunks}`);
-        }
-        const data = body as {
-          summary?: {
-            approved?: number;
-            rejected?: number;
-            skipped?: number;
-          };
-          nextCursor?: number | null;
-          results?: { action?: string }[];
-        };
-        if (chunks === 1 && (data.results?.length ?? 0) === 0) {
-          emptyQueue = true;
-          alert('Нет заявок со статусом «на проверке».');
-          more = false;
-          break;
-        }
-        const s = data.summary ?? {};
-        acc.approved += Number(s.approved ?? 0);
-        acc.rejected += Number(s.rejected ?? 0);
-        acc.skipped += Number(s.skipped ?? 0);
-        for (const r of data.results ?? []) {
-          if (r.action === 'error') acc.errors += 1;
-        }
-        const next = data.nextCursor;
-        if (next == null || next === undefined) {
-          more = false;
-        } else {
-          cursor = next;
-        }
-      }
-
-      if (!emptyQueue) {
-        alert(
-          `Готово (${chunks} партий). Одобрено: ${acc.approved}, отклонено: ${acc.rejected}, пропущено: ${acc.skipped}, ошибок записи: ${acc.errors}.`,
-        );
-      }
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Ошибка пакетной модерации');
-    } finally {
-      setBatchAiStatus('');
-      setBatchAiRunning(false);
-      await reload();
     }
   }
 
@@ -685,126 +583,6 @@ export default function AdminLicensesPage(): JSX.Element {
             document.body,
           )
         : null}
-      {!!pendingItems.length && (
-        <div className="glass-panel p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <div className="glass-kicker">Заявки на проверку</div>
-              <h2 className="glass-title mt-1">Очередь модерации</h2>
-            </div>
-            <div className="text-sm text-ink-muted text-right">
-              <div>Всего на проверке: {stats?.pending ?? pendingItems.length}</div>
-              {pendingItems.length >= PENDING_QUEUE_LIMIT && (stats?.pending ?? 0) > PENDING_QUEUE_LIMIT ? (
-                <div className="text-[11px] text-amber-700 mt-1">В списке ниже — первые {PENDING_QUEUE_LIMIT} заявок</div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 p-3 rounded-xl bg-app-bg/50 border border-black/[0.06]">
-            <button
-              type="button"
-              disabled={batchAiRunning}
-              onClick={() => {
-                void handleBatchAiApproveAll();
-              }}
-              className="glass-btn-dark !h-10 !px-4"
-            >
-              {batchAiRunning ? 'Обработка ИИ…' : 'Проверить и одобрить партиями (ИИ)'}
-            </button>
-            {batchAiStatus ? (
-              <span className="text-sm text-ink font-medium">{batchAiStatus}</span>
-            ) : null}
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {pendingItems.map((lic) => {
-              const fkko = Array.isArray(lic.fkkoCodes) ? lic.fkkoCodes.filter(Boolean) : [];
-              const activity = Array.isArray(lic.activityTypes) ? lic.activityTypes.filter(Boolean) : [];
-
-              return (
-                <div key={lic.id} className="glass-panel p-4">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="min-w-[220px]">
-                        <div className="text-sm text-ink-muted">ID: {lic.id}</div>
-                        <div className="text-base font-semibold text-ink mt-1">{lic.companyName}</div>
-                        <div className="text-sm text-ink-muted mt-1">
-                          ИНН {lic.inn ?? '—'}
-                        </div>
-                        {lic.address ? <div className="text-sm text-ink-muted mt-1">{lic.address}</div> : null}
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <div className="px-3 py-1 rounded-xl bg-accent-soft text-xs text-[#1f5c14] font-semibold">
-                          На проверке
-                        </div>
-                        <div className="px-3 py-1 rounded-xl bg-app-bg border border-black/[0.06] text-xs text-ink font-semibold">
-                          +{lic.reward} Экокоинов
-                        </div>
-                      </div>
-                    </div>
-
-                    {fkko.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-semibold text-ink-muted">Коды ФККО</div>
-                        <div className="flex flex-wrap gap-2">
-                          {fkko.map((c) => (
-                            <span key={c} className="inline-flex px-2.5 py-1 rounded-xl bg-app-bg text-sm text-ink">
-                              {formatFkkoHuman(c)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {activity.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-xs font-semibold text-ink-muted">Виды обращения</div>
-                        <div className="text-sm text-ink-muted">{activity.join(', ')}</div>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleApprove(lic.id);
-                        }}
-                        className="glass-btn-dark !h-9 !px-4"
-                      >
-                        Одобрить
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleReject(lic.id);
-                        }}
-                        className="glass-btn-soft !h-9 !px-4"
-                        style={{
-                          background: 'rgba(127, 29, 29, 0.42)',
-                          borderColor: 'rgba(127, 29, 29, 0.35)',
-                          color: '#f5fff7',
-                        }}
-                      >
-                        Отклонить
-                      </button>
-
-                      <Link
-                        to={`/admin/licenses/${lic.id}`}
-                        state={{ from: `${location.pathname}${location.search}` }}
-                        className="glass-btn-soft !h-9 !px-4"
-                      >
-                        Открыть карточку
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {loading && <div className="glass-panel p-4 text-slate-600 text-sm">Загрузка...</div>}
       {error && <div className="glass-panel p-4 text-red-600 text-sm">{error}</div>}
       <div className="glass-panel p-4 flex flex-col gap-3 text-sm">
@@ -816,7 +594,7 @@ export default function AdminLicensesPage(): JSX.Element {
             type="search"
             value={listSearchInput}
             onChange={(e) => setListSearchInput(e.target.value)}
-            placeholder="Слова, ИНН, ID, ФККО, адрес, регион, номер лицензии..."
+            placeholder="Слова, ИНН, ID, ФККО, адрес, регион..."
             className="w-full max-w-2xl rounded-xl border border-black/[0.08] bg-white px-3 py-2.5 text-sm text-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-[#5fd93a]/35"
             autoComplete="off"
           />
@@ -931,26 +709,16 @@ export default function AdminLicensesPage(): JSX.Element {
                 <td className="px-3 py-1.5">
                   {!lic.deletedAt ? (
                     <div className="flex flex-wrap gap-2 items-center">
-                      {lic.status === 'rejected' ? (
+                      {lic.status !== 'approved' ? (
                         <button
                           type="button"
                           onClick={() => {
-                            void handleManualApproveRejected(lic.id);
+                            if (lic.status === 'rejected') void handleManualApproveRejected(lic.id);
+                            else void handleApprove(lic.id);
                           }}
                           className="glass-btn-dark !h-8 !text-[11px]"
                         >
-                          Одобрить вручную
-                        </button>
-                      ) : null}
-                      {lic.status === 'recheck' ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleApprove(lic.id);
-                          }}
-                          className="glass-btn-dark !h-8 !text-[11px]"
-                        >
-                          Одобрить
+                          {lic.status === 'rejected' ? 'Одобрить вручную' : 'Одобрить'}
                         </button>
                       ) : null}
                       <Link
