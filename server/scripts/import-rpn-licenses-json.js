@@ -4,7 +4,8 @@
  * Запуск из папки server (нужен DATABASE_URL в .env):
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json
  *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --dry-run
- *   node scripts/import-rpn-licenses-json.js path/to/licenses.json --geocode
+ *
+ *   Координаты при импорте не заполняются (lat/lng = NULL) — задайте их вручную в админке или отдельным процессом.
  *
  *   Файлы >256 МБ: потоковое чтение (без readFileSync целиком — лимит строки в Node).
  *   Путь в JSON по умолчанию: content.* (корень { "content": [ ... ] }) или *.content.* (корень [ { "content": [ ] }, ... ]).
@@ -20,6 +21,7 @@ import 'dotenv/config';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getPool } from '../db.js';
 
 const require = createRequire(import.meta.url);
@@ -69,20 +71,79 @@ function fkkoFromWasteTypes(wt) {
 /** Выше этого размера — только поток (иначе ERR_STRING_TOO_LONG в V8). */
 const STREAM_IMPORT_MIN_BYTES = 256 * 1024 * 1024;
 
+/** Строк за один INSERT в site_fkko_activities (5 параметров на строку). */
+const SITE_FKKO_ACTIVITIES_CHUNK = 800;
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {string} innExpr
+ * @returns {Promise<{ innSet: Set<string>, refSet: Set<string> }>}
+ */
+async function loadImportDuplicateSets(pool, innExpr) {
+  const innRes = await pool.query(
+    `SELECT ${innExpr} AS inn_norm FROM licenses
+     WHERE deleted_at IS NULL AND length(${innExpr}) IN (10, 12)`,
+  );
+  const innSet = new Set(innRes.rows.map((r) => String(r.inn_norm ?? '').trim()).filter(Boolean));
+
+  const refRes = await pool.query(
+    `SELECT import_external_ref FROM licenses
+     WHERE deleted_at IS NULL AND import_external_ref IS NOT NULL`,
+  );
+  const refSet = new Set(
+    refRes.rows.map((r) => String(r.import_external_ref ?? '').trim()).filter(Boolean),
+  );
+
+  return { innSet, refSet };
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {number} siteId
+ * @param {Array<{ fkkoCode: string, wasteName: string | null, hazardClass: string | null, activityTypes: string[] }>} entries
+ */
+async function insertSiteFkkoActivitiesBatch(client, siteId, entries) {
+  const rows = [];
+  for (const entry of entries) {
+    for (const actType of entry.activityTypes) {
+      rows.push([siteId, entry.fkkoCode, entry.wasteName, entry.hazardClass, actType]);
+    }
+  }
+  if (rows.length === 0) return;
+  for (let i = 0; i < rows.length; i += SITE_FKKO_ACTIVITIES_CHUNK) {
+    const chunk = rows.slice(i, i + SITE_FKKO_ACTIVITIES_CHUNK);
+    const vals = [];
+    const params = [];
+    let p = 1;
+    for (const [sid, fkko, waste, hazard, act] of chunk) {
+      vals.push(`($${p++},$${p++},$${p++},$${p++},$${p++})`);
+      params.push(sid, fkko, waste, hazard, act);
+    }
+    await client.query(
+      `INSERT INTO site_fkko_activities (site_id, fkko_code, waste_name, hazard_class, activity_type)
+       VALUES ${vals.join(',')}
+       ON CONFLICT (site_id, fkko_code, activity_type) DO NOTHING`,
+      params,
+    );
+  }
+}
+
 function parseArgs(argv) {
   const positional = [];
   let dryRun = false;
-  let geocode = false;
   let includeInactive = false;
   let jsonStreamPath = '';
   for (const a of argv) {
     if (a === '--dry-run') dryRun = true;
-    else if (a === '--geocode') geocode = true;
-    else if (a === '--include-inactive') includeInactive = true;
+    else if (a === '--geocode') {
+      console.warn(
+        'Флаг --geocode устарел: геокодирование при импорте отключено; lat/lng остаются пустыми до ручного заполнения.',
+      );
+    } else if (a === '--include-inactive') includeInactive = true;
     else if (a.startsWith('--json-path=')) jsonStreamPath = a.slice('--json-path='.length).trim();
     else if (!a.startsWith('-')) positional.push(a);
   }
-  return { jsonPath: positional[0] ?? '', dryRun, geocode, includeInactive, jsonStreamPath };
+  return { jsonPath: positional[0] ?? '', dryRun, includeInactive, jsonStreamPath };
 }
 
 /** Путь для JSONStream: content.* vs *.content.* */
@@ -133,39 +194,13 @@ function printJsonParseDiagnostics(raw, err) {
   }
 }
 
-function parseYandexPos(pos) {
-  const s = String(pos ?? '').trim();
-  if (!s) return null;
-  const parts = s.split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return null;
-  const lon = Number.parseFloat(parts[0]);
-  const lat = Number.parseFloat(parts[1]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  return { lat, lng: lon };
-}
-
-async function geocodeAddressYandex(address, apiKey) {
-  if (!apiKey) return null;
-  const a = String(address ?? '').trim();
-  if (!a || a.length < 6) return null;
-  const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${encodeURIComponent(
-    apiKey,
-  )}&format=json&results=1&lang=ru_RU&geocode=${encodeURIComponent(a)}`;
-  const r = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!r.ok) return null;
-  const json = await r.json();
-  const pos =
-    json?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos ?? '';
-  return parseYandexPos(pos);
-}
-
 /**
  * @param {unknown} entry
  * @returns {null | {
  *   companyName: string,
  *   inn: string | null,
  *   registryInactive: boolean,
- *   externalRef: string,
+ *   externalRef: string | null,
  *   sites: Array<{
  *     address: string | null,
  *     region: string | null,
@@ -178,7 +213,7 @@ async function geocodeAddressYandex(address, apiKey) {
  *   }>,
  * }}
  */
-function mapRegistryEntryToSites(entry) {
+export function mapRegistryEntryToSites(entry) {
   if (!entry || typeof entry !== 'object') return null;
   const statusRaw = String(entry.status ?? '').toLowerCase();
   const registryInactive = Boolean(statusRaw && statusRaw !== 'active');
@@ -193,8 +228,8 @@ function mapRegistryEntryToSites(entry) {
   const innNorm = normalizeInn(innRaw);
   if (!innNorm) return null;
 
-  const externalRef = String(entry.number ?? '').trim();
-  if (!externalRef) return null;
+  const externalRefRaw = String(entry.number ?? '').trim();
+  const externalRef = externalRefRaw || null;
 
   const regPart = org.registrationAddress?.unrecognizablePart;
   const regAddr = regPart == null ? '' : String(regPart).trim();
@@ -272,36 +307,15 @@ function flattenRootDocuments(root) {
   return entries;
 }
 
-async function insertLicenseBundle(client, payload, opts) {
+async function insertLicenseBundle(client, payload) {
   const { fkkoArr, activityArr } = aggregateFkkoAndActivityFromSites(payload.sites);
   if (fkkoArr.length === 0) return { ok: false, reason: 'no_fkko' };
 
   const moderatedComment = `Импорт ${IMPORT_SOURCE} (${new Date().toISOString().slice(0, 10)})`;
 
-  let latNum = null;
-  let lngNum = null;
+  const latNum = null;
+  const lngNum = null;
   const sitesForInsert = payload.sites.map((s) => ({ ...s }));
-
-  if (opts.geocode && opts.yandexKey) {
-    const addr = String(payload.primaryAddr ?? '').trim();
-    if (addr.length >= 6) {
-      const c = await geocodeAddressYandex(addr, opts.yandexKey);
-      if (c) {
-        latNum = c.lat;
-        lngNum = c.lng;
-      }
-    }
-    for (const s of sitesForInsert) {
-      const a = String(s.address ?? '').trim();
-      if (a.length < 6) continue;
-      if (s.lat != null && s.lng != null) continue;
-      const c = await geocodeAddressYandex(a, opts.yandexKey);
-      if (c) {
-        s.lat = c.lat;
-        s.lng = c.lng;
-      }
-    }
-  }
 
   const inserted = await client.query(
     `INSERT INTO licenses
@@ -356,16 +370,7 @@ async function insertLicenseBundle(client, payload, opts) {
     const siteId = Number(row.rows[0]?.id);
     if (!Number.isFinite(siteId)) continue;
 
-    for (const entry of s.entries) {
-      for (const actType of entry.activityTypes) {
-        await client.query(
-          `INSERT INTO site_fkko_activities (site_id, fkko_code, waste_name, hazard_class, activity_type)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (site_id, fkko_code, activity_type) DO NOTHING`,
-          [siteId, entry.fkkoCode, entry.wasteName, entry.hazardClass, actType],
-        );
-      }
-    }
+    await insertSiteFkkoActivitiesBatch(client, siteId, s.entries);
   }
 
   return { ok: true, licenseId };
@@ -377,13 +382,11 @@ async function insertLicenseBundle(client, payload, opts) {
  *   stats: { parsed: number, skippedNoData: number, skippedDupInn: number, skippedDupRef: number, inserted: number, errors: number },
  *   pool: import('pg').Pool | null,
  *   dryRun: boolean,
- *   geocode: boolean,
- *   yandexKey: string,
- *   innExpr: string,
+ *   dupSets: { innSet: Set<string>, refSet: Set<string> } | null,
  * }} ctx
  */
 async function importSingleEntry(entry, ctx) {
-  const { stats, pool, dryRun, geocode, yandexKey, innExpr } = ctx;
+  const { stats, pool, dryRun, dupSets } = ctx;
   const payload = mapRegistryEntryToSites(entry);
   if (!payload) {
     stats.skippedNoData += 1;
@@ -396,35 +399,22 @@ async function importSingleEntry(entry, ctx) {
     return;
   }
 
+  if (dupSets) {
+    if (payload.externalRef && dupSets.refSet.has(payload.externalRef)) {
+      stats.skippedDupRef += 1;
+      return;
+    }
+    if (dupSets.innSet.has(payload.innNorm)) {
+      stats.skippedDupInn += 1;
+      return;
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const dupRef = await client.query(
-      `SELECT id FROM licenses WHERE deleted_at IS NULL AND import_external_ref = $1 LIMIT 1`,
-      [payload.externalRef],
-    );
-    if (dupRef.rows.length > 0) {
-      await client.query('ROLLBACK');
-      stats.skippedDupRef += 1;
-      return;
-    }
-
-    const dupInn = await client.query(
-      `SELECT id FROM licenses
-       WHERE deleted_at IS NULL
-         AND ${innExpr} = $1
-         AND length(${innExpr}) IN (10, 12)
-       LIMIT 1`,
-      [payload.innNorm],
-    );
-    if (dupInn.rows.length > 0) {
-      await client.query('ROLLBACK');
-      stats.skippedDupInn += 1;
-      return;
-    }
-
-    const result = await insertLicenseBundle(client, payload, { geocode, yandexKey });
+    const result = await insertLicenseBundle(client, payload);
     if (!result.ok) {
       await client.query('ROLLBACK');
       stats.skippedNoData += 1;
@@ -433,13 +423,19 @@ async function importSingleEntry(entry, ctx) {
 
     await client.query('COMMIT');
     stats.inserted += 1;
+    if (payload.externalRef) dupSets?.refSet.add(payload.externalRef);
+    dupSets?.innSet.add(payload.innNorm);
     if (stats.inserted % 50 === 0) {
       console.log('Импортировано:', stats.inserted);
     }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     stats.errors += 1;
-    console.error('Ошибка записи:', payload.externalRef, err instanceof Error ? err.message : err);
+    console.error(
+      'Ошибка записи:',
+      payload.externalRef ?? '(без номера)',
+      err instanceof Error ? err.message : err,
+    );
   } finally {
     client.release();
   }
@@ -488,10 +484,10 @@ async function runStreamingImport(abs, jsonStreamPath, ctx) {
 }
 
 async function main() {
-  const { jsonPath, dryRun, geocode, includeInactive, jsonStreamPath } = parseArgs(process.argv.slice(2));
+  const { jsonPath, dryRun, includeInactive, jsonStreamPath } = parseArgs(process.argv.slice(2));
   if (!jsonPath) {
     console.error(
-      'Укажите путь к JSON: node scripts/import-rpn-licenses-json.js <file.json> [--dry-run] [--geocode] [--json-path=content.*]',
+      'Укажите путь к JSON: node scripts/import-rpn-licenses-json.js <file.json> [--dry-run] [--json-path=content.*]',
     );
     process.exit(1);
   }
@@ -512,11 +508,6 @@ async function main() {
     );
   }
 
-  const yandexKey = String(process.env.YANDEX_GEOCODER_API_KEY ?? '').trim();
-  if (geocode && !yandexKey) {
-    console.warn('Предупреждение: --geocode без YANDEX_GEOCODER_API_KEY — координаты не заполняются.');
-  }
-
   const stats = {
     parsed: 0,
     skippedNoData: 0,
@@ -528,7 +519,17 @@ async function main() {
 
   const pool = dryRun ? null : getPool();
   const innExpr = LICENSE_INN_NORMALIZED_EXPR;
-  const ctx = { stats, pool, dryRun, geocode, yandexKey, innExpr };
+  let dupSets = null;
+  if (pool) {
+    dupSets = await loadImportDuplicateSets(pool, innExpr);
+    console.log(
+      'Кэш дублей: ИНН',
+      dupSets.innSet.size,
+      '| внешних ref',
+      dupSets.refSet.size,
+    );
+  }
+  const ctx = { stats, pool, dryRun, dupSets };
 
   if (useStream) {
     console.log('Файл', (st.size / (1024 * 1024)).toFixed(1), 'МБ — режим потока.');
@@ -563,7 +564,12 @@ async function main() {
   );
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const __filename = fileURLToPath(import.meta.url);
+const ranAsMain =
+  process.argv[1] != null && path.resolve(process.argv[1]) === path.resolve(__filename);
+if (ranAsMain) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
