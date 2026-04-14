@@ -348,6 +348,7 @@ export default function MapPage(): JSX.Element {
   const [hasSearched, setHasSearched] = useState(false);
   const [baseMapStyle, setBaseMapStyle] = useState<'osm' | 'cadastral'>('osm');
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
+  const isApplyingQueryFiltersRef = useRef(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setIntroVisible(true), 30);
@@ -478,9 +479,13 @@ export default function MapPage(): JSX.Element {
 
   useEffect(() => {
     const parsed = parseFiltersFromSearchParams(searchParams);
+    isApplyingQueryFiltersRef.current = true;
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
+    queueMicrotask(() => {
+      isApplyingQueryFiltersRef.current = false;
+    });
   }, [searchParams]);
 
   const focusSiteId = useMemo(() => {
@@ -519,6 +524,7 @@ export default function MapPage(): JSX.Element {
       filterChangeSearchResetSkip.current = false;
       return;
     }
+    if (isApplyingQueryFiltersRef.current) return;
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
