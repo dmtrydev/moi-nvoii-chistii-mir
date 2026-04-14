@@ -39,7 +39,7 @@ export const FilterManagementSidebarSection = (): JSX.Element => {
       </div>
       <div className="absolute top-[125px] left-[35px] w-[543px] h-[550px] flex flex-col gap-5 bg-[#ffffff80] rounded-[32.5px] border border-solid border-white shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
         <div className="flex ml-[25px] w-[397px] h-[70px] relative mt-[25px] flex-col items-start gap-2.5">
-          <div className="relative self-stretch mt-[-1.00px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Soyuz_Grotesk-Bold',Helvetica] font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">
+          <div className="relative self-stretch mt-[-1.00px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] font-display font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">
             управление
           </div>
           <div className="relative self-stretch [font-family:'Nunito-SemiBold',Helvetica] font-semibold text-[#5e6567] text-lg tracking-[0] leading-[normal]">Рабочая площадка — карта</div>
@@ -89,7 +89,7 @@ export const FilterManagementSidebarSection = (): JSX.Element => {
       </div>
       <div className="absolute top-[685px] left-[35px] w-[543px] h-[145px] flex bg-[#ffffff80] rounded-[32.5px] border border-solid border-white shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
         <div className="flex mt-[25px] w-[314px] h-[95px] ml-[25px] relative flex-col items-start gap-2.5">
-          <div className="relative self-stretch mt-[-1.00px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Soyuz_Grotesk-Bold',Helvetica] font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">
+          <div className="relative self-stretch mt-[-1.00px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] font-display font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">
             Результаты
           </div>
           <p className="relative self-stretch [font-family:'Nunito-SemiBold',Helvetica] font-semibold text-[#5e6567] text-lg tracking-[0] leading-[normal]">
@@ -99,7 +99,7 @@ export const FilterManagementSidebarSection = (): JSX.Element => {
       </div>
       <div className="absolute top-[840px] left-[35px] w-[545px] h-[200px]">
         <div className="top-0 left-0 h-[200px] absolute w-[543px] bg-[#ffffff80] rounded-[32.5px] border border-solid border-white shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]" />
-        <div className="absolute top-[25px] left-[25px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Soyuz_Grotesk-Bold',Helvetica] font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px] whitespace-nowrap">
+        <div className="absolute top-[25px] left-[25px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] font-display font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px] whitespace-nowrap">
           Легенда
         </div>
         <div className="absolute top-20 left-[25px] w-[233px] h-[95px] flex flex-col gap-2.5">
@@ -109,15 +109,15 @@ export const FilterManagementSidebarSection = (): JSX.Element => {
         </div>
       </div>
       <div className="top-[1050px] left-[35px] h-[385px] absolute w-[543px] bg-[#ffffff80] rounded-[32.5px] border border-solid border-white shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]" />
-      <div className="absolute top-[1075px] left-[60px] w-[314px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Soyuz_Grotesk-Bold',Helvetica] font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">Подложка карты</div>
+      <div className="absolute top-[1075px] left-[60px] w-[314px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] font-display font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">Подложка карты</div>
       <div className="absolute top-[1130px] left-[60px] w-[493px] h-[70px] bg-[#ffffff80] rounded-[23px] border border-solid border-white shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
         <div className="absolute top-[5px] left-[calc(50.00%_-_238px)] w-[237px] h-[60px]">
           <div className="absolute top-0 left-[calc(50.00%_-_118px)] w-[235px] h-[60px] rounded-[20px] border-[none] shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] before:content-[''] before:absolute before:inset-0 before:p-px before:rounded-[20px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none" />
-          <div className="absolute top-4 left-[calc(50.00%_-_46px)] [font-family:'Nunito-Bold',Helvetica] font-bold text-[#2b3335] text-xl text-center tracking-[0] leading-[normal]">Обычная</div>
+          <div className="absolute top-4 left-[calc(50.00%_-_46px)] font-display font-bold text-[#2b3335] text-xl text-center tracking-[0] leading-[normal]">Обычная</div>
         </div>
         <div className="absolute top-[5px] left-[calc(50.00%_+_6px)] w-[237px] h-[60px]">
           <div className="absolute top-0 left-[calc(50.00%_-_118px)] w-[235px] h-[60px] rounded-[20px]" />
-          <div className="absolute top-4 left-[calc(50.00%_-_64px)] [font-family:'Nunito-Bold',Helvetica] font-bold text-[#2b3335] text-xl text-center tracking-[0] leading-[normal]">Кадастровая</div>
+          <div className="absolute top-4 left-[calc(50.00%_-_64px)] font-display font-bold text-[#2b3335] text-xl text-center tracking-[0] leading-[normal]">Кадастровая</div>
         </div>
       </div>
       <p className="absolute top-[1210px] left-[60px] w-[488px] [font-family:'Nunito-SemiBold',Helvetica] font-normal text-transparent text-lg tracking-[0] leading-[normal]">
@@ -127,7 +127,7 @@ export const FilterManagementSidebarSection = (): JSX.Element => {
         <span className="[font-family:'Nunito-Bold',Helvetica] font-bold text-[#2b3335]">VITE_CADASTRE_IFRAME_URL.</span>
       </p>
       <div className="absolute top-[1445px] left-[35px] w-[543px] h-[400px] bg-[#ffffff80] rounded-[32.5px] border border-solid border-white shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]" />
-      <div className="absolute top-[1470px] left-[60px] w-[493px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Soyuz_Grotesk-Bold',Helvetica] font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">Маршрут</div>
+      <div className="absolute top-[1470px] left-[60px] w-[493px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] font-display font-bold text-transparent text-[32px] tracking-[0] leading-[35.2px]">Маршрут</div>
       <div className="absolute h-[205px] top-[1525px] left-[60px] flex items-start min-w-[493px]">
         <div className="w-[493px] h-[205px] flex flex-col gap-[25px]">
           <div className="w-[497px] h-[90px] relative">

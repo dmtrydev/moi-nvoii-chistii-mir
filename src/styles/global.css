@@ -122,12 +122,26 @@
   --reveal-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
-/* Soyuz Grotesk Bold: положите SoyuzGrotesk-Bold.woff2 в /public/fonts/ (опционально otf/ttf как запас). */
+/*
+ * Soyuz Grotesk Bold — файлы из `public/fonts/` попадают на сайт как `/fonts/...` (Vite / любой статический хост).
+ * Два имени семейства: каноническое и алиас из экспорта Framer (`Soyuz_Grotesk-Bold`), иначе браузер уйдёт в Helvetica.
+ */
 @font-face {
   font-family: 'Soyuz Grotesk';
   src:
     local('Soyuz Grotesk Bold'),
     local('SoyuzGrotesk-Bold'),
+    url('/fonts/SoyuzGrotesk-Bold.woff2') format('woff2'),
+    url('/fonts/SoyuzGrotesk-Bold.otf') format('opentype'),
+    url('/fonts/SoyuzGrotesk-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Soyuz_Grotesk-Bold';
+  src:
     url('/fonts/SoyuzGrotesk-Bold.woff2') format('woff2'),
     url('/fonts/SoyuzGrotesk-Bold.otf') format('opentype'),
     url('/fonts/SoyuzGrotesk-Bold.ttf') format('truetype');
