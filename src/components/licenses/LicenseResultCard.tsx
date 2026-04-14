@@ -48,9 +48,9 @@ export function LicenseResultCard({
                 className={
                   isLight
                     ? compact
-                      ? 'text-[18px] sm:text-[20px] font-semibold tracking-tight text-ink leading-[1.18] line-clamp-4'
-                      : 'text-[15px] sm:text-lg font-semibold tracking-tight text-ink leading-snug'
-                    : 'text-[15px] sm:text-lg font-semibold tracking-tight text-white leading-snug'
+                      ? 'font-display text-[18px] sm:text-[20px] font-bold tracking-tight text-ink leading-[1.18] line-clamp-4'
+                      : 'font-display text-[15px] sm:text-lg font-bold tracking-tight text-ink leading-snug'
+                    : 'font-display text-[15px] sm:text-lg font-bold tracking-tight text-white leading-snug'
                 }
               >
                 {item.companyName || 'Организация'}

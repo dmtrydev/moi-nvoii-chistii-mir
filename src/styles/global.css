@@ -79,9 +79,40 @@
   --text-letter-spacing: 0;
   --text-line-height: 1.5;
 
-  /* Типографика макета: Soyuz Grotesk Bold (H1, H3, H4) + Nunito SemiBold (H2, H5, H6) */
+  /* Заголовки (H1–H6, .typo-h*): везде Soyuz Grotesk Bold — правка только здесь */
   --font-display: 'Soyuz Grotesk', 'Manrope', system-ui, sans-serif;
   --font-heading-nunito: 'Nunito', system-ui, sans-serif;
+  --font-weight-heading-bold: 700;
+
+  --typo-h1-font-family: var(--font-display);
+  --typo-h1-font-weight: var(--font-weight-heading-bold);
+  --typo-h1-font-size: 48px;
+  --typo-h1-line-height: 1.1;
+
+  --typo-h2-font-family: var(--font-display);
+  --typo-h2-font-weight: var(--font-weight-heading-bold);
+  --typo-h2-font-size: 20px;
+  --typo-h2-line-height: normal;
+
+  --typo-h3-font-family: var(--font-display);
+  --typo-h3-font-weight: var(--font-weight-heading-bold);
+  --typo-h3-font-size: 32px;
+  --typo-h3-line-height: 1.1;
+
+  --typo-h4-font-family: var(--font-display);
+  --typo-h4-font-weight: var(--font-weight-heading-bold);
+  --typo-h4-font-size: 28px;
+  --typo-h4-line-height: 1.15;
+
+  --typo-h5-font-family: var(--font-display);
+  --typo-h5-font-weight: var(--font-weight-heading-bold);
+  --typo-h5-font-size: 18px;
+  --typo-h5-line-height: normal;
+
+  --typo-h6-font-family: var(--font-display);
+  --typo-h6-font-weight: var(--font-weight-heading-bold);
+  --typo-h6-font-size: 16px;
+  --typo-h6-line-height: normal;
 }
 
 :root {
@@ -107,40 +138,40 @@
 
 @layer components {
   .typo-h1 {
-    font-family: var(--font-display);
-    font-size: 48px;
-    font-weight: 700;
-    line-height: 1.1;
+    font-family: var(--typo-h1-font-family);
+    font-size: var(--typo-h1-font-size);
+    font-weight: var(--typo-h1-font-weight);
+    line-height: var(--typo-h1-line-height);
   }
   .typo-h2 {
-    font-family: var(--font-heading-nunito);
-    font-size: 20px;
-    font-weight: 600;
-    line-height: normal;
+    font-family: var(--typo-h2-font-family);
+    font-size: var(--typo-h2-font-size);
+    font-weight: var(--typo-h2-font-weight);
+    line-height: var(--typo-h2-line-height);
   }
   .typo-h3 {
-    font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 700;
-    line-height: 1.1;
+    font-family: var(--typo-h3-font-family);
+    font-size: var(--typo-h3-font-size);
+    font-weight: var(--typo-h3-font-weight);
+    line-height: var(--typo-h3-line-height);
   }
   .typo-h4 {
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.15;
+    font-family: var(--typo-h4-font-family);
+    font-size: var(--typo-h4-font-size);
+    font-weight: var(--typo-h4-font-weight);
+    line-height: var(--typo-h4-line-height);
   }
   .typo-h5 {
-    font-family: var(--font-heading-nunito);
-    font-size: 18px;
-    font-weight: 600;
-    line-height: normal;
+    font-family: var(--typo-h5-font-family);
+    font-size: var(--typo-h5-font-size);
+    font-weight: var(--typo-h5-font-weight);
+    line-height: var(--typo-h5-line-height);
   }
   .typo-h6 {
-    font-family: var(--font-heading-nunito);
-    font-size: 16px;
-    font-weight: 600;
-    line-height: normal;
+    font-family: var(--typo-h6-font-family);
+    font-size: var(--typo-h6-font-size);
+    font-weight: var(--typo-h6-font-weight);
+    line-height: var(--typo-h6-line-height);
   }
 
   /**
@@ -233,42 +264,41 @@
     display: none;
   }
 
-  /* Макет «Шрифты»: H1/H3/H4 — Soyuz Grotesk Bold; H2/H5/H6 — Nunito SemiBold (600) */
   h1 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 48px;
-    line-height: 1.1;
+    font-family: var(--typo-h1-font-family);
+    font-weight: var(--typo-h1-font-weight);
+    font-size: var(--typo-h1-font-size);
+    line-height: var(--typo-h1-line-height);
   }
   h2 {
-    font-family: var(--font-heading-nunito);
-    font-weight: 600;
-    font-size: 20px;
-    line-height: normal;
+    font-family: var(--typo-h2-font-family);
+    font-weight: var(--typo-h2-font-weight);
+    font-size: var(--typo-h2-font-size);
+    line-height: var(--typo-h2-line-height);
   }
   h3 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 32px;
-    line-height: 1.1;
+    font-family: var(--typo-h3-font-family);
+    font-weight: var(--typo-h3-font-weight);
+    font-size: var(--typo-h3-font-size);
+    line-height: var(--typo-h3-line-height);
   }
   h4 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 28px;
-    line-height: 1.15;
+    font-family: var(--typo-h4-font-family);
+    font-weight: var(--typo-h4-font-weight);
+    font-size: var(--typo-h4-font-size);
+    line-height: var(--typo-h4-line-height);
   }
   h5 {
-    font-family: var(--font-heading-nunito);
-    font-weight: 600;
-    font-size: 18px;
-    line-height: normal;
+    font-family: var(--typo-h5-font-family);
+    font-weight: var(--typo-h5-font-weight);
+    font-size: var(--typo-h5-font-size);
+    line-height: var(--typo-h5-line-height);
   }
   h6 {
-    font-family: var(--font-heading-nunito);
-    font-weight: 600;
-    font-size: 16px;
-    line-height: normal;
+    font-family: var(--typo-h6-font-family);
+    font-weight: var(--typo-h6-font-weight);
+    font-size: var(--typo-h6-font-size);
+    line-height: var(--typo-h6-line-height);
   }
 }
 
@@ -991,7 +1021,7 @@
 }
 
 .hero-title-wrap {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-display);
   text-transform: uppercase;
   color: var(--eco-ink);
   text-align: left;
@@ -1004,14 +1034,14 @@
 }
 .hero-title-small {
   font-size: clamp(1.25rem, 3vw, 1.5rem);
-  font-weight: 600;
+  font-weight: var(--font-weight-heading-bold);
   line-height: 1.2;
   margin-bottom: 0.35em;
   color: var(--eco-muted);
 }
 .hero-title-large {
   font-size: clamp(2.5rem, 8vw, 5rem);
-  font-weight: 800;
+  font-weight: var(--font-weight-heading-bold);
   line-height: 1.12;
   letter-spacing: -0.03em;
   color: var(--eco-ink);

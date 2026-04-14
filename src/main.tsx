@@ -35,7 +35,7 @@ class RootErrorBoundary extends Component<
             gap: 16,
           }}
         >
-          <h1 style={{ fontSize: 20, margin: 0 }}>Что-то пошло не так</h1>
+          <h1 className="font-display text-xl font-bold m-0">Что-то пошло не так</h1>
           <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
             Обновите страницу. Если проблема сохранится — откройте консоль (F12) и сообщите об ошибке.
           </p>
