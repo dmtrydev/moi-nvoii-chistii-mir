@@ -14,9 +14,8 @@ import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-ic
 import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
 import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
 import { FilterPanelSection } from '@/components/home-landing/FilterPanelSection';
-import { FrameScreen } from '@/components/home-landing/FrameScreen';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
-import { TopNavigationSection } from '@/components/home-landing/TopNavigationSection';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 
 /** Вводная анимация: очень плавное замедление в конце */
 const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
@@ -285,9 +284,9 @@ export function HomeLanding(): JSX.Element {
         className="pointer-events-none fixed inset-0 z-0 bg-[#f9fbfe]"
         style={{
           backgroundImage: `url(${heroBackground})`,
-          backgroundRepeat: 'repeat-y',
-          backgroundPosition: 'top center',
-          backgroundSize: 'min(1920px, 100vw) auto',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center center',
+          backgroundSize: 'cover',
         }}
       />
       <div
@@ -298,17 +297,12 @@ export function HomeLanding(): JSX.Element {
           transition: introStage >= 2 ? `opacity ${transitionMotion}` : 'none',
         }}
       />
-      <div className="relative z-[10] w-full max-w-full min-w-0">
-        <FrameScreen>
-          <div
-            className="relative z-[50]"
-            style={{
-              opacity: motionOn ? 1 : 0,
-              transition: introStage >= 2 ? `opacity ${transitionMotion}` : 'none',
-            }}
-          >
-            <TopNavigationSection />
-          </div>
+      <SiteFrameWithTopNav
+        navSlotStyle={{
+          opacity: motionOn ? 1 : 0,
+          transition: introStage >= 2 ? `opacity ${transitionMotion}` : 'none',
+        }}
+      >
           <div className={heroGridClass} style={heroGridStyle}>
             <div className="min-h-0 overflow-hidden">
               <div
@@ -571,8 +565,7 @@ export function HomeLanding(): JSX.Element {
               </div>
             )}
           </div>
-        </FrameScreen>
-      </div>
+      </SiteFrameWithTopNav>
       {introStage < 2 && (
         <div
           aria-hidden

@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Upload, Loader2, ArrowLeft, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
 import { formatFkkoHuman } from '@/utils/fkko';
 import { useAuth } from '@/contexts/useAuth';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
 // На Render (и любом продакшене) API на том же домене — всегда относительные пути. localhost только в dev.
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -234,24 +236,10 @@ export default function UploadPage(): JSX.Element {
   const highlight = isDragging || step === 'dragging';
 
   return (
-    <div className="min-h-screen glass-bg text-ink font-sans flex flex-col page-enter">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,_rgba(95,217,58,0.12),_transparent_50%)] pointer-events-none" />
-
-      <header className="relative flex items-center justify-between px-6 py-4 border-b border-black/[0.06] bg-white/90 backdrop-blur-md shadow-sm">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          На главную
-        </Link>
-        <Link
-          to="/map"
-          className="text-sm text-ink-muted hover:text-ink transition-colors font-medium"
-        >
-          Карта объектов
-        </Link>
-      </header>
+    <SitePublicPageShell>
+      <SiteFrameWithTopNav>
+        <div className="relative text-ink font-sans">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,_rgba(95,217,58,0.12),_transparent_50%)]" />
 
       {apiReachable === false && (
         <div className="relative mx-4 mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950">
@@ -285,7 +273,7 @@ export default function UploadPage(): JSX.Element {
         </div>
       )}
 
-      <main className="relative flex-1 flex items-center justify-center p-6">
+      <div className="relative flex min-h-[min(560px,70vh)] flex-1 items-center justify-center p-6 pb-12">
         <div className="w-full max-w-xl">
           {step === 'idle' && (
             <div
@@ -484,7 +472,9 @@ export default function UploadPage(): JSX.Element {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+        </div>
+      </SiteFrameWithTopNav>
+    </SitePublicPageShell>
   );
 }

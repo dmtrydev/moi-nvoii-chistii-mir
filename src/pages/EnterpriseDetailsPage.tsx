@@ -3,6 +3,8 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import type { FkkoEntry, LicenseData, LicenseSiteData } from '@/types';
 import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 import { useAuth } from '@/contexts/useAuth';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -397,15 +399,18 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen glass-bg text-ink page-enter">
-      <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-10 pb-14">
+    <SitePublicPageShell>
+      <SiteFrameWithTopNav>
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-10 pb-14">
         <div className="mb-8 flex flex-wrap gap-3">
-          <Link
-            to={canModerate ? fromAdminList : '/'}
-            className="glass-btn-soft inline-flex items-center justify-center h-11 px-5 text-sm font-medium"
-          >
-            {canModerate ? 'Назад к списку' : 'На главную'}
-          </Link>
+          {canModerate ? (
+            <Link
+              to={fromAdminList}
+              className="glass-btn-soft inline-flex h-11 items-center justify-center px-5 text-sm font-medium"
+            >
+              Назад к списку
+            </Link>
+          ) : null}
           <Link
             to={mapPath}
             className="inline-flex items-center justify-center h-11 rounded-2xl px-5 text-sm font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
@@ -1134,6 +1139,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
           </div>
         )}
       </div>
-    </div>
+      </SiteFrameWithTopNav>
+    </SitePublicPageShell>
   );
 }

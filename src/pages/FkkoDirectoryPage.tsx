@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ContactsMenu } from '@/components/ui/ContactsMenu';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
@@ -109,17 +110,9 @@ export default function FkkoDirectoryPage(): JSX.Element {
   }, []);
 
   return (
-    <div className="flex flex-col w-full min-h-screen glass-bg page-enter">
-      <main className="relative z-10 w-full max-w-[1510px] mx-auto px-4 sm:px-6 md:px-8 lg:px-[50px] py-10">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink transition-colors">
-            Назад на главную
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-xs uppercase tracking-[0.16em] text-ink-muted">Справочник</span>
-          </div>
-        </div>
-
+    <SitePublicPageShell>
+      <SiteFrameWithTopNav>
+        <div className="mx-auto w-full max-w-[min(1880px,100%)] px-4 py-10 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)]">
         <div className="flex gap-6 items-start">
           <aside className="w-full max-w-[320px] glass-panel p-4 sm:p-5 md:p-6">
             <h2 className="typo-h2 text-ink mb-3">Разделы</h2>
@@ -242,10 +235,11 @@ export default function FkkoDirectoryPage(): JSX.Element {
             )}
           </section>
         </div>
-      </main>
+        </div>
+      </SiteFrameWithTopNav>
 
       <ContactsMenu />
-    </div>
+    </SitePublicPageShell>
   );
 }
 

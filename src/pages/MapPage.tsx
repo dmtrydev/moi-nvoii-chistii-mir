@@ -1,6 +1,7 @@
+import { PanelLeft } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { PanelLeft } from 'lucide-react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
@@ -28,7 +29,8 @@ import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
-import { TopNavigationSection } from '@/components/home-landing/TopNavigationSection';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 import heroBackground from '@/assets/home-landing/hero-background.png';
 import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
@@ -48,11 +50,8 @@ function getApiUrl(p: string): string {
   return base ? `${base}${p.startsWith('/') ? p : `/${p}`}` : p;
 }
 
-const filterInputBase =
-  'relative z-[2] box-border w-full h-[60px] rounded-[10px] border-0 bg-transparent px-[15px] py-[18px] font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none';
 const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
 const HOME_INTRO_MOTION_MS = 2200;
-const HOME_INTRO_DELAY_NAV_MS = 40;
 const HOME_INTRO_DELAY_FILTER_MS = 160;
 const HOME_INTRO_DELAY_MAP_MS = 280;
 const ROUTE_POLY_A =
@@ -70,12 +69,10 @@ const filterCtaLabelShiftClass = [
   'motion-reduce:group-hover:translate-x-0',
   'group-hover:translate-x-[calc((21px+0.625rem)/2)]',
 ].join(' ');
-const filterFieldShell =
-  'relative w-full h-full rounded-[10px] border border-black/[0.06] bg-white shadow-sm transition-[background-color,box-shadow,backdrop-filter,border-color] duration-200 ease-out hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)] focus-within:border-transparent focus-within:bg-[#ffffffa6] focus-within:backdrop-blur-[10px] focus-within:shadow-none focus-within:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
 const glassDropdownPanelDown =
   'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
 const vidTriggerBase =
-  'relative z-[2] w-full h-[60px] px-[15px] text-left flex items-center justify-between transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';
+  'relative z-[2] flex h-[60px] w-full max-lg:min-h-[48px] max-lg:py-2 max-lg:text-[15px] items-center justify-between px-[15px] text-left transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';
 function vidTriggerClass(isOpen: boolean): string {
   if (isOpen) {
     return [
@@ -90,9 +87,26 @@ function vidTriggerClass(isOpen: boolean): string {
   ].join(' ');
 }
 const vidLabelClass = ({ isOpen, hasSelection }: { isOpen: boolean; hasSelection: boolean }): string =>
-  ['font-nunito font-semibold text-lg', isOpen || hasSelection ? 'text-[#2b3335]' : 'text-[#828583]'].join(' ');
+  [
+    'font-nunito font-semibold text-base max-lg:text-[15px] lg:text-lg',
+    isOpen || hasSelection ? 'text-[#2b3335]' : 'text-[#828583]',
+  ].join(' ');
 const mapSectionTitleClass =
   'typo-h3 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]';
+
+/** Верхняя полоска сайдбара; на мобиле — компактнее, как блок фильтров на главной. */
+const mapSidebarChromeBarClass =
+  'flex min-h-[2.75rem] flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-xl border border-white bg-[#ffffff80] px-3 py-2 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:min-h-[3.75rem] sm:gap-x-3 sm:rounded-2xl sm:px-4 sm:py-3 lg:h-20 lg:flex-nowrap lg:gap-y-0 lg:rounded-[32.5px] lg:px-6 lg:py-0';
+
+/** Совпадает с `lg:` в Tailwind и с десктопным меню в `TopNavigationSection`. */
+const MAP_LAYOUT_LG_PX = 1024;
+
+/** Сворачивание панели фильтров: те же ощущения, что у CTA на главной */
+const MAP_SIDEBAR_MS = 520;
+const MAP_SIDEBAR_WIDTH_PX = 619;
+const MAP_SIDEBAR_PAD_PX = 35;
+/** Зазор между колонкой и картой (619 + 20 = 639) */
+const MAP_AREA_LEFT_OPEN_PX = 639;
 
 /** Внешняя ПКК во iframe (тот же движок, что ik8map.roscadastres.com: векторные границы #D20404). См. .env.example */
 const CADASTRE_IFRAME_URL = String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim();
@@ -115,6 +129,33 @@ function FocusMap({
     map.setView(center, zoom ?? map.getZoom(), { animate: true });
   }, [center, zoom, map]);
   return null;
+}
+
+/** После анимации ширины колонки пересчитываем размер тайлов Leaflet. */
+function MapInvalidateAfterAside({ menuOpen, layoutKey }: { menuOpen: boolean; layoutKey: string }): null {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize({ animate: false });
+    const id = window.setTimeout(() => {
+      map.invalidateSize({ animate: true });
+    }, MAP_SIDEBAR_MS);
+    return () => window.clearTimeout(id);
+  }, [menuOpen, layoutKey, map]);
+  return null;
+}
+
+function useMediaMinWidth(minWidth: number): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${minWidth}px)`).matches : true,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${minWidth}px)`);
+    const onChange = (): void => setMatches(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [minWidth]);
+  return matches;
 }
 
 function markerVariant(it: LicenseData): 'green' | 'orange' {
@@ -273,7 +314,12 @@ export default function MapPage(): JSX.Element {
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
-  const [menuVisible, setMenuVisible] = useState(true);
+  const [isRegionOpen, setIsRegionOpen] = useState(false);
+  /** На экранах < lg панель — оверлей; карту показываем на весь блок, меню по кнопке. */
+  const [menuVisible, setMenuVisible] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${MAP_LAYOUT_LG_PX}px)`).matches : true,
+  );
+  const isLgUp = useMediaMinWidth(MAP_LAYOUT_LG_PX);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
   const [fkkoTitleByCode, setFkkoTitleByCode] = useState<Record<string, string>>({});
   const fkkoSelectedTitleMissRef = useRef<Set<string>>(new Set());
@@ -592,80 +638,110 @@ export default function MapPage(): JSX.Element {
     return all;
   }, [searchItems, focusedItem]);
 
+  const mapPushedLeft = isLgUp && menuVisible;
+
+  const asideOpenLayout = useMemo((): CSSProperties => {
+    if (!isLgUp) {
+      if (!menuVisible) return {};
+      return { padding: '12px 14px' };
+    }
+    if (!menuVisible) return { width: 0, maxWidth: 0, padding: 0 };
+    return {
+      width: MAP_SIDEBAR_WIDTH_PX,
+      maxWidth: MAP_SIDEBAR_WIDTH_PX,
+      padding: MAP_SIDEBAR_PAD_PX,
+    };
+  }, [menuVisible, isLgUp]);
 
   return (
-    <div className="relative h-screen w-full min-w-[1440px] overflow-auto bg-[#f9fbfe]">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 bg-[#f9fbfe]"
-        style={{
-          backgroundImage: `url(${heroBackground})`,
-          backgroundRepeat: 'repeat-y',
-          backgroundPosition: 'top center',
-          backgroundSize: 'min(1920px, 100vw) auto',
-        }}
-      />
-      <div
-        className="relative z-40"
-        style={{
-          opacity: introVisible ? 1 : 0,
-          transform: introVisible ? 'translateY(0)' : 'translateY(24px)',
-          transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
-          transitionDelay: `${HOME_INTRO_DELAY_NAV_MS}ms`,
-        }}
-      >
-        <TopNavigationSection />
-      </div>
+    <SitePublicPageShell>
+      <div className="relative flex min-h-0 flex-1 flex-col bg-transparent">
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-0 bg-[#f9fbfe]"
+          style={{
+            backgroundImage: `url(${heroBackground})`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center center',
+            backgroundSize: 'cover',
+          }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[1] bg-white/30 backdrop-blur-[14px] [-webkit-backdrop-filter:blur(14px)]"
+          style={{
+            opacity: introVisible ? 0 : 1,
+            transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
+          }}
+        />
+        <SiteFrameWithTopNav
+          stacking="map"
+          frameLayout="header"
+          navSlotStyle={{
+            opacity: introVisible ? 1 : 0,
+            transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
+          }}
+        />
 
-      <div className="absolute inset-x-0 top-[95px] bottom-5 z-10">
-        <div className="relative mx-auto h-full w-full max-w-[min(1880px,100%)] px-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)]">
-      <aside
-        className={`absolute left-0 top-0 z-30 overflow-x-hidden overflow-y-auto brand-scroll no-scrollbar transition-all duration-300 ${
-          menuVisible
-            ? 'w-[619px] h-full rounded-[32.5px] bg-[#ffffff4c] p-[35px] backdrop-blur-[10px]'
-            : 'w-0 h-0 p-0 overflow-hidden'
-        }`}
-        style={{
-          opacity: introVisible ? 1 : 0,
-          transform: introVisible ? 'translateY(0)' : 'translateY(30px)',
-          transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
-          transitionDelay: `${HOME_INTRO_DELAY_FILTER_MS}ms`,
-        }}
-      >
-        <div className={`relative z-[2] ${!menuVisible ? 'invisible' : ''}`}>
-        <div className="mb-5 flex h-20 items-center justify-between rounded-[32.5px] border border-white bg-[#ffffff80] px-6 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-[#2b3335] text-[18px] font-semibold transition-opacity hover:opacity-80"
-          >
-            <img className="h-[21px] w-[21px] shrink-0 object-contain" alt="" src={backToHomeIconPlaceholder} />
-            <span className="truncate">На главную</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setMenuVisible(false)}
-            className="inline-flex items-center justify-center gap-2 rounded-[20px] px-4 py-2 text-[18px] font-semibold text-[#2b3335] transition-opacity hover:opacity-80"
-            title="Свернуть меню"
-          >
-            <img className="h-4 w-4 shrink-0 object-contain" alt="" src={collapseMenuIconPlaceholder} />
-            Свернуть
-          </button>
-        </div>
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col lg:absolute lg:inset-x-0 lg:bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] lg:top-[95px] lg:z-10">
+          <div className="relative mx-auto flex min-h-0 w-full max-w-[min(1880px,100%)] flex-1 flex-col gap-3 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-2 sm:gap-3 sm:px-6 sm:pb-4 md:px-8 lg:block lg:h-full lg:flex-none lg:gap-0 lg:px-[min(50px,3.5vw)] lg:pb-5 lg:pt-0">
+            {(menuVisible || isLgUp) && (
+              <div
+                className="w-full shrink-0 lg:absolute lg:left-0 lg:top-0 lg:z-30 lg:flex lg:h-full lg:min-h-0"
+                style={{
+                  opacity: introVisible ? 1 : 0,
+                  transform: introVisible ? 'translateY(0)' : 'translateY(30px)',
+                  transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
+                  transitionDelay: `${HOME_INTRO_DELAY_FILTER_MS}ms`,
+                }}
+              >
+                <aside
+                  className={[
+                    'relative z-[2] min-h-0 min-w-0 overflow-hidden rounded-xl shadow-none',
+                    'max-lg:mx-auto max-lg:w-full max-lg:max-w-[min(619px,calc(100vw-2rem))]',
+                    'max-lg:transition-none',
+                    'transition-[width,padding,max-width] duration-[520ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:!duration-0 motion-reduce:!transition-none lg:transition-[width,padding,max-width]',
+                    'lg:h-full lg:shrink-0 lg:rounded-[32.5px]',
+                    menuVisible
+                      ? 'brand-scroll no-scrollbar overflow-y-auto overflow-x-hidden bg-[#ffffff4c] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)]'
+                      : 'pointer-events-none border-transparent bg-transparent backdrop-blur-0',
+                  ].join(' ')}
+                  style={asideOpenLayout}
+                  aria-hidden={!menuVisible}
+                >
+                  <div className={`mb-3 max-lg:mb-2 lg:mb-5 ${mapSidebarChromeBarClass}`}>
+                    <Link
+                      to="/"
+                      className="inline-flex min-w-0 max-w-[min(100%,12rem)] items-center gap-1.5 text-sm font-semibold text-[#2b3335] transition-opacity hover:opacity-80 sm:max-w-none sm:gap-2 sm:text-base lg:text-[18px]"
+                    >
+                      <img className="h-[18px] w-[18px] shrink-0 object-contain sm:h-[21px] sm:w-[21px]" alt="" src={backToHomeIconPlaceholder} />
+                      <span className="truncate">На главную</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setMenuVisible(false)}
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-[18px] px-3 py-1.5 text-sm font-semibold text-[#2b3335] transition-opacity hover:opacity-80 sm:gap-2 sm:rounded-[20px] sm:px-4 sm:py-2 sm:text-base lg:text-[18px]"
+                      title="Свернуть меню"
+                    >
+                      <img className="h-3.5 w-3.5 shrink-0 object-contain sm:h-4 sm:w-4" alt="" src={collapseMenuIconPlaceholder} />
+                      Свернуть
+                    </button>
+                  </div>
 
-        <section className="relative z-30 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
-          <div className="mb-4">
-            <h3 className={mapSectionTitleClass}>
+        <section className="relative z-30 mb-3 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:mb-5 sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
+          <div className="mb-3 max-lg:mb-2 sm:mb-4">
+            <h3 className={`${mapSectionTitleClass} max-lg:text-[1.05rem]`}>
               управление
             </h3>
-            <p className="text-lg font-semibold text-[#5e6567]">Рабочая площадка — карта</p>
+            <p className="text-sm font-semibold text-[#5e6567] sm:text-base lg:text-lg">Рабочая площадка — карта</p>
           </div>
-          <div className="space-y-3 relative z-20">
+          <div className="relative z-20 space-y-2 sm:space-y-3">
             {filterValidationError && (
               <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2.5 shadow-sm">
                 {filterValidationError}
               </div>
             )}
-            <div>
+            <div className="relative z-[4]">
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">
                 ФККО (необязательно)
               </p>
@@ -696,7 +772,7 @@ export default function MapPage(): JSX.Element {
                 formatSelectedLabel={formatFkkoSelectionSummary}
               />
             </div>
-            <div>
+            <div className="relative z-[3]">
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">
                 Вид обращения *
               </p>
@@ -720,32 +796,37 @@ export default function MapPage(): JSX.Element {
                 maxHeightClassName="max-h-64"
               />
             </div>
-            <div>
+            <div className="relative z-[2]">
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Регион (необязательно)</p>
-              <div className={`group/region ${filterFieldShell}`}>
-                <AutocompleteInput
-                  value={filterRegion}
-                  onChange={setFilterRegion}
-                  options={regionOptions}
-                  placeholder="Начните вводить регион"
-                  inputClassName={filterInputBase}
-                  maxItems={10}
-                  noResultsText="Начните вводить"
-                  dropdownClassName={glassDropdownPanelDown}
-                  listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
-                />
+              <AutocompleteInput
+                value={filterRegion}
+                onChange={setFilterRegion}
+                options={regionOptions}
+                placeholder="Начните вводить регион"
+                triggerClassName={(open) =>
+                  open
+                    ? `${vidTriggerBase} rounded-[10px_10px_0px_0px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[''] before:absolute before:inset-0 before:p-px before:rounded-[10px_10px_0px_0px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none`
+                    : `${vidTriggerBase} rounded-[10px] border border-black/[0.06] bg-white shadow-sm hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]`
+                }
+                inputClassName="relative z-[2] w-full bg-transparent border-0 font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none"
+                maxItems={10}
+                noResultsText="Начните вводить"
+                dropdownClassName={glassDropdownPanelDown}
+                listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
+                onOpenChange={setIsRegionOpen}
+              >
                 <img
-                  className="pointer-events-none absolute right-[15px] top-1/2 z-[3] w-3 -translate-y-1/2 transition-transform duration-200 group-focus-within/region:rotate-180"
+                  className={`pointer-events-none absolute right-[15px] top-1/2 z-[3] w-3 -translate-y-1/2 transition-transform duration-200 ${isRegionOpen ? 'rotate-180' : ''}`}
                   alt=""
                   src={POLY_IMG}
                 />
-              </div>
+              </AutocompleteInput>
             </div>
-            <div className="flex items-center gap-3 pt-1">
+            <div className="relative z-[1] flex flex-col gap-3 pt-1 sm:flex-row sm:items-stretch">
               <button
                 type="button"
                 onClick={handleFindClick}
-                className="group relative home-find-button flex h-[60px] min-w-[220px] items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
+                className="group relative home-find-button flex h-[52px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 sm:h-[60px] sm:min-w-[200px] lg:min-w-[220px] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
               >
                 <span className="relative z-[2] inline-flex items-center gap-2.5">
                   <span className={`font-nunito font-semibold text-[#2b3335] text-xl ${filterCtaLabelShiftClass}`}>Найти</span>
@@ -757,10 +838,12 @@ export default function MapPage(): JSX.Element {
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className={`group relative z-[2] flex h-[52px] flex-1 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
+                className={`group relative z-[2] flex h-[52px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] py-2 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:h-[52px] sm:flex-1 sm:min-h-0 sm:min-w-0 sm:py-0 hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
               >
-                <span className="relative z-[2] inline-flex items-center gap-2.5">
-                  <span className={`relative mt-[-1px] whitespace-nowrap font-nunito font-semibold text-[#2b3335] text-base text-center tracking-[0] leading-[normal] ${filterCtaLabelShiftClass}`}>Сбросить фильтры</span>
+                <span className="relative z-[2] inline-flex max-w-full items-center justify-center gap-2 px-1 sm:gap-2.5">
+                  <span className={`relative mt-[-1px] text-center font-nunito text-sm font-semibold leading-snug tracking-[0] text-[#2b3335] sm:text-base ${filterCtaLabelShiftClass}`}>
+                    Сбросить фильтры
+                  </span>
                   <span className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}>
                     <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="" src={filterResetIcon} />
                   </span>
@@ -770,8 +853,8 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="relative z-10 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
-          <h3 className={`${mapSectionTitleClass} mb-2`}>
+        <section className="relative z-10 mb-3 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:mb-5 sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
+          <h3 className={`${mapSectionTitleClass} mb-2 max-lg:text-[1.05rem]`}>
             Результаты
           </h3>
 
@@ -842,8 +925,8 @@ export default function MapPage(): JSX.Element {
           )}
         </section>
 
-        <section className="relative z-10 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
-          <h3 className={`${mapSectionTitleClass} mb-3`}>
+        <section className="relative z-10 mb-3 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:mb-5 sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
+          <h3 className={`${mapSectionTitleClass} mb-3 max-lg:text-[1.05rem]`}>
             Легенда
           </h3>
           <div className="space-y-2 text-xs text-ink-muted">
@@ -862,15 +945,15 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="relative z-10 mb-5 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
-          <h3 className={`${mapSectionTitleClass} mb-3`}>
+        <section className="relative z-10 mb-3 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:mb-5 sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
+          <h3 className={`${mapSectionTitleClass} mb-3 max-lg:text-[1.05rem]`}>
             Подложка карты
           </h3>
-          <div className="flex rounded-[20px] bg-[#ffffff80] p-1 gap-1">
+          <div className="flex flex-col gap-1 rounded-[20px] bg-[#ffffff80] p-1 sm:flex-row">
             <button
               type="button"
               onClick={() => setBaseMapStyle('osm')}
-              className={`typo-h2 flex-1 h-[52px] rounded-[16px] text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`typo-h2 flex-1 rounded-[16px] py-3 text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:h-[52px] sm:py-0 ${
                 baseMapStyle === 'osm'
                   ? 'shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
                   : 'bg-transparent'
@@ -881,7 +964,7 @@ export default function MapPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setBaseMapStyle('cadastral')}
-              className={`typo-h2 flex-1 h-[52px] rounded-[16px] text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              className={`typo-h2 flex-1 rounded-[16px] py-3 text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:h-[52px] sm:py-0 ${
                 baseMapStyle === 'cadastral'
                   ? 'shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
                   : 'bg-transparent'
@@ -926,8 +1009,8 @@ export default function MapPage(): JSX.Element {
           </p>
         </section>
 
-        <section className="relative z-10 rounded-[32.5px] border border-white bg-[#ffffff80] p-5 shadow-[inset_0px_0px_70.1px_#ffffffb2]">
-          <h3 className={`${mapSectionTitleClass} mb-4`}>
+        <section className="relative z-10 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
+          <h3 className={`${mapSectionTitleClass} mb-3 max-lg:text-[1.05rem] sm:mb-4`}>
             Маршрут
           </h3>
           <div className="w-full space-y-3">
@@ -952,10 +1035,10 @@ export default function MapPage(): JSX.Element {
               </button>
             </div>
           </div>
-          <div className="w-full h-[60px] mt-6 flex gap-3">
+          <div className="mt-6 flex w-full flex-col gap-3 sm:h-[60px] sm:flex-row sm:items-stretch">
             <button
               type="button"
-              className="group relative home-find-button flex h-[60px] min-w-[220px] items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
+              className="group relative home-find-button flex h-[52px] min-h-[52px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 sm:h-[60px] sm:min-h-[60px] sm:min-w-[200px] lg:min-w-[220px] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
             >
               <span className="relative z-[2] inline-flex items-center gap-2.5">
                 <span className={`font-nunito font-semibold text-[#2b3335] text-xl ${filterCtaLabelShiftClass}`}>
@@ -970,11 +1053,11 @@ export default function MapPage(): JSX.Element {
             </button>
             <button
               type="button"
-              className={`group relative z-[2] mt-1 flex-1 h-[52px] flex items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
+              className={`group relative z-[2] flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] py-2 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:mt-0 sm:h-[52px] sm:flex-1 sm:min-h-0 sm:min-w-0 sm:py-0 hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
               onClick={handleResetFilters}
             >
-              <span className="relative z-[2] inline-flex items-center gap-2.5">
-                <span className={`relative mt-[-1px] whitespace-nowrap font-nunito font-semibold text-[#2b3335] text-base text-center tracking-[0] leading-[normal] ${filterCtaLabelShiftClass}`}>
+              <span className="relative z-[2] inline-flex max-w-full items-center justify-center gap-2 px-1 sm:gap-2.5">
+                <span className={`relative mt-[-1px] text-center font-nunito text-sm font-semibold leading-snug tracking-[0] text-[#2b3335] sm:text-base ${filterCtaLabelShiftClass}`}>
                   Сбросить
                 </span>
                 <span
@@ -986,12 +1069,16 @@ export default function MapPage(): JSX.Element {
             </button>
           </div>
         </section>
-        </div>
-      </aside>
+                </aside>
+              </div>
+            )}
 
-      <div className={`absolute top-0 bottom-0 right-0 z-10 overflow-hidden rounded-[32.5px] ${menuVisible ? 'left-[639px]' : 'left-0'}`}>
+            <div
+              className="relative z-10 flex min-h-[min(36vh,300px)] flex-1 overflow-hidden rounded-xl lg:absolute lg:bottom-0 lg:left-0 lg:top-0 lg:z-10 lg:min-h-0 lg:flex-none lg:rounded-[32.5px] lg:transition-[left] lg:duration-[520ms] lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:lg:!transition-none motion-reduce:lg:!duration-0"
+              style={isLgUp ? { left: mapPushedLeft ? MAP_AREA_LEFT_OPEN_PX : 0 } : undefined}
+            >
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 [&_.leaflet-control-attribution]:hidden"
           style={{
             opacity: introVisible ? 1 : 0,
             transform: introVisible ? 'translateY(0)' : 'translateY(36px)',
@@ -1021,45 +1108,36 @@ export default function MapPage(): JSX.Element {
             />
             {baseMapStyle === 'cadastral' && <CadastreVectorSystem enabled apiBase={getApiUrl} />}
             <ClusterMarkers items={markersItems} selectedId={selectedId} onSelectId={setSelectedId} />
+            <MapInvalidateAfterAside menuOpen={menuVisible} layoutKey={`${isLgUp}-${menuVisible}`} />
           </MapContainer>
         )}
-        {!menuVisible && (
-          <button
-            type="button"
-            onClick={() => setMenuVisible(true)}
-            className="absolute left-4 top-4 z-20 inline-flex items-center justify-center gap-2 h-10 min-w-[88px] px-3 py-2 text-xs font-medium pointer-events-auto whitespace-nowrap rounded-[20px] bg-white/90 shadow-eco-float"
-            title="Показать меню"
-          >
-            <PanelLeft className="w-4 h-4 flex-shrink-0" />
-            Меню
-          </button>
+        {!cadastreUsesIframe && (
+          <p className="sr-only">
+            Карта © OpenStreetMap contributors, © CARTO
+          </p>
         )}
-        <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none gap-3">
-          <div className={`pointer-events-auto inline-flex items-center gap-1 rounded-2xl bg-white/95 backdrop-blur-md border border-black/[0.06] shadow-eco-float p-1 ${!menuVisible ? 'ml-14' : ''}`}>
-            <button
-              type="button"
-              className="h-9 min-w-[72px] rounded-xl px-3 text-[11px] font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to transition-colors whitespace-nowrap shadow-sm"
-            >
-              2D карта
-            </button>
-            <button
-              type="button"
-              className="h-9 min-w-[72px] rounded-xl px-3 text-[11px] font-medium text-ink-muted hover:text-ink hover:bg-app-bg transition-colors whitespace-nowrap"
-            >
-              3D глобус
-            </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMenuVisible(true)}
+          aria-hidden={menuVisible}
+          tabIndex={menuVisible ? -1 : 0}
+          className={[
+            'absolute left-3 top-3 z-[5000] inline-flex items-center gap-2 rounded-[20px] border border-white bg-[#ffffff80] px-3 py-2 text-sm font-semibold text-[#2b3335] shadow-[inset_0px_0px_40px_#ffffffb2] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)] sm:left-4 sm:top-4 sm:rounded-[25px] sm:px-4 sm:py-3 sm:text-[18px]',
+            'motion-reduce:!transition-none transition-[opacity,transform,filter] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity,transform]',
+            menuVisible
+              ? 'pointer-events-none scale-[0.94] opacity-0 -translate-y-1 delay-0'
+              : 'pointer-events-auto scale-100 opacity-100 translate-y-0 delay-100 hover:opacity-90',
+          ].join(' ')}
+          title="Показать панель фильтров"
+        >
+          <PanelLeft className="h-5 w-5 shrink-0" aria-hidden />
+          Меню
+        </button>
+            </div>
           </div>
-          <Link
-            to="/upload"
-            className="pointer-events-auto inline-flex items-center justify-center h-10 min-w-[120px] rounded-2xl px-4 py-2 text-[11px] font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow whitespace-nowrap shadow-eco-float"
-          >
-            Разместить объект
-          </Link>
-        </div>
         </div>
       </div>
-        </div>
-      </div>
-    </div>
+    </SitePublicPageShell>
   );
 }

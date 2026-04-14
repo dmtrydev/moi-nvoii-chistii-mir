@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
 export default function LoginPage(): JSX.Element {
   const { login, register } = useAuth();
@@ -43,8 +45,10 @@ export default function LoginPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center glass-bg px-4 py-8 page-enter">
-      <div className="w-full max-w-md glass-shell p-8 space-y-5">
+    <SitePublicPageShell>
+      <SiteFrameWithTopNav>
+        <div className="flex min-h-[min(640px,85dvh)] items-center justify-center px-4 py-10">
+          <div className="w-full max-w-md glass-shell space-y-5 p-8">
         <div>
           <div className="glass-kicker">Welcome</div>
           <h1 className="typo-h1 tracking-tight text-ink mt-2">Вход / Регистрация</h1>
@@ -129,12 +133,9 @@ export default function LoginPage(): JSX.Element {
           </div>
         )}
 
-        <div className="text-xs text-ink-muted">
-          <Link to="/" className="glass-link underline underline-offset-2">
-            На главную
-          </Link>
         </div>
-      </div>
-    </div>
+        </div>
+      </SiteFrameWithTopNav>
+    </SitePublicPageShell>
   );
 }

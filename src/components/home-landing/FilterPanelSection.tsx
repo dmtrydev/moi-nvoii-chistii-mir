@@ -24,15 +24,13 @@ const filterCtaLabelShiftClass = [
   'group-hover:translate-x-[calc((21px+0.625rem)/2)]',
 ].join(' ');
 
-/** Прозрачный фон — «пластина» задаётся оболочкой (белая статика / стекло при hover и focus). */
-const filterInputBase =
-  'box-border w-full h-[60px] rounded-[10px] border-0 bg-transparent px-[15px] py-[18px] font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none';
+/** Общие стили кнопки «Сбросить фильтры» (видимость и ширина задаются отдельно). */
+const filterResetButtonBase = [
+  'group relative z-[2] flex h-[52px] shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]',
+  `transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2`,
+  "before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]",
+].join(' ');
 
-/** Статика: как белый бар с тенью; hover / focus-within: стекло как в макете Property. */
-const filterFieldShell =
-  'relative w-full h-full rounded-[10px] border border-black/[0.06] bg-white shadow-sm transition-[background-color,box-shadow,backdrop-filter,border-color] duration-200 ease-out hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)] focus-within:border-transparent focus-within:bg-[#ffffffa6] focus-within:backdrop-blur-[10px] focus-within:shadow-none focus-within:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
-
-/** Оболочка без собственного scroll — прокрутка только у внутреннего списка (полоса скрыта, no-scrollbar), иначе двойной скролл. */
 /** Выпадающие списки фильтра: вниз от поля (ФККО, вид обращения, регион). */
 const glassDropdownPanelDown =
   'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
@@ -113,6 +111,7 @@ export function FilterPanelSection({
   onFkkoTitlesMerge,
 }: FilterPanelSectionProps): JSX.Element {
   const [fkkoInput, setFkkoInput] = useState('');
+  const [isRegionOpen, setIsRegionOpen] = useState(false);
   /** Коды, для которых API уже ответил без названия — не долбим РПН в цикле. */
   const fkkoTitleMissRef = useRef<Set<string>>(new Set());
 
@@ -231,7 +230,7 @@ export function FilterPanelSection({
 
           <button
             type="button"
-            className={`group relative z-[2] flex h-[52px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:max-w-md sm:self-start lg:h-[52px] lg:w-[237px] lg:max-w-none`}
+            className={`hidden lg:flex ${filterResetButtonBase} lg:h-[52px] lg:w-[237px]`}
             onClick={onReset}
           >
             <span className="relative z-[2] inline-flex items-center gap-2.5">
@@ -255,7 +254,7 @@ export function FilterPanelSection({
 
         <div className="relative z-[2] grid grid-cols-1 gap-4 overflow-visible md:grid-cols-2 xl:grid-cols-4">
       {/* FKKO */}
-      <div className="relative z-10 min-h-[60px] w-full">
+      <div className="relative z-[11] min-h-[60px] w-full">
         <div className="relative h-full min-h-[60px] w-full">
           <MultiSelectDropdown
             options={fkkoOptions}
@@ -288,7 +287,7 @@ export function FilterPanelSection({
       </div>
 
       {/* Вид обращения */}
-      <div className="relative z-10 min-h-[60px] w-full">
+      <div className="relative z-[9] min-h-[60px] w-full">
         <div className="relative h-full min-h-[60px] w-full">
           <MultiSelectDropdown
             options={activityTypeOptions}
@@ -315,29 +314,34 @@ export function FilterPanelSection({
       </div>
 
       {/* Регион */}
-      <div className="relative z-10 min-h-[60px] w-full">
-        <div className={`group/region ${filterFieldShell}`}>
-          <AutocompleteInput
-            value={filterRegion}
-            onChange={onFilterRegionChange}
-            options={regionOptions}
-            placeholder="Регион (необязательно)"
-            inputClassName={`relative z-[2] ${filterInputBase}`}
-            maxItems={10}
-            noResultsText="Начните вводить"
-            dropdownClassName={glassDropdownPanelDown}
-            listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
-          />
+      <div className="relative z-[8] min-h-[60px] w-full">
+        <AutocompleteInput
+          value={filterRegion}
+          onChange={onFilterRegionChange}
+          options={regionOptions}
+          placeholder="Регион (необязательно)"
+          triggerClassName={(open) =>
+            open
+              ? `${vidTriggerBase} rounded-[10px_10px_0px_0px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[''] before:absolute before:inset-0 before:p-px before:rounded-[10px_10px_0px_0px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none`
+              : `${vidTriggerBase} rounded-[10px] border border-black/[0.06] bg-white shadow-sm hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]`
+          }
+          inputClassName="relative z-[2] w-full bg-transparent border-0 font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none"
+          maxItems={10}
+          noResultsText="Начните вводить"
+          dropdownClassName={glassDropdownPanelDown}
+          listClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
+          onOpenChange={setIsRegionOpen}
+        >
           <img
-            className="pointer-events-none absolute right-[15px] top-1/2 z-[3] w-3 -translate-y-1/2 transition-transform duration-200 group-focus-within/region:rotate-180"
+            className={`pointer-events-none absolute right-[15px] top-1/2 z-[3] w-3 -translate-y-1/2 transition-transform duration-200 ${isRegionOpen ? 'rotate-180' : ''}`}
             alt=""
             src={POLY_IMG}
           />
-        </div>
+        </AutocompleteInput>
       </div>
 
-      {/* Search — при hover иконка вправо + подпись вправо на (gap+иконка)/2, чтобы текст оказался по центру кнопки */}
-      <div className="relative z-10 flex min-h-[60px] w-full">
+      {/* Search */}
+      <div className="relative z-[7] flex min-h-[60px] w-full">
         <button
           type="button"
           className="group relative home-find-button flex h-[60px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2"
@@ -356,6 +360,28 @@ export function FilterPanelSection({
                 className="h-[21px] w-[21px] object-contain pointer-events-none"
                 alt=""
                 src={filterSearchIcon}
+              />
+            </span>
+          </span>
+        </button>
+      </div>
+
+      {/* Сброс под «Найти» — мобильные и планшеты; на lg+ кнопка в шапке секции */}
+      <div className="relative z-[6] col-span-1 min-h-0 w-full md:col-span-2 xl:col-span-4 lg:hidden">
+        <button type="button" className={`${filterResetButtonBase} w-full`} onClick={onReset}>
+          <span className="relative z-[2] inline-flex items-center gap-2.5">
+            <span
+              className={`relative mt-[-1px] whitespace-nowrap font-nunito font-semibold text-[#2b3335] text-base text-center tracking-[0] leading-[normal] ${filterCtaLabelShiftClass}`}
+            >
+              Сбросить фильтры
+            </span>
+            <span
+              className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}
+            >
+              <img
+                className="h-[21px] w-[21px] object-contain pointer-events-none"
+                alt=""
+                src={filterResetIcon}
               />
             </span>
           </span>
