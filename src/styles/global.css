@@ -510,21 +510,11 @@
     border: 1px solid rgba(255, 255, 255, 0.85);
   }
   .moinoviichistiimir-popup-enterprise__title {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: 32px;
-    line-height: 1.08;
-    font-weight: 700;
-    letter-spacing: 0;
+    margin: 0 0 20px;
     word-break: break-word;
-    margin-bottom: 20px;
   }
   .moinoviichistiimir-popup-enterprise__address {
     margin: 0 0 20px;
-    font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 16px;
-    line-height: 1.35;
-    font-weight: 600;
     color: #6a7175;
     word-break: break-word;
   }
@@ -572,17 +562,9 @@
     padding-bottom: 10px;
   }
   .moinoviichistiimir-popup-enterprise__label {
-    font-family: var(--font-display);
-    font-size: 18px;
-    line-height: 1.25;
-    font-weight: 700;
     color: #3a4346;
   }
   .moinoviichistiimir-popup-enterprise__value {
-    font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 17px;
-    line-height: 1.2;
-    font-weight: 600;
     color: #30393d;
     word-break: break-word;
   }
@@ -591,20 +573,6 @@
     height: 1px;
     background: rgba(93, 101, 104, 0.2);
     margin: 0 0 14px;
-  }
-  @media (max-width: 1024px) {
-    .moinoviichistiimir-popup-enterprise__title {
-      font-size: 26px;
-    }
-    .moinoviichistiimir-popup-enterprise__address {
-      font-size: 15px;
-    }
-    .moinoviichistiimir-popup-enterprise__label {
-      font-size: 17px;
-    }
-    .moinoviichistiimir-popup-enterprise__value {
-      font-size: 16px;
-    }
   }
   @media (max-width: 640px) {
     .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-close-button {
@@ -625,20 +593,6 @@
     }
     .moinoviichistiimir-popup-enterprise__head {
       padding-right: 42px;
-    }
-    .moinoviichistiimir-popup-enterprise__title {
-      font-size: 20px;
-    }
-    .moinoviichistiimir-popup-enterprise__address {
-      font-size: 15px;
-      line-height: 1.3;
-    }
-    .moinoviichistiimir-popup-enterprise__label {
-      font-size: 13px;
-    }
-    .moinoviichistiimir-popup-enterprise__value {
-      font-size: 15px;
-      line-height: 1.25;
     }
     .moinoviichistiimir-popup-enterprise__icons {
       gap: 8px;
