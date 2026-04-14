@@ -2,6 +2,33 @@ export function normalizeFkkoDigits(v: string): string {
   return String(v ?? '').trim().replace(/[^\d]+/g, '');
 }
 
+export function normalizeFkkoSearchQuery(v: string): string {
+  return String(v ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+export function isValidFkkoCode(v: string): boolean {
+  return /^\d{11}$/.test(normalizeFkkoDigits(v));
+}
+
+export function buildFkkoSearchIndex(code: string, label: string): { codeDigits: string; labelNormalized: string } {
+  return {
+    codeDigits: normalizeFkkoDigits(code),
+    labelNormalized: normalizeFkkoSearchQuery(label),
+  };
+}
+
+export function matchesFkkoSearch(index: { codeDigits: string; labelNormalized: string }, rawQuery: string): boolean {
+  const q = normalizeFkkoSearchQuery(rawQuery);
+  if (!q) return true;
+
+  const qDigits = normalizeFkkoDigits(q);
+  if (qDigits && index.codeDigits.includes(qDigits)) return true;
+  return index.labelNormalized.includes(q);
+}
+
 function uniqueStable(items: string[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();

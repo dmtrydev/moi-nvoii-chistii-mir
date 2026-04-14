@@ -74,6 +74,10 @@ export function MultiSelectDropdown({
   onInputValueChange,
   inputClassName,
   onInputEnter,
+  filterOption,
+  isLoadingOptions = false,
+  loadingOptionsText = 'Загружаем варианты...',
+  noOptionsText = 'Нет вариантов',
 }: {
   options: string[];
   selected: string[];
@@ -113,6 +117,10 @@ export function MultiSelectDropdown({
   onInputValueChange?: (next: string) => void;
   inputClassName?: string;
   onInputEnter?: () => void;
+  filterOption?: (args: { option: string; query: string; label: string }) => boolean;
+  isLoadingOptions?: boolean;
+  loadingOptionsText?: string;
+  noOptionsText?: string;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -150,10 +158,12 @@ export function MultiSelectDropdown({
     if (!hasInputMode || !normalizedInput) return normalizedOptions;
     const q = normalizedInput.toLowerCase();
     return normalizedOptions.filter((opt) => {
-      const label = (formatOptionLabel ? formatOptionLabel(opt) : opt).toLowerCase();
-      return opt.toLowerCase().includes(q) || label.includes(q);
+      const label = formatOptionLabel ? formatOptionLabel(opt) : opt;
+      if (filterOption) return filterOption({ option: opt, query: normalizedInput, label });
+      const labelLower = label.toLowerCase();
+      return opt.toLowerCase().includes(q) || labelLower.includes(q);
     });
-  }, [hasInputMode, normalizedInput, normalizedOptions, formatOptionLabel]);
+  }, [hasInputMode, normalizedInput, normalizedOptions, formatOptionLabel, filterOption]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -349,7 +359,9 @@ export function MultiSelectDropdown({
               );
             })}
             {visibleOptions.length === 0 && (
-              <div className={emptyOptionsClassName ?? 'px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]'}>Нет вариантов</div>
+              <div className={emptyOptionsClassName ?? 'px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]'}>
+                {isLoadingOptions ? loadingOptionsText : noOptionsText}
+              </div>
             )}
           </div>
         </div>

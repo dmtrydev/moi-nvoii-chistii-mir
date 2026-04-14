@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
 import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-icon.svg';
@@ -6,7 +6,14 @@ import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
-import { formatFkkoHuman, formatFkkoSelectionSummary, normalizeFkkoDigits } from '@/utils/fkko';
+import {
+  buildFkkoSearchIndex,
+  formatFkkoHuman,
+  formatFkkoSelectionSummary,
+  matchesFkkoSearch,
+  normalizeFkkoDigits,
+  normalizeFkkoSearchQuery,
+} from '@/utils/fkko';
 
 const POLY_IMG =
   "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
@@ -111,38 +118,65 @@ export function FilterPanelSection({
   onFkkoTitlesMerge,
 }: FilterPanelSectionProps): JSX.Element {
   const [fkkoInput, setFkkoInput] = useState('');
+  const [isFkkoTitlesLoading, setIsFkkoTitlesLoading] = useState(false);
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   /** Коды, для которых API уже ответил без названия — не долбим РПН в цикле. */
   const fkkoTitleMissRef = useRef<Set<string>>(new Set());
+  /** Коды, которые уже запрашиваются прямо сейчас (защита от дублей). */
+  const fkkoTitlePendingRef = useRef<Set<string>>(new Set());
+
+  const fkkoSearchIndexByCode = useMemo(() => {
+    const map: Record<string, { codeDigits: string; labelNormalized: string }> = {};
+    for (const code of fkkoOptions) {
+      const digits = normalizeFkkoDigits(code);
+      if (digits.length !== 11) continue;
+      map[digits] = buildFkkoSearchIndex(digits, fkkoOptionLabel(code, fkkoTitleByCode));
+    }
+    return map;
+  }, [fkkoOptions, fkkoTitleByCode]);
 
   useEffect(() => {
     if (!resolveFkkoTitlesApi || !onFkkoTitlesMerge) return;
 
     const titlesMap = fkkoTitleByCode ?? {};
 
-    const digits = normalizeFkkoDigits(fkkoInput);
+    const query = normalizeFkkoSearchQuery(fkkoInput);
     const selectedNeed = filterFkko
       .map((c) => normalizeFkkoDigits(c))
       .filter(
         (k) =>
-          k.length === 11 && !titlesMap[k] && !fkkoTitleMissRef.current.has(k),
+          k.length === 11 &&
+          !titlesMap[k] &&
+          !fkkoTitleMissRef.current.has(k) &&
+          !fkkoTitlePendingRef.current.has(k),
       );
 
     let fromFilter: string[] = [];
-    if (digits.length > 0) {
+    if (query.length > 0) {
       fromFilter = fkkoOptions
-        .filter((opt) => opt.includes(digits))
         .map((opt) => normalizeFkkoDigits(opt))
+        .filter((k) => {
+          if (k.length !== 11) return false;
+          const idx = fkkoSearchIndexByCode[k];
+          if (!idx) return false;
+          return matchesFkkoSearch(idx, query);
+        })
+        .slice(0, 180)
         .filter(
           (k) =>
-            k.length === 11 && !titlesMap[k] && !fkkoTitleMissRef.current.has(k),
+            k.length === 11 &&
+            !titlesMap[k] &&
+            !fkkoTitleMissRef.current.has(k) &&
+            !fkkoTitlePendingRef.current.has(k),
         );
     }
 
-    const need = [...new Set([...selectedNeed, ...fromFilter])].slice(0, 120);
+    const need = [...new Set([...selectedNeed, ...fromFilter])].slice(0, 100);
     if (need.length === 0) return;
 
     const t = window.setTimeout(() => {
+      setIsFkkoTitlesLoading(true);
+      for (const k of need) fkkoTitlePendingRef.current.add(k);
       void fetch(resolveFkkoTitlesApi('/api/fkko/titles'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,6 +199,10 @@ export function FilterPanelSection({
         })
         .catch(() => {
           for (const k of need) fkkoTitleMissRef.current.add(k);
+        })
+        .finally(() => {
+          for (const k of need) fkkoTitlePendingRef.current.delete(k);
+          setIsFkkoTitlesLoading(false);
         });
     }, 280);
 
@@ -174,6 +212,7 @@ export function FilterPanelSection({
     fkkoOptions,
     filterFkko,
     fkkoTitleByCode,
+    fkkoSearchIndexByCode,
     resolveFkkoTitlesApi,
     onFkkoTitlesMerge,
   ]);
@@ -189,20 +228,20 @@ export function FilterPanelSection({
       : 'relative z-[1] mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]',
   ].join(' ');
   const handleFkkoInput = (next: string): void => {
-    const onlyDigits = String(next).replace(/\D/g, '').slice(0, 11);
-    setFkkoInput(onlyDigits);
+    setFkkoInput(String(next).slice(0, 120));
   };
 
-  const submitTypedFkko = (): void => {
-    const code = fkkoInput.trim();
-    if (!code) return;
-    if (code.length !== 11) return;
-    if (filterFkko.includes(code)) {
-      setFkkoInput('');
-      return;
-    }
-    onFilterFkkoChange([...filterFkko, code]);
-    setFkkoInput('');
+  const filterFkkoOption = ({
+    option,
+    query,
+    label,
+  }: {
+    option: string;
+    query: string;
+    label: string;
+  }): boolean => {
+    const idx = buildFkkoSearchIndex(option, label);
+    return matchesFkkoSearch(idx, query);
   };
 
   return (
@@ -267,7 +306,10 @@ export function FilterPanelSection({
             formatSelectedLabel={formatFkkoSelectionSummary}
             inputValue={fkkoInput}
             onInputValueChange={handleFkkoInput}
-            onInputEnter={submitTypedFkko}
+            filterOption={filterFkkoOption}
+            isLoadingOptions={isFkkoTitlesLoading}
+            loadingOptionsText="Загружаем названия..."
+            noOptionsText="Совпадений не найдено"
             inputClassName="min-w-0 flex-1 bg-transparent font-nunito font-semibold text-lg text-[#2b3335] placeholder:text-[#828583] outline-none"
             renderChevron={(open) => (
               <img
