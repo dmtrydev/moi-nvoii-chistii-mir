@@ -1,7 +1,7 @@
 import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import L from 'leaflet';
+import { icon } from 'leaflet';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
@@ -549,7 +549,7 @@ export default function MapPage(): JSX.Element {
   const mapPushedLeft = isLgUp && menuVisible;
   const mapMarkerIcon = useMemo(
     () =>
-      L.icon({
+      icon({
         iconUrl: enterpriseMarkerIconPlaceholder,
         iconSize: [22, 22],
         iconAnchor: [11, 22],
@@ -559,7 +559,7 @@ export default function MapPage(): JSX.Element {
   );
   const mapMarkerIconSelected = useMemo(
     () =>
-      L.icon({
+      icon({
         iconUrl: enterpriseMarkerIconPlaceholder,
         iconSize: [28, 28],
         iconAnchor: [14, 28],
