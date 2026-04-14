@@ -14,7 +14,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@pbe/react-yandex-maps": "^1.2.5",
     "@react-three/drei": "^9.92.7",
     "@react-three/fiber": "8.16.8",
     "leaflet": "^1.9.4",

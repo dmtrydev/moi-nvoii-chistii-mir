@@ -2,19 +2,7 @@ import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Clusterer, Map as YandexMap, Placemark, YMaps } from '@pbe/react-yandex-maps';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import type { LatLngExpression } from 'leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import type { LicenseData } from '@/types';
-import { renderToStaticMarkup } from 'react-dom/server';
 import {
   formatFkkoHuman,
   formatFkkoSelectionSummary,
@@ -30,7 +18,6 @@ import {
   writeCachedResults,
 } from '@/utils/searchState';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
-import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
@@ -60,7 +47,7 @@ function areStringArraysEqual(a: string[], b: string[]): boolean {
 }
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
-const YANDEX_MAPS_API_KEY = String(import.meta.env.VITE_YANDEX_MAPS_API_KEY ?? '').trim();
+const YANDEX_IFRAME_URL = String(import.meta.env.VITE_YANDEX_MAP_IFRAME_URL ?? '').trim();
 function getApiUrl(p: string): string {
   const base = String(API_BASE).replace(/\/$/, '');
   return base ? `${base}${p.startsWith('/') ? p : `/${p}`}` : p;
@@ -124,42 +111,6 @@ const MAP_SIDEBAR_PAD_PX = 35;
 /** Зазор между колонкой и картой (619 + 20 = 639) */
 const MAP_AREA_LEFT_OPEN_PX = 639;
 
-/** Внешняя ПКК во iframe (тот же движок, что ik8map.roscadastres.com: векторные границы #D20404). См. .env.example */
-const CADASTRE_IFRAME_URL = String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim();
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
-
-function FocusMap({
-  center,
-  zoom,
-}: {
-  center: LatLngExpression | null;
-  zoom?: number;
-}): null {
-  const map = useMap();
-  useEffect(() => {
-    if (!center) return;
-    map.setView(center, zoom ?? map.getZoom(), { animate: true });
-  }, [center, zoom, map]);
-  return null;
-}
-
-/** После анимации ширины колонки пересчитываем размер тайлов Leaflet. */
-function MapInvalidateAfterAside({ menuOpen, layoutKey }: { menuOpen: boolean; layoutKey: string }): null {
-  const map = useMap();
-  useEffect(() => {
-    map.invalidateSize({ animate: false });
-    const id = window.setTimeout(() => {
-      map.invalidateSize({ animate: true });
-    }, MAP_SIDEBAR_MS);
-    return () => window.clearTimeout(id);
-  }, [menuOpen, layoutKey, map]);
-  return null;
-}
-
 function useMediaMinWidth(minWidth: number): boolean {
   const [matches, setMatches] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${minWidth}px)`).matches : true,
@@ -172,157 +123,6 @@ function useMediaMinWidth(minWidth: number): boolean {
     return () => mq.removeEventListener('change', onChange);
   }, [minWidth]);
   return matches;
-}
-
-function markerVariant(it: LicenseData): 'green' | 'orange' {
-  const fkkoCount = Array.isArray(it.fkkoCodes) ? it.fkkoCodes.length : 0;
-  if (!it.inn) return 'orange';
-  return fkkoCount > 0 ? 'green' : 'orange';
-}
-
-function markerHtml(it: LicenseData): string {
-  const title = it.companyName || 'Организация';
-  const inn = it.inn || '';
-  const addr = it.address || '';
-  const fkko = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
-  const fkkoCount = fkko.length;
-  const siteLabel = it.siteLabel ? String(it.siteLabel) : '';
-  const siteInfo = siteLabel || 'Площадка';
-  const contactsPlaceholder = 'Скоро по подписке';
-  const activityTypes = Array.isArray(it.activityTypes) ? it.activityTypes : [];
-
-  return renderToStaticMarkup(
-    <div className="moinoviichistiimir-popup-card">
-      <div className="moinoviichistiimir-popup-head">
-        <div className="moinoviichistiimir-popup-title">{title}</div>
-        <div className="moinoviichistiimir-popup-sub">
-          <span className="moinoviichistiimir-popup-badge">{addr || 'Адрес не указан'}</span>
-        </div>
-        <div className="moinoviichistiimir-popup-activities">
-          <EnterpriseActivityStrip activityTypes={activityTypes} variant="light" size="sm" />
-        </div>
-      </div>
-
-      <div className="moinoviichistiimir-popup-body">
-        <div className="moinoviichistiimir-popup-grid">
-          <div className="moinoviichistiimir-popup-item">
-            <div className="moinoviichistiimir-popup-k">ИНН</div>
-            <div className="moinoviichistiimir-popup-v">{inn || '—'}</div>
-          </div>
-          <div className="moinoviichistiimir-popup-item">
-            <div className="moinoviichistiimir-popup-k">Телефон / Email</div>
-            <div className="moinoviichistiimir-popup-v">{contactsPlaceholder}</div>
-          </div>
-          <div className="moinoviichistiimir-popup-item moinoviichistiimir-popup-item--span2">
-            <div className="moinoviichistiimir-popup-k">Адрес</div>
-            <div className="moinoviichistiimir-popup-v">{addr || '—'}</div>
-          </div>
-          <div className="moinoviichistiimir-popup-item">
-            <div className="moinoviichistiimir-popup-k">Количество ФККО</div>
-            <div className="moinoviichistiimir-popup-v">{fkkoCount}</div>
-          </div>
-          <div className="moinoviichistiimir-popup-item">
-            <div className="moinoviichistiimir-popup-k">Площадка</div>
-            <div className="moinoviichistiimir-popup-v">{siteInfo}</div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-function createClusterIcon(cluster: unknown): L.DivIcon {
-  const c = cluster as { getChildCount?: () => number } | null;
-  const count = typeof c?.getChildCount === 'function' ? c.getChildCount() : 0;
-  return L.divIcon({
-    html: `<div class="moinoviichistiimir-cluster"><span>${count}</span></div>`,
-    className: 'moinoviichistiimir-cluster-wrapper',
-    iconSize: L.point(44, 44, true),
-  });
-}
-
-function createPointIcon(variant: 'green' | 'orange'): L.DivIcon {
-  const color = variant === 'orange' ? '#ea580c' : '#22c55e';
-  return L.divIcon({
-    className: 'moinoviichistiimir-point-wrapper',
-    html: `
-      <div class="moinoviichistiimir-marker">
-        <svg class="moinoviichistiimir-marker__svg" width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M17 45c0 0 14-17 14-27C31 8.06 24.94 2 17 2S3 8.06 3 18c0 10 14 27 14 27z" fill="${color}" />
-          <path d="M17 45c0 0 14-17 14-27C31 8.06 24.94 2 17 2S3 8.06 3 18c0 10 14 27 14 27z" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
-        </svg>
-      </div>
-    `,
-    iconSize: L.point(34, 46, true),
-    iconAnchor: [17, 46],
-    popupAnchor: [0, -42],
-  });
-}
-
-function ClusterMarkers({
-  items,
-  selectedId,
-  onSelectId,
-}: {
-  items: LicenseData[];
-  selectedId: number | null;
-  onSelectId: (id: number | null) => void;
-}): null {
-  const map = useMap();
-
-  useEffect(() => {
-    const markerClusterGroupFactory = (L as unknown as { markerClusterGroup?: (opts: unknown) => L.LayerGroup }).markerClusterGroup;
-    if (typeof markerClusterGroupFactory !== 'function') return;
-    type ClusterGroup = L.LayerGroup & {
-      addLayer: (layer: L.Layer) => void;
-      zoomToShowLayer: (layer: L.Layer, callback: () => void) => void;
-    };
-    const group = markerClusterGroupFactory({
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-      disableClusteringAtZoom: 15,
-      iconCreateFunction: createClusterIcon,
-    }) as unknown as ClusterGroup;
-
-    const markersById = new Map<number, L.Marker>();
-
-    items
-      .filter((it) => typeof it.lat === 'number' && typeof it.lng === 'number')
-      .forEach((it) => {
-        const siteId = typeof it.siteId === 'number' ? it.siteId : null;
-        const icon = createPointIcon(markerVariant(it));
-        const m = L.marker([it.lat as number, it.lng as number], { icon });
-        const html = markerHtml(it);
-        m.bindPopup(html, {
-          className: 'moinoviichistiimir-popup',
-          autoPan: true,
-          closeButton: true,
-          maxWidth: 320,
-        });
-        m.on('click', () => onSelectId(siteId));
-        group.addLayer(m);
-        if (siteId != null) markersById.set(siteId, m);
-      });
-
-    map.addLayer(group);
-
-    if (selectedId != null) {
-      const m = markersById.get(selectedId);
-      if (m) {
-        // ensure marker is visible even if clustered
-        group.zoomToShowLayer(m, () => {
-          m.openPopup();
-        });
-      }
-    }
-
-    return () => {
-      map.removeLayer(group);
-    };
-  }, [map, items, selectedId, onSelectId]);
-
-  return null;
 }
 
 export default function MapPage(): JSX.Element {
@@ -343,8 +143,6 @@ export default function MapPage(): JSX.Element {
   const [filterValidationError, setFilterValidationError] = useState<string>('');
   const [searchItems, setSearchItems] = useState<LicenseData[]>([]);
   const [focusedItem, setFocusedItem] = useState<LicenseData | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [focusCenter, setFocusCenter] = useState<LatLngExpression | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [introVisible, setIntroVisible] = useState(false);
   const [searchError, setSearchError] = useState<string>('');
@@ -639,10 +437,6 @@ export default function MapPage(): JSX.Element {
       const updated = data as LicenseData;
       setSearchItems((prev) => prev.map((x) => (typeof x.siteId === 'number' && x.siteId === siteId ? updated : x)));
       if (focusedItem && typeof focusedItem.siteId === 'number' && focusedItem.siteId === siteId) setFocusedItem(updated);
-      setSelectedId(siteId);
-      if (typeof updated.lat === 'number' && typeof updated.lng === 'number') {
-        setFocusCenter([updated.lat, updated.lng]);
-      }
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Ошибка геокодирования');
     }
@@ -653,31 +447,13 @@ export default function MapPage(): JSX.Element {
     setFilterVid(INITIAL_VID);
     setFilterRegion(INITIAL_REGION);
     setSearchItems([]);
-    setSelectedId(null);
-    setFocusCenter(null);
     setHasSearched(false);
     setSearchError('');
     setFilterValidationError('');
     setSearchParams(new URLSearchParams());
   };
 
-  const defaultCenter: LatLngExpression = useMemo(() => {
-    // Центр РФ примерно
-    return [56.0, 60.0];
-  }, []);
-
-  const mapCenter = focusCenter ?? defaultCenter;
-  const cadastreUsesIframe = baseMapStyle === 'cadastral' && CADASTRE_IFRAME_URL.length > 0;
-  const useYandexMap = baseMapStyle === 'osm' && YANDEX_MAPS_API_KEY.length > 0;
-  const markersItems = useMemo(() => {
-    const all = [...searchItems];
-    if (focusedItem && typeof focusedItem.id === 'number') {
-      const exists = all.some((x) => typeof x.siteId === 'number' && typeof focusedItem.siteId === 'number' && x.siteId === focusedItem.siteId);
-      if (!exists) all.unshift(focusedItem);
-    }
-    return all;
-  }, [searchItems, focusedItem]);
-
+  const useYandexIframe = YANDEX_IFRAME_URL.length > 0;
   const mapPushedLeft = isLgUp && menuVisible;
   const homePath = useMemo(() => {
     const params = buildSearchParamsFromFilters({
@@ -1110,36 +886,14 @@ export default function MapPage(): JSX.Element {
             </button>
           </div>
           <p className="mt-3 font-nunito text-[12.5px] font-semibold text-[#5e6567] leading-[1.35] tracking-[0]">
-            {CADASTRE_IFRAME_URL ? (
-              baseMapStyle === 'cadastral' ? (
-                <>
-                  <span>
-                    Встроена карта в стиле{' '}
-                  </span>
-                  <a
-                    href="https://ik8map.roscadastres.com/map"
-                    className="text-[#1f5c14] hover:text-[#2d7a1f] underline underline-offset-2"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Роскадастр
-                  </a>
-                  <span>
-                    : красные границы и подписи. Маркеры лицензий на iframe не рисуются — переключите на «Обычная», чтобы видеть точки.
-                  </span>
-                </>
-              ) : (
-                <span>
-                  Задан <span className="font-bold text-[#2b3335]">VITE_CADASTRE_IFRAME_URL</span>: в режиме «Кадастровая» откроется та же
-                  схема, что на ik8map.roscadastres.com (векторные тайлы, цвет #D20404).
-                </span>
-              )
+            {useYandexIframe ? (
+              <span>
+                Используется iframe Яндекс.Карты:{' '}
+                <span className="font-bold text-[#2b3335]">VITE_YANDEX_MAP_IFRAME_URL</span>.
+              </span>
             ) : (
               <span>
-                Векторные границы участков (GeoJSON с бэкенда) и клик по карте — запрос сведений ПКК. При зуме ≥ 14
-                подгружаются контуры; клик открывает карточку. Если API ПКК редиректится, настройте CADASTRE_PKK_API_BASE /
-                CADASTRE_MAPSERVER_BASE на сервере (см. server/.env.example). Альтернатива — iframe:{' '}
-                <span className="font-bold text-[#2b3335]">VITE_CADASTRE_IFRAME_URL</span>.
+                Укажите <span className="font-bold text-[#2b3335]">VITE_YANDEX_MAP_IFRAME_URL</span> в .env и пересоберите фронт.
               </span>
             )}
           </p>
@@ -1222,73 +976,27 @@ export default function MapPage(): JSX.Element {
             transitionDelay: `${HOME_INTRO_DELAY_MAP_MS}ms`,
           }}
         >
-        {useYandexMap ? (
-          <YMaps query={{ lang: 'ru_RU', apikey: YANDEX_MAPS_API_KEY || undefined }}>
-            <YandexMap
-              state={{
-                center: Array.isArray(mapCenter) ? mapCenter as [number, number] : [56, 60],
-                zoom: focusCenter ? 13 : 4,
-              }}
-              width="100%"
-              height="100%"
-              modules={['control.ZoomControl', 'control.FullscreenControl']}
-              options={{ suppressMapOpenBlock: true }}
-            >
-              <Clusterer options={{ preset: 'islands#invertedGreenClusterIcons' }}>
-                {markersItems
-                  .filter((it) => typeof it.lat === 'number' && typeof it.lng === 'number')
-                  .map((it) => (
-                    <Placemark
-                      key={`${it.siteId ?? it.id ?? it.companyName}-${it.lat}-${it.lng}`}
-                      geometry={[it.lat as number, it.lng as number]}
-                      properties={{
-                        balloonContentHeader: it.companyName || 'Организация',
-                        balloonContentBody: `${it.address || 'Адрес не указан'}<br/>ИНН: ${it.inn || 'не указан'}`,
-                      }}
-                      options={{
-                        preset: markerVariant(it) === 'orange' ? 'islands#orangeDotIcon' : 'islands#greenDotIcon',
-                      }}
-                      modules={['geoObject.addon.balloon']}
-                      onClick={() => {
-                        if (typeof it.siteId === 'number') setSelectedId(it.siteId);
-                        setFocusedItem(it);
-                        if (typeof it.lat === 'number' && typeof it.lng === 'number') {
-                          setFocusCenter([it.lat, it.lng]);
-                        }
-                      }}
-                    />
-                  ))}
-              </Clusterer>
-            </YandexMap>
-          </YMaps>
-        ) : cadastreUsesIframe ? (
+        {useYandexIframe ? (
           <iframe
-            title="Публичная кадастровая карта"
-            src={CADASTRE_IFRAME_URL}
+            title="Яндекс карта"
+            src={YANDEX_IFRAME_URL}
             className="absolute inset-0 z-0 h-full w-full min-h-0 border-0"
             allowFullScreen
             referrerPolicy="no-referrer-when-downgrade"
           />
         ) : (
-          <MapContainer
-            center={mapCenter}
-            zoom={focusCenter ? 13 : 4}
-            className="w-full h-full min-h-0"
-            preferCanvas
-          >
-            <FocusMap center={focusCenter} zoom={13} />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            />
-            {baseMapStyle === 'cadastral' && <CadastreVectorSystem enabled apiBase={getApiUrl} />}
-            <ClusterMarkers items={markersItems} selectedId={selectedId} onSelectId={setSelectedId} />
-            <MapInvalidateAfterAside menuOpen={menuVisible} layoutKey={`${isLgUp}-${menuVisible}`} />
-          </MapContainer>
+          <div className="absolute inset-0 z-0 flex items-center justify-center bg-[#ffffff73] p-6 text-center">
+            <div className="max-w-[460px] rounded-[20px] border border-white bg-[#ffffff80] p-5 font-nunito text-[#5e6567] shadow-[inset_0px_0px_40px_#ffffffb2]">
+              <p className="text-lg font-bold text-[#2b3335]">Карта не настроена</p>
+              <p className="mt-2 text-sm leading-relaxed">
+                Добавьте <span className="font-bold text-[#2b3335]">VITE_YANDEX_MAP_IFRAME_URL</span> в .env и пересоберите фронт, чтобы отобразить iframe Яндекс.Карты.
+              </p>
+            </div>
+          </div>
         )}
-        {!cadastreUsesIframe && (
+        {!useYandexIframe && (
           <p className="sr-only">
-            Карта © OpenStreetMap contributors, © CARTO
+            Карта не настроена
           </p>
         )}
         </div>
