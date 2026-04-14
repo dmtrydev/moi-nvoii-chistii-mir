@@ -152,7 +152,7 @@ export function FilterPanelSection({
       );
 
     let fromFilter: string[] = [];
-    if (query.length > 0) {
+    if (query.length >= 3) {
       fromFilter = fkkoOptions
         .map((opt) => normalizeFkkoDigits(opt))
         .filter((k) => {
@@ -240,7 +240,8 @@ export function FilterPanelSection({
     query: string;
     label: string;
   }): boolean => {
-    const idx = buildFkkoSearchIndex(option, label);
+    const digits = normalizeFkkoDigits(option);
+    const idx = fkkoSearchIndexByCode[digits] ?? buildFkkoSearchIndex(option, label);
     return matchesFkkoSearch(idx, query);
   };
 
@@ -312,6 +313,7 @@ export function FilterPanelSection({
             noOptionsText="Совпадений не найдено"
             lazyOptionsUntilInput
             lazyOptionsHintText="Начните вводить код ФККО"
+            maxRenderedOptions={80}
             inputClassName="min-w-0 flex-1 bg-transparent font-nunito font-semibold text-lg text-[#2b3335] placeholder:text-[#828583] outline-none"
             renderChevron={(open) => (
               <img

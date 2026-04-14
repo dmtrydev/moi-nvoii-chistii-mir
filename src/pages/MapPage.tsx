@@ -9,11 +9,14 @@ import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
 import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 import {
+  buildFkkoSearchIndex,
   formatFkkoHuman,
   formatFkkoSelectionSummary,
   fkkoCodesToQueryParam,
+  matchesFkkoSearch,
   normalizeFkkoCodeList,
   normalizeFkkoDigits,
+  normalizeFkkoSearchQuery,
 } from '@/utils/fkko';
 import {
   buildCanonicalSearchKey,
@@ -212,6 +215,7 @@ export default function MapPage(): JSX.Element {
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
+  const [fkkoInput, setFkkoInput] = useState('');
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   /** На экранах < lg панель — оверлей; карту показываем на весь блок, меню по кнопке. */
   const [menuVisible, setMenuVisible] = useState(() =>
@@ -262,6 +266,18 @@ export default function MapPage(): JSX.Element {
   }, []);
 
   const fkkoCatalogCodes = useMemo(() => normalizeFkkoCodeList(fkkoOptions), [fkkoOptions]);
+  const fkkoSearchIndexByCode = useMemo(() => {
+    const map: Record<string, { codeDigits: string; labelNormalized: string }> = {};
+    for (const code of fkkoCatalogCodes) {
+      const digits = normalizeFkkoDigits(code);
+      if (digits.length !== 11) continue;
+      const title = fkkoTitleByCode[digits];
+      const human = formatFkkoHuman(code);
+      const label = title ? `${human} — ${title}` : human;
+      map[digits] = buildFkkoSearchIndex(digits, label);
+    }
+    return map;
+  }, [fkkoCatalogCodes, fkkoTitleByCode]);
 
   useEffect(() => {
     if (fkkoCatalogCodes.length === 0) return;
@@ -360,6 +376,17 @@ export default function MapPage(): JSX.Element {
       .filter(Boolean);
     return [...new Set(normalized)].sort((a, b) => a.localeCompare(b, 'ru'));
   }, []);
+  const handleFkkoInput = useCallback((next: string): void => {
+    setFkkoInput(String(next).slice(0, 120));
+  }, []);
+  const filterFkkoOption = useCallback(
+    ({ option, query, label }: { option: string; query: string; label: string }): boolean => {
+      const digits = normalizeFkkoDigits(option);
+      const idx = fkkoSearchIndexByCode[digits] ?? buildFkkoSearchIndex(option, label);
+      return matchesFkkoSearch(idx, normalizeFkkoSearchQuery(query));
+    },
+    [fkkoSearchIndexByCode],
+  );
   // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
 
   useEffect(() => {
@@ -720,6 +747,9 @@ export default function MapPage(): JSX.Element {
                 placeholder="Выберите коды ФККО"
                 buttonClassName={vidTriggerClass}
                 labelClassName={vidLabelClass}
+                inputValue={fkkoInput}
+                onInputValueChange={handleFkkoInput}
+                filterOption={filterFkkoOption}
                 renderChevron={(open) => (
                   <img
                     className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
@@ -731,6 +761,10 @@ export default function MapPage(): JSX.Element {
                 dropdownPanelClassName={glassDropdownPanelDown}
                 dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
                 maxHeightClassName="max-h-64"
+                lazyOptionsUntilInput
+                lazyOptionsHintText="Начните вводить код ФККО"
+                maxRenderedOptions={80}
+                inputClassName="relative z-[2] w-full bg-transparent border-0 font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none"
                 formatOptionLabel={(code) => {
                   const key = normalizeFkkoDigits(code);
                   const title = key.length === 11 ? fkkoTitleByCode[key] : undefined;

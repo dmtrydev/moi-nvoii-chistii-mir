@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 function normalize(v: string): string {
   return String(v ?? '').trim();
@@ -80,6 +80,7 @@ export function MultiSelectDropdown({
   noOptionsText = 'Нет вариантов',
   lazyOptionsUntilInput = false,
   lazyOptionsHintText = 'Начните вводить код ФККО',
+  maxRenderedOptions = 120,
 }: {
   options: string[];
   selected: string[];
@@ -127,6 +128,8 @@ export function MultiSelectDropdown({
   lazyOptionsUntilInput?: boolean;
   /** Текст-заглушка, когда список скрыт до ввода. */
   lazyOptionsHintText?: string;
+  /** Лимит одновременно отрисованных элементов списка для снижения лагов. */
+  maxRenderedOptions?: number;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -159,29 +162,40 @@ export function MultiSelectDropdown({
 
   const listScrollClass = dropdownListClassName ?? unifiedListClass;
   const normalizedInput = normalize(inputValue ?? '');
+  const deferredInput = useDeferredValue(normalizedInput);
   const hasInputMode = typeof onInputValueChange === 'function';
+  const optionLabelByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const opt of normalizedOptions) {
+      map.set(opt, formatOptionLabel ? formatOptionLabel(opt) : opt);
+    }
+    return map;
+  }, [normalizedOptions, formatOptionLabel]);
   const visibleOptions = useMemo(() => {
-    if (hasInputMode && lazyOptionsUntilInput && !normalizedInput) {
+    if (hasInputMode && lazyOptionsUntilInput && !deferredInput) {
       return normalizedOptions.filter((opt) => selectedSet.has(opt));
     }
-    if (!hasInputMode || !normalizedInput) return normalizedOptions;
-    const q = normalizedInput.toLowerCase();
-    return normalizedOptions.filter((opt) => {
-      const label = formatOptionLabel ? formatOptionLabel(opt) : opt;
-      if (filterOption) return filterOption({ option: opt, query: normalizedInput, label });
+    if (!hasInputMode) return normalizedOptions;
+    if (!deferredInput) return normalizedOptions.slice(0, maxRenderedOptions);
+    const q = deferredInput.toLowerCase();
+    const filtered = normalizedOptions.filter((opt) => {
+      const label = optionLabelByCode.get(opt) ?? opt;
+      if (filterOption) return filterOption({ option: opt, query: deferredInput, label });
       const labelLower = label.toLowerCase();
       return opt.toLowerCase().includes(q) || labelLower.includes(q);
     });
+    return filtered.slice(0, maxRenderedOptions);
   }, [
     hasInputMode,
     lazyOptionsUntilInput,
-    normalizedInput,
+    deferredInput,
     normalizedOptions,
     selectedSet,
-    formatOptionLabel,
+    optionLabelByCode,
     filterOption,
+    maxRenderedOptions,
   ]);
-  const showLazyHint = hasInputMode && lazyOptionsUntilInput && !normalizedInput && visibleOptions.length === 0;
+  const showLazyHint = hasInputMode && lazyOptionsUntilInput && !deferredInput && visibleOptions.length === 0;
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
