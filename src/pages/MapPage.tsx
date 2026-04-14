@@ -2,6 +2,7 @@ import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Clusterer, Map as YandexMap, Placemark, YMaps } from '@pbe/react-yandex-maps';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import type { LatLngExpression } from 'leaflet';
 import L from 'leaflet';
@@ -28,7 +29,6 @@ import {
   readCachedResults,
   writeCachedResults,
 } from '@/utils/searchState';
-import { LicenseResultCard } from '@/components/licenses/LicenseResultCard';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
@@ -58,6 +58,7 @@ function areStringArraysEqual(a: string[], b: string[]): boolean {
 }
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
+const YANDEX_MAPS_API_KEY = String(import.meta.env.VITE_YANDEX_MAPS_API_KEY ?? '').trim();
 function getApiUrl(p: string): string {
   const base = String(API_BASE).replace(/\/$/, '');
   return base ? `${base}${p.startsWith('/') ? p : `/${p}`}` : p;
@@ -665,6 +666,7 @@ export default function MapPage(): JSX.Element {
 
   const mapCenter = focusCenter ?? defaultCenter;
   const cadastreUsesIframe = baseMapStyle === 'cadastral' && CADASTRE_IFRAME_URL.length > 0;
+  const useYandexMap = baseMapStyle === 'osm';
   const markersItems = useMemo(() => {
     const all = [...searchItems];
     if (focusedItem && typeof focusedItem.id === 'number') {
@@ -942,15 +944,87 @@ export default function MapPage(): JSX.Element {
                   if (fkkoQ) mapParams.set('fkko', fkkoQ);
                   if (r) mapParams.set('region', r);
                   if (typeof it.siteId === 'number') mapParams.set('focusSite', String(it.siteId));
+                  const fkkoCodes = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
+                  const mainFkko = fkkoCodes.slice(0, 3);
+                  const restCount = Math.max(0, fkkoCodes.length - mainFkko.length);
+                  const fkkoTotal = fkkoCodes.length;
+                  const sitesCount = Array.isArray(it.sites) ? it.sites.length : 0;
+                  const hasAddress = Boolean(it.address?.trim()) || sitesCount > 0;
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>
-                      <LicenseResultCard
-                        item={it}
-                        mapPath={`/map?${mapParams.toString()}`}
-                        detailsPath={id != null ? `/enterprise/${id}` : '/map'}
-                        compact
-                        fkkoTitleByCode={fkkoTitleByCode}
-                      />
+                      <article className="rounded-[32.5px] border border-solid border-white bg-[#ffffff80] p-6 shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-7 lg:p-8">
+                        <div className="space-y-5">
+                          <div className="space-y-2.5">
+                            <h4 className="typo-h4 max-w-[900px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]">
+                              {it.companyName || 'Организация'}
+                            </h4>
+                            <div className="flex flex-wrap items-center gap-3.5 font-nunito font-semibold text-[#5e6567] text-base sm:text-lg">
+                              <span>
+                                <span className="font-bold">ИНН:</span>{' '}
+                                {it.inn || 'не указан'}
+                              </span>
+                              {it.address && (
+                                <>
+                                  <span>|</span>
+                                  <span>{it.address}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <EnterpriseActivityStrip activityTypes={it.activityTypes} variant="light" size="md" />
+                          <div className="space-y-2.5">
+                            <div className="flex flex-wrap items-center gap-3">
+                              {fkkoTotal > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffffb2] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
+                                  {fkkoTotal} {fkkoTotal === 1 ? 'код ФККО' : 'кодов ФККО'}
+                                </span>
+                              )}
+                              {hasAddress && (
+                                <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
+                                  {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              {mainFkko.map((code) => (
+                                <span
+                                  key={code}
+                                  className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
+                                >
+                                  {formatFkkoHuman(code)}
+                                </span>
+                              ))}
+                              {restCount > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
+                                  +{restCount}
+                                </span>
+                              )}
+                              <div className="ml-auto flex items-center gap-5">
+                                <Link
+                                  to={`/map?${mapParams.toString()}`}
+                                  className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                >
+                                  <span className="relative z-[2] inline-flex items-center gap-2.5">
+                                    <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                                      На карте
+                                    </span>
+                                  </span>
+                                </Link>
+                                <Link
+                                  to={id != null ? `/enterprise/${id}` : '/map'}
+                                  className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                >
+                                  <span className="relative z-[2] inline-flex items-center gap-2.5">
+                                    <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                                      Карточка предприятия
+                                    </span>
+                                  </span>
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
                       {!hasCoords && typeof it.siteId === 'number' && (
                         <button
                           type="button"
@@ -1132,7 +1206,46 @@ export default function MapPage(): JSX.Element {
             transitionDelay: `${HOME_INTRO_DELAY_MAP_MS}ms`,
           }}
         >
-        {cadastreUsesIframe ? (
+        {useYandexMap ? (
+          <YMaps query={{ lang: 'ru_RU', apikey: YANDEX_MAPS_API_KEY || undefined }}>
+            <YandexMap
+              state={{
+                center: Array.isArray(mapCenter) ? mapCenter as [number, number] : [56, 60],
+                zoom: focusCenter ? 13 : 4,
+              }}
+              width="100%"
+              height="100%"
+              modules={['control.ZoomControl', 'control.FullscreenControl']}
+              options={{ suppressMapOpenBlock: true }}
+            >
+              <Clusterer options={{ preset: 'islands#invertedGreenClusterIcons' }}>
+                {markersItems
+                  .filter((it) => typeof it.lat === 'number' && typeof it.lng === 'number')
+                  .map((it) => (
+                    <Placemark
+                      key={`${it.siteId ?? it.id ?? it.companyName}-${it.lat}-${it.lng}`}
+                      geometry={[it.lat as number, it.lng as number]}
+                      properties={{
+                        balloonContentHeader: it.companyName || 'Организация',
+                        balloonContentBody: `${it.address || 'Адрес не указан'}<br/>ИНН: ${it.inn || 'не указан'}`,
+                      }}
+                      options={{
+                        preset: markerVariant(it) === 'orange' ? 'islands#orangeDotIcon' : 'islands#greenDotIcon',
+                      }}
+                      modules={['geoObject.addon.balloon']}
+                      onClick={() => {
+                        if (typeof it.siteId === 'number') setSelectedId(it.siteId);
+                        setFocusedItem(it);
+                        if (typeof it.lat === 'number' && typeof it.lng === 'number') {
+                          setFocusCenter([it.lat, it.lng]);
+                        }
+                      }}
+                    />
+                  ))}
+              </Clusterer>
+            </YandexMap>
+          </YMaps>
+        ) : cadastreUsesIframe ? (
           <iframe
             title="Публичная кадастровая карта"
             src={CADASTRE_IFRAME_URL}
