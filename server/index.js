@@ -1893,6 +1893,11 @@ if (distPath) {
   app.use(express.static(distPath, { index: false }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
+    // Не подменяем index.html на запросы к шрифтам/файлам — иначе вместо 404 отдаётся SPA
+    // (в браузере «белый экран» и title приложения при открытии /fonts/*.woff2).
+    if (/\.(woff2?|ttf|otf|eot|ico|png|jpe?g|gif|webp|svg|webmanifest)$/i.test(req.path)) {
+      return res.status(404).type('text/plain').send('Not found');
+    }
     res.sendFile(path.join(distPath, 'index.html'), (err) => {
       if (err) next(err);
     });

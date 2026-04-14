@@ -8,6 +8,7 @@ COPY index.html ./
 COPY vite.config.* ./
 COPY tsconfig*.json ./
 COPY postcss.config.js tailwind.config.js ./
+COPY public ./public
 COPY src ./src
 RUN npm run build:client
 
