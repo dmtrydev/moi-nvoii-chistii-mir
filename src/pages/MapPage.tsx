@@ -1,11 +1,12 @@
 import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { icon } from 'leaflet';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
+import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
+import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 import {
   formatFkkoHuman,
   formatFkkoSelectionSummary,
@@ -37,7 +38,6 @@ import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/h
 import routeBuildIconPlaceholder from '@/assets/map/route-build-icon-placeholder.svg';
 import backToHomeIconPlaceholder from '@/assets/map/back-to-home-icon-placeholder.svg';
 import collapseMenuIconPlaceholder from '@/assets/map/collapse-menu-icon-placeholder.svg';
-import enterpriseMarkerIconPlaceholder from '@/assets/map/enterprise-marker-icon-placeholder.svg';
 
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
@@ -547,26 +547,6 @@ export default function MapPage(): JSX.Element {
       ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       : '&copy; OpenStreetMap &copy; CARTO';
   const mapPushedLeft = isLgUp && menuVisible;
-  const mapMarkerIcon = useMemo(
-    () =>
-      icon({
-        iconUrl: enterpriseMarkerIconPlaceholder,
-        iconSize: [22, 22],
-        iconAnchor: [11, 22],
-        popupAnchor: [0, -22],
-      }),
-    [],
-  );
-  const mapMarkerIconSelected = useMemo(
-    () =>
-      icon({
-        iconUrl: enterpriseMarkerIconPlaceholder,
-        iconSize: [28, 28],
-        iconAnchor: [14, 28],
-        popupAnchor: [0, -28],
-      }),
-    [],
-  );
   const homePath = useMemo(() => {
     const params = buildSearchParamsFromFilters({
       region: filterRegion,
@@ -1092,11 +1072,24 @@ export default function MapPage(): JSX.Element {
           {mapPoints.map((point) => {
             const pointId = point.pointId;
             const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+            const popupModel = buildMapEnterprisePopupViewModel({
+              pointAddress: point.address,
+              pointInn: point.inn,
+              source: point.source,
+              pointLat: point.lat,
+              pointLng: point.lng,
+            });
             return (
-              <Marker
+              <CircleMarker
                 key={point.key}
                 center={[point.lat, point.lng]}
-                icon={isSelected ? mapMarkerIconSelected : mapMarkerIcon}
+                radius={isSelected ? 11 : 8}
+                pathOptions={{
+                  color: isSelected ? '#14532d' : '#1f7a35',
+                  fillColor: isSelected ? '#22c55e' : '#16a34a',
+                  fillOpacity: 0.9,
+                  weight: isSelected ? 3 : 2,
+                }}
                 eventHandlers={{
                   click: () => {
                     setFocusedItem(point.source);
@@ -1106,15 +1099,9 @@ export default function MapPage(): JSX.Element {
                 }}
               >
                 <Popup className="moinoviichistiimir-popup">
-                  <div className="moinoviichistiimir-popup-card">
-                    <div className="moinoviichistiimir-popup-title">{point.companyName}</div>
-                    <div className="moinoviichistiimir-popup-body">
-                      <div>{point.address}</div>
-                      <div>ИНН: {point.inn}</div>
-                    </div>
-                  </div>
+                  <MapEnterprisePopupCard model={popupModel} />
                 </Popup>
-              </Marker>
+              </CircleMarker>
             );
           })}
         </MapContainer>
