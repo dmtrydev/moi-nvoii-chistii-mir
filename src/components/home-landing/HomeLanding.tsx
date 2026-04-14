@@ -276,6 +276,7 @@ export function HomeLanding(): JSX.Element {
   useEffect(() => {
     runSearchRef.current = runSearch;
   }, [runSearch]);
+  const lastHydratedSearchRef = useRef<string | null>(null);
 
   const toMapPath = useCallback((): string => {
     const params = buildSearchParamsFromFilters({
@@ -287,8 +288,11 @@ export function HomeLanding(): JSX.Element {
     return `/map?${params.toString()}`;
   }, [filterRegion, filterFkko, filterVid, hasSearched]);
 
+  const searchParamsKey = searchParams.toString();
   useEffect(() => {
-    const parsed = parseFiltersFromSearchParams(searchParams);
+    if (lastHydratedSearchRef.current === searchParamsKey) return;
+    lastHydratedSearchRef.current = searchParamsKey;
+    const parsed = parseFiltersFromSearchParams(new URLSearchParams(searchParamsKey));
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
@@ -296,7 +300,7 @@ export function HomeLanding(): JSX.Element {
     if (parsed.searched && parsed.vid.length > 0) {
       void runSearchRef.current(parsed, { cacheFirst: true });
     }
-  }, [searchParams]);
+  }, [searchParamsKey]);
 
   const heroInnerTransition = useMemo(() => {
     if (introStage < 2) return 'none';
