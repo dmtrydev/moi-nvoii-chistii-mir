@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import {
@@ -44,6 +44,13 @@ const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
+function areStringArraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 function getApiUrl(p: string): string {
   const base = String(API_BASE).replace(/\/$/, '');
@@ -265,6 +272,10 @@ export function HomeLanding(): JSX.Element {
     },
     [filterRegion, filterFkko, filterVid],
   );
+  const runSearchRef = useRef(runSearch);
+  useEffect(() => {
+    runSearchRef.current = runSearch;
+  }, [runSearch]);
 
   const toMapPath = useCallback((): string => {
     const params = buildSearchParamsFromFilters({
@@ -278,14 +289,14 @@ export function HomeLanding(): JSX.Element {
 
   useEffect(() => {
     const parsed = parseFiltersFromSearchParams(searchParams);
-    setFilterRegion(parsed.region);
-    setFilterFkko(parsed.fkko);
-    setFilterVid(parsed.vid);
+    setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
+    setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
+    setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
 
     if (parsed.searched && parsed.vid.length > 0) {
-      void runSearch(parsed, { cacheFirst: true });
+      void runSearchRef.current(parsed, { cacheFirst: true });
     }
-  }, [searchParams, runSearch]);
+  }, [searchParams]);
 
   const heroInnerTransition = useMemo(() => {
     if (introStage < 2) return 'none';

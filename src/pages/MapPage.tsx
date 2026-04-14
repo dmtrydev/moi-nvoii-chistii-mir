@@ -49,6 +49,13 @@ import collapseMenuIconPlaceholder from '@/assets/map/collapse-menu-icon-placeho
 const INITIAL_FKKO: string[] = [];
 const INITIAL_VID: string[] = [];
 const INITIAL_REGION = '';
+function areStringArraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 function getApiUrl(p: string): string {
@@ -471,9 +478,9 @@ export default function MapPage(): JSX.Element {
 
   useEffect(() => {
     const parsed = parseFiltersFromSearchParams(searchParams);
-    setFilterRegion(parsed.region);
-    setFilterFkko(parsed.fkko);
-    setFilterVid(parsed.vid);
+    setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
+    setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
+    setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
   }, [searchParams]);
 
   const focusSiteId = useMemo(() => {
@@ -575,6 +582,10 @@ export default function MapPage(): JSX.Element {
   },
     [filterRegion, filterFkko, filterVid]
   );
+  const runSearchRef = useRef(runSearch);
+  useEffect(() => {
+    runSearchRef.current = runSearch;
+  }, [runSearch]);
 
   const lastAutoSearchKey = useRef<string | null>(null);
   useEffect(() => {
@@ -583,8 +594,8 @@ export default function MapPage(): JSX.Element {
     const key = buildCanonicalSearchKey(parsed);
     if (lastAutoSearchKey.current === key) return;
     lastAutoSearchKey.current = key;
-    runSearch(parsed, { cacheFirst: true });
-  }, [searchParams, runSearch]);
+    runSearchRef.current(parsed, { cacheFirst: true });
+  }, [searchParams]);
 
   const handleFindClick = useCallback(async () => {
     const next = {
