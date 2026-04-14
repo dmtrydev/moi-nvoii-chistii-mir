@@ -244,9 +244,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     });
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     if (!res.ok) throw new Error(body.message ?? 'Не удалось одобрить');
-    if (!body?.license) {
-      // ничего не делаем, просто обновим карточку
-    }
     // Перезагрузка данных через полный reload страницы (быстрее/надёжнее для текущего объёма).
     window.location.reload();
   }

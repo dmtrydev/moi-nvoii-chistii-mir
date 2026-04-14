@@ -1,6 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from '@/App';
+import 'leaflet/dist/leaflet.css';
 import '@/styles/global.css';
 
 class RootErrorBoundary extends Component<

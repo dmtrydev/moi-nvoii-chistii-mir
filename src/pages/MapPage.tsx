@@ -1,8 +1,10 @@
 import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
+import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import {
   formatFkkoHuman,
   formatFkkoSelectionSummary,
@@ -47,7 +49,6 @@ function areStringArraysEqual(a: string[], b: string[]): boolean {
 }
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
-const YANDEX_IFRAME_URL = String(import.meta.env.VITE_YANDEX_MAP_IFRAME_URL ?? '').trim();
 function getApiUrl(p: string): string {
   const base = String(API_BASE).replace(/\/$/, '');
   return base ? `${base}${p.startsWith('/') ? p : `/${p}`}` : p;
@@ -105,11 +106,30 @@ const mapSidebarChromeBarClass =
 const MAP_LAYOUT_LG_PX = 1024;
 
 /** Сворачивание панели фильтров: те же ощущения, что у CTA на главной */
-const MAP_SIDEBAR_MS = 520;
 const MAP_SIDEBAR_WIDTH_PX = 619;
 const MAP_SIDEBAR_PAD_PX = 35;
 /** Зазор между колонкой и картой (619 + 20 = 639) */
 const MAP_AREA_LEFT_OPEN_PX = 639;
+const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
+const DEFAULT_MAP_ZOOM = 5;
+const FOCUSED_MAP_ZOOM = 14;
+
+function MapFocusController({
+  center,
+  zoom,
+}: {
+  center: [number, number] | null;
+  zoom?: number;
+}): null {
+  const map = useMap();
+  useEffect(() => {
+    if (!center) return;
+    map.flyTo(center, zoom ?? map.getZoom(), {
+      duration: 0.7,
+    });
+  }, [center, zoom, map]);
+  return null;
+}
 
 function useMediaMinWidth(minWidth: number): boolean {
   const [matches, setMatches] = useState(() =>
@@ -148,6 +168,8 @@ export default function MapPage(): JSX.Element {
   const [searchError, setSearchError] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [baseMapStyle, setBaseMapStyle] = useState<'osm' | 'cadastral'>('osm');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
   const isApplyingQueryFiltersRef = useRef(false);
 
@@ -453,7 +475,26 @@ export default function MapPage(): JSX.Element {
     setSearchParams(new URLSearchParams());
   };
 
-  const useYandexIframe = YANDEX_IFRAME_URL.length > 0;
+  const hasMapFocus = Boolean(focusCenter);
+  const mapPoints = useMemo(
+    () =>
+      searchItems.filter(
+        (item) =>
+          typeof item.lat === 'number' &&
+          Number.isFinite(item.lat) &&
+          typeof item.lng === 'number' &&
+          Number.isFinite(item.lng),
+      ),
+    [searchItems],
+  );
+  const tileUrl =
+    baseMapStyle === 'osm'
+      ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const tileAttribution =
+    baseMapStyle === 'osm'
+      ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      : '&copy; OpenStreetMap &copy; CARTO';
   const mapPushedLeft = isLgUp && menuVisible;
   const homePath = useMemo(() => {
     const params = buildSearchParamsFromFilters({
@@ -886,16 +927,7 @@ export default function MapPage(): JSX.Element {
             </button>
           </div>
           <p className="mt-3 font-nunito text-[12.5px] font-semibold text-[#5e6567] leading-[1.35] tracking-[0]">
-            {useYandexIframe ? (
-              <span>
-                Используется iframe Яндекс.Карты:{' '}
-                <span className="font-bold text-[#2b3335]">VITE_YANDEX_MAP_IFRAME_URL</span>.
-              </span>
-            ) : (
-              <span>
-                Укажите <span className="font-bold text-[#2b3335]">VITE_YANDEX_MAP_IFRAME_URL</span> в .env и пересоберите фронт.
-              </span>
-            )}
+            Подложка работает через Leaflet: OpenStreetMap / CARTO.
           </p>
         </section>
 
@@ -968,7 +1000,7 @@ export default function MapPage(): JSX.Element {
               style={isLgUp ? { left: mapPushedLeft ? MAP_AREA_LEFT_OPEN_PX : 0 } : undefined}
             >
         <div
-          className="absolute inset-0 [&_.leaflet-control-attribution]:hidden"
+          className="absolute inset-0"
           style={{
             opacity: introVisible ? 1 : 0,
             transform: introVisible ? 'translateY(0)' : 'translateY(36px)',
@@ -976,29 +1008,51 @@ export default function MapPage(): JSX.Element {
             transitionDelay: `${HOME_INTRO_DELAY_MAP_MS}ms`,
           }}
         >
-        {useYandexIframe ? (
-          <iframe
-            title="Яндекс карта"
-            src={YANDEX_IFRAME_URL}
-            className="absolute inset-0 z-0 h-full w-full min-h-0 border-0"
-            allowFullScreen
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-        ) : (
-          <div className="absolute inset-0 z-0 flex items-center justify-center bg-[#ffffff73] p-6 text-center">
-            <div className="max-w-[460px] rounded-[20px] border border-white bg-[#ffffff80] p-5 font-nunito text-[#5e6567] shadow-[inset_0px_0px_40px_#ffffffb2]">
-              <p className="text-lg font-bold text-[#2b3335]">Карта не настроена</p>
-              <p className="mt-2 text-sm leading-relaxed">
-                Добавьте <span className="font-bold text-[#2b3335]">VITE_YANDEX_MAP_IFRAME_URL</span> в .env и пересоберите фронт, чтобы отобразить iframe Яндекс.Карты.
-              </p>
-            </div>
-          </div>
-        )}
-        {!useYandexIframe && (
-          <p className="sr-only">
-            Карта не настроена
-          </p>
-        )}
+        <MapContainer
+          center={focusCenter ?? DEFAULT_MAP_CENTER}
+          zoom={hasMapFocus ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM}
+          className="absolute inset-0 z-0 h-full w-full min-h-0"
+          zoomControl
+        >
+          <TileLayer attribution={tileAttribution} url={tileUrl} />
+          <CadastreVectorSystem enabled={baseMapStyle === 'cadastral'} apiBase={getApiUrl} />
+          <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
+          {mapPoints.map((item) => {
+            const pointId = item.siteId ?? item.id;
+            if (typeof item.lat !== 'number' || typeof item.lng !== 'number') return null;
+            const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+            return (
+              <CircleMarker
+                key={`${pointId ?? `${item.inn}-${item.address}`}`}
+                center={[item.lat, item.lng]}
+                radius={isSelected ? 11 : 8}
+                pathOptions={{
+                  color: isSelected ? '#14532d' : '#1f7a35',
+                  fillColor: isSelected ? '#22c55e' : '#16a34a',
+                  fillOpacity: 0.9,
+                  weight: isSelected ? 3 : 2,
+                }}
+                eventHandlers={{
+                  click: () => {
+                    setFocusedItem(item);
+                    if (pointId != null) setSelectedId(pointId);
+                    setFocusCenter([item.lat!, item.lng!]);
+                  },
+                }}
+              >
+                <Popup className="moinoviichistiimir-popup">
+                  <div className="moinoviichistiimir-popup-card">
+                    <div className="moinoviichistiimir-popup-title">{item.companyName || 'Организация'}</div>
+                    <div className="moinoviichistiimir-popup-body">
+                      <div>{item.address || 'Адрес не указан'}</div>
+                      <div>ИНН: {item.inn || 'не указан'}</div>
+                    </div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          })}
+        </MapContainer>
         </div>
         <button
           type="button"
