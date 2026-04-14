@@ -1,6 +1,11 @@
 import { memo } from 'react';
-import { Leaf, Snowflake, Sun, Trash2, Truck, Warehouse } from 'lucide-react';
 import type { MapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import sborActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-active.svg';
+import transportActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-transport-active.svg';
+import neutralizationInactiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-neutralization-inactive.svg';
+import processingInactiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-processing-inactive.svg';
+import placementActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-placement-active.svg';
+import utilizationInactiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-utilization-inactive.svg';
 
 type Props = {
   model: MapEnterprisePopupViewModel;
@@ -8,12 +13,12 @@ type Props = {
 
 export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ model }: Props): JSX.Element {
   const statusIcons = [
-    { id: 'snowflake', Icon: Snowflake, active: true, label: 'Статус 1' },
-    { id: 'truck', Icon: Truck, active: true, label: 'Статус 2' },
-    { id: 'sun', Icon: Sun, active: false, label: 'Статус 3' },
-    { id: 'trash', Icon: Trash2, active: false, label: 'Статус 4' },
-    { id: 'warehouse', Icon: Warehouse, active: true, label: 'Статус 5' },
-    { id: 'leaf', Icon: Leaf, active: false, label: 'Статус 6' },
+    { id: 'sbor', iconSrc: sborActiveIcon, active: true, label: 'Сбор' },
+    { id: 'transport', iconSrc: transportActiveIcon, active: true, label: 'Транспортирование' },
+    { id: 'neutralization', iconSrc: neutralizationInactiveIcon, active: false, label: 'Обезвреживание' },
+    { id: 'processing', iconSrc: processingInactiveIcon, active: false, label: 'Обработка' },
+    { id: 'placement', iconSrc: placementActiveIcon, active: true, label: 'Размещение' },
+    { id: 'utilization', iconSrc: utilizationInactiveIcon, active: false, label: 'Утилизация' },
   ] as const;
 
   return (
@@ -25,7 +30,7 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ mod
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
         <div className="moinoviichistiimir-popup-enterprise__headDivider" aria-hidden />
         <div className="moinoviichistiimir-popup-enterprise__icons" aria-label="Статусы предприятия">
-          {statusIcons.map(({ id, Icon, active, label }) => (
+          {statusIcons.map(({ id, iconSrc, active, label }) => (
             <span
               key={id}
               title={label}
@@ -34,10 +39,11 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ mod
                 active ? 'moinoviichistiimir-popup-enterprise__iconBubble--active' : ''
               }`}
             >
-              <Icon className="moinoviichistiimir-popup-enterprise__icon" strokeWidth={1.8} />
+              <img className="moinoviichistiimir-popup-enterprise__icon" src={iconSrc} alt="" />
             </span>
           ))}
         </div>
+        <div className="moinoviichistiimir-popup-enterprise__iconsDivider" aria-hidden />
       </header>
 
       <div className="moinoviichistiimir-popup-enterprise__rows">

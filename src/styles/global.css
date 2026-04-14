@@ -499,7 +499,8 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 22px 24px;
+    padding: 22px 24px 20px;
+    padding-right: 52px;
     border-radius: 32px;
     background: rgba(238, 240, 241, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.85);
@@ -532,6 +533,11 @@
     gap: 10px;
     flex-wrap: nowrap;
   }
+  .moinoviichistiimir-popup-enterprise__iconsDivider {
+    width: 100%;
+    height: 1px;
+    background: rgba(93, 101, 104, 0.18);
+  }
   .moinoviichistiimir-popup-enterprise__iconBubble {
     width: 56px;
     height: 56px;
@@ -546,9 +552,9 @@
     background: #bedc58;
   }
   .moinoviichistiimir-popup-enterprise__icon {
-    width: 23px;
-    height: 23px;
-    color: #5a6468;
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
   }
   .moinoviichistiimir-popup-enterprise__rows {
     padding: 22px 24px;
@@ -614,6 +620,9 @@
     .moinoviichistiimir-popup-enterprise__rows {
       padding: 16px;
       border-radius: 24px;
+    }
+    .moinoviichistiimir-popup-enterprise__head {
+      padding-right: 42px;
     }
     .moinoviichistiimir-popup-enterprise__title {
       font-size: 20px;
