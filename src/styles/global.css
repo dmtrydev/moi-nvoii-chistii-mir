@@ -498,7 +498,7 @@
   .moinoviichistiimir-popup-enterprise__head {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0;
     padding: 22px 24px 20px;
     padding-right: 52px;
     border-radius: 32px;
@@ -513,9 +513,10 @@
     font-weight: 700;
     letter-spacing: 0;
     word-break: break-word;
+    margin-bottom: 20px;
   }
   .moinoviichistiimir-popup-enterprise__address {
-    margin: 0;
+    margin: 0 0 20px;
     font-family: 'Nunito', system-ui, sans-serif;
     font-size: 16px;
     line-height: 1.35;
@@ -527,11 +528,13 @@
     width: 100%;
     height: 1px;
     background: rgba(93, 101, 104, 0.18);
+    margin-bottom: 14px;
   }
   .moinoviichistiimir-popup-enterprise__icons {
     display: flex;
     gap: 10px;
     flex-wrap: nowrap;
+    margin-bottom: 14px;
   }
   .moinoviichistiimir-popup-enterprise__iconsDivider {
     width: 100%;
@@ -541,20 +544,11 @@
   .moinoviichistiimir-popup-enterprise__iconBubble {
     width: 56px;
     height: 56px;
-    border-radius: 999px;
-    background: rgba(207, 210, 213, 0.65);
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    object-fit: contain;
+    display: block;
   }
   .moinoviichistiimir-popup-enterprise__iconBubble--active {
-    background: #bedc58;
-  }
-  .moinoviichistiimir-popup-enterprise__icon {
-    width: 22px;
-    height: 22px;
-    object-fit: contain;
+    filter: none;
   }
   .moinoviichistiimir-popup-enterprise__rows {
     padding: 22px 24px;
@@ -565,12 +559,13 @@
   .moinoviichistiimir-popup-enterprise__rowWrap {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0;
   }
   .moinoviichistiimir-popup-enterprise__row {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    padding-bottom: 10px;
   }
   .moinoviichistiimir-popup-enterprise__label {
     font-family: 'Nunito', system-ui, sans-serif;
@@ -591,6 +586,7 @@
     width: 100%;
     height: 1px;
     background: rgba(93, 101, 104, 0.2);
+    margin: 0 0 14px;
   }
   @media (max-width: 1024px) {
     .moinoviichistiimir-popup-enterprise__title {
@@ -640,14 +636,11 @@
     }
     .moinoviichistiimir-popup-enterprise__icons {
       gap: 8px;
+      margin-bottom: 12px;
     }
     .moinoviichistiimir-popup-enterprise__iconBubble {
       width: 44px;
       height: 44px;
-    }
-    .moinoviichistiimir-popup-enterprise__icon {
-      width: 17px;
-      height: 17px;
     }
   }
 

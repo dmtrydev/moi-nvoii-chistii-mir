@@ -31,16 +31,16 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ mod
         <div className="moinoviichistiimir-popup-enterprise__headDivider" aria-hidden />
         <div className="moinoviichistiimir-popup-enterprise__icons" aria-label="Статусы предприятия">
           {statusIcons.map(({ id, iconSrc, active, label }) => (
-            <span
+            <img
               key={id}
               title={label}
               aria-hidden
               className={`moinoviichistiimir-popup-enterprise__iconBubble ${
                 active ? 'moinoviichistiimir-popup-enterprise__iconBubble--active' : ''
               }`}
-            >
-              <img className="moinoviichistiimir-popup-enterprise__icon" src={iconSrc} alt="" />
-            </span>
+              src={iconSrc}
+              alt=""
+            />
           ))}
         </div>
         <div className="moinoviichistiimir-popup-enterprise__iconsDivider" aria-hidden />
