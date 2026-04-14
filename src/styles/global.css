@@ -83,6 +83,8 @@
   --font-display: 'Soyuz Grotesk', 'Manrope', system-ui, sans-serif;
   --font-heading-nunito: 'Nunito', system-ui, sans-serif;
   --font-weight-heading-bold: 700;
+  /* Макет: Nunito SemiBold для H2/H5/H6 (подписи UI, карточки) */
+  --font-weight-heading-semibold: 600;
 
   --typo-h1-font-family: var(--font-display);
   --typo-h1-font-weight: var(--font-weight-heading-bold);
@@ -561,6 +563,10 @@
     margin: 0 0 20px;
     color: #6a7175;
     word-break: break-word;
+    font-family: var(--font-heading-nunito);
+    font-weight: var(--font-weight-heading-semibold);
+    font-size: 16px;
+    line-height: normal;
   }
   .moinoviichistiimir-popup-enterprise__headDivider {
     width: 100%;
@@ -607,10 +613,18 @@
   }
   .moinoviichistiimir-popup-enterprise__label {
     color: #3a4346;
+    font-family: var(--font-heading-nunito);
+    font-weight: var(--font-weight-heading-semibold);
+    font-size: 18px;
+    line-height: normal;
   }
   .moinoviichistiimir-popup-enterprise__value {
     color: #30393d;
     word-break: break-word;
+    font-family: var(--font-heading-nunito);
+    font-weight: var(--font-weight-heading-semibold);
+    font-size: 16px;
+    line-height: normal;
   }
   .moinoviichistiimir-popup-enterprise__divider {
     width: 100%;
@@ -661,6 +675,8 @@
     color: #fff;
     padding: 6px 10px;
     border-radius: 10px;
+    font-family: var(--font-heading-nunito);
+    font-weight: var(--font-weight-heading-semibold);
     font-size: 11px;
     line-height: 1.1;
     white-space: nowrap;
