@@ -114,6 +114,17 @@ const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
 
+type MapPoint = {
+  key: string;
+  lat: number;
+  lng: number;
+  pointId: number | null;
+  companyName: string;
+  address: string;
+  inn: string;
+  source: LicenseData;
+};
+
 function MapFocusController({
   center,
   zoom,
@@ -477,14 +488,52 @@ export default function MapPage(): JSX.Element {
 
   const hasMapFocus = Boolean(focusCenter);
   const mapPoints = useMemo(
-    () =>
-      searchItems.filter(
-        (item) =>
+    () => {
+      const points: MapPoint[] = [];
+      for (const item of searchItems) {
+        const baseId = item.siteId ?? item.id ?? null;
+        if (
           typeof item.lat === 'number' &&
           Number.isFinite(item.lat) &&
           typeof item.lng === 'number' &&
-          Number.isFinite(item.lng),
-      ),
+          Number.isFinite(item.lng)
+        ) {
+          points.push({
+            key: `root-${baseId ?? `${item.inn}-${item.address}`}`,
+            lat: item.lat,
+            lng: item.lng,
+            pointId: typeof baseId === 'number' ? baseId : null,
+            companyName: item.companyName || 'Организация',
+            address: item.address || 'Адрес не указан',
+            inn: item.inn || 'не указан',
+            source: item,
+          });
+        }
+        const sites = Array.isArray(item.sites) ? item.sites : [];
+        sites.forEach((site, idx) => {
+          if (
+            typeof site.lat !== 'number' ||
+            !Number.isFinite(site.lat) ||
+            typeof site.lng !== 'number' ||
+            !Number.isFinite(site.lng)
+          ) {
+            return;
+          }
+          const sitePointId = typeof site.id === 'number' ? site.id : typeof baseId === 'number' ? baseId : null;
+          points.push({
+            key: `site-${site.id ?? `${baseId ?? item.inn}-${idx}`}`,
+            lat: site.lat,
+            lng: site.lng,
+            pointId: sitePointId,
+            companyName: item.companyName || 'Организация',
+            address: site.address || item.address || 'Адрес не указан',
+            inn: item.inn || 'не указан',
+            source: item,
+          });
+        });
+      }
+      return points;
+    },
     [searchItems],
   );
   const tileUrl =
@@ -996,7 +1045,7 @@ export default function MapPage(): JSX.Element {
             )}
 
             <div
-              className="relative z-10 flex min-h-[min(36vh,300px)] flex-1 overflow-hidden rounded-xl lg:absolute lg:bottom-0 lg:left-0 lg:top-0 lg:z-10 lg:min-h-0 lg:flex-none lg:rounded-[32.5px] lg:transition-[left] lg:duration-[520ms] lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:lg:!transition-none motion-reduce:lg:!duration-0"
+              className="relative z-10 flex min-h-[min(36vh,300px)] flex-1 overflow-hidden rounded-xl lg:absolute lg:bottom-0 lg:left-0 lg:right-0 lg:top-0 lg:z-10 lg:min-h-0 lg:flex-none lg:rounded-[32.5px] lg:transition-[left] lg:duration-[520ms] lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:lg:!transition-none motion-reduce:lg:!duration-0"
               style={isLgUp ? { left: mapPushedLeft ? MAP_AREA_LEFT_OPEN_PX : 0 } : undefined}
             >
         <div
@@ -1017,14 +1066,13 @@ export default function MapPage(): JSX.Element {
           <TileLayer attribution={tileAttribution} url={tileUrl} />
           <CadastreVectorSystem enabled={baseMapStyle === 'cadastral'} apiBase={getApiUrl} />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
-          {mapPoints.map((item) => {
-            const pointId = item.siteId ?? item.id;
-            if (typeof item.lat !== 'number' || typeof item.lng !== 'number') return null;
+          {mapPoints.map((point) => {
+            const pointId = point.pointId;
             const isSelected = selectedId != null && pointId != null && selectedId === pointId;
             return (
               <CircleMarker
-                key={`${pointId ?? `${item.inn}-${item.address}`}`}
-                center={[item.lat, item.lng]}
+                key={point.key}
+                center={[point.lat, point.lng]}
                 radius={isSelected ? 11 : 8}
                 pathOptions={{
                   color: isSelected ? '#14532d' : '#1f7a35',
@@ -1034,18 +1082,18 @@ export default function MapPage(): JSX.Element {
                 }}
                 eventHandlers={{
                   click: () => {
-                    setFocusedItem(item);
+                    setFocusedItem(point.source);
                     if (pointId != null) setSelectedId(pointId);
-                    setFocusCenter([item.lat!, item.lng!]);
+                    setFocusCenter([point.lat, point.lng]);
                   },
                 }}
               >
                 <Popup className="moinoviichistiimir-popup">
                   <div className="moinoviichistiimir-popup-card">
-                    <div className="moinoviichistiimir-popup-title">{item.companyName || 'Организация'}</div>
+                    <div className="moinoviichistiimir-popup-title">{point.companyName}</div>
                     <div className="moinoviichistiimir-popup-body">
-                      <div>{item.address || 'Адрес не указан'}</div>
-                      <div>ИНН: {item.inn || 'не указан'}</div>
+                      <div>{point.address}</div>
+                      <div>ИНН: {point.inn}</div>
                     </div>
                   </div>
                 </Popup>
