@@ -165,8 +165,8 @@ export function AutocompleteInput({
             const highlighted = idx === highlightedIndex;
             const optCls =
               optionClassName?.({ index: idx, highlighted }) ??
-              `block w-full min-h-[60px] px-[15px] py-3 text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 ${
-                highlighted ? 'bg-[#ffffff99]' : 'hover:bg-[#ffffff99]'
+              `block w-full min-h-[60px] px-[15px] py-3 text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] ${
+                highlighted ? 'bg-[#ffffff73]' : 'hover:bg-[#ffffff59]'
               }`;
             return (
               <li key={`${option.value}-${idx}`}>
