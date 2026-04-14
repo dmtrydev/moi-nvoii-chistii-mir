@@ -19,7 +19,9 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ mod
   return (
     <article className="moinoviichistiimir-popup-enterprise">
       <header className="moinoviichistiimir-popup-enterprise__head">
-        <h4 className="moinoviichistiimir-popup-enterprise__title">{model.title}</h4>
+        <h4 className="moinoviichistiimir-popup-enterprise__title typo-h3 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]">
+          {model.title}
+        </h4>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
         <div className="moinoviichistiimir-popup-enterprise__headDivider" aria-hidden />
         <div className="moinoviichistiimir-popup-enterprise__icons" aria-label="Статусы предприятия">

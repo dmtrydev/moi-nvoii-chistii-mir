@@ -506,20 +506,19 @@
   }
   .moinoviichistiimir-popup-enterprise__title {
     margin: 0;
-    font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 41px;
-    line-height: 0.98;
+    font-family: var(--font-display);
+    font-size: 32px;
+    line-height: 1.08;
     font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #3b4447;
+    letter-spacing: 0;
     word-break: break-word;
   }
   .moinoviichistiimir-popup-enterprise__address {
     margin: 0;
     font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 34px;
-    line-height: 1.18;
-    font-weight: 500;
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 600;
     color: #6a7175;
     word-break: break-word;
   }
@@ -569,16 +568,16 @@
   }
   .moinoviichistiimir-popup-enterprise__label {
     font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 35px;
-    line-height: 1.1;
+    font-size: 18px;
+    line-height: 1.25;
     font-weight: 700;
     color: #3a4346;
   }
   .moinoviichistiimir-popup-enterprise__value {
     font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 36px;
-    line-height: 1.14;
-    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.2;
+    font-weight: 600;
     color: #30393d;
     word-break: break-word;
   }
@@ -589,16 +588,16 @@
   }
   @media (max-width: 1024px) {
     .moinoviichistiimir-popup-enterprise__title {
-      font-size: 30px;
-    }
-    .moinoviichistiimir-popup-enterprise__address {
-      font-size: 24px;
-    }
-    .moinoviichistiimir-popup-enterprise__label {
       font-size: 26px;
     }
+    .moinoviichistiimir-popup-enterprise__address {
+      font-size: 15px;
+    }
+    .moinoviichistiimir-popup-enterprise__label {
+      font-size: 17px;
+    }
     .moinoviichistiimir-popup-enterprise__value {
-      font-size: 27px;
+      font-size: 16px;
     }
   }
   @media (max-width: 640px) {
@@ -627,7 +626,7 @@
       font-size: 13px;
     }
     .moinoviichistiimir-popup-enterprise__value {
-      font-size: 16px;
+      font-size: 15px;
       line-height: 1.25;
     }
     .moinoviichistiimir-popup-enterprise__icons {
