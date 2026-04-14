@@ -609,6 +609,7 @@ export default function MapPage(): JSX.Element {
                   transform: introVisible ? 'translateY(0)' : 'translateY(30px)',
                   transition: `opacity ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}, transform ${HOME_INTRO_MOTION_MS}ms ${HOME_INTRO_EASE}`,
                   transitionDelay: `${HOME_INTRO_DELAY_FILTER_MS}ms`,
+                  pointerEvents: 'none',
                 }}
               >
                 <aside
@@ -622,7 +623,7 @@ export default function MapPage(): JSX.Element {
                       ? 'brand-scroll no-scrollbar overflow-y-auto overflow-x-hidden bg-[#ffffff4c] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)]'
                       : 'pointer-events-none border-transparent bg-transparent backdrop-blur-0',
                   ].join(' ')}
-                  style={asideOpenLayout}
+                  style={{ ...asideOpenLayout, pointerEvents: menuVisible ? 'auto' : 'none' }}
                   aria-hidden={!menuVisible}
                 >
                   <div className={`mb-3 max-lg:mb-2 lg:mb-5 ${mapSidebarChromeBarClass}`}>
@@ -870,15 +871,15 @@ export default function MapPage(): JSX.Element {
                               <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3">
                                 <Link
                                   to={`/map?${mapParams.toString()}`}
-                                  className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                  className="group home-find-button relative inline-flex h-[50px] items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[435px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
-                                    <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                                    <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-base text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:text-lg lg:text-xl group-hover:translate-x-[calc((27px+0.625rem)/2)]">
                                       На карте
                                     </span>
-                                    <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                                    <span className="relative flex h-[20px] w-[20px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:h-[24px] sm:w-[24px] lg:h-[27px] lg:w-[27px] group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
                                       <img
-                                        className="h-[21px] w-[21px] object-contain pointer-events-none"
+                                        className="h-[16px] w-[16px] object-contain pointer-events-none sm:h-[19px] sm:w-[19px] lg:h-[21px] lg:w-[21px]"
                                         alt=""
                                         src={homeResultsMapCtaIcon}
                                       />
@@ -887,15 +888,15 @@ export default function MapPage(): JSX.Element {
                                 </Link>
                                 <Link
                                   to={id != null ? `/enterprise/${id}` : '/map'}
-                                  className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
+                                  className="group home-find-button relative inline-flex h-[50px] items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[435px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
-                                    <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
+                                    <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-base text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:text-lg lg:text-xl group-hover:translate-x-[calc((27px+0.625rem)/2)]">
                                       Карточка предприятия
                                     </span>
-                                    <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                                    <span className="relative flex h-[20px] w-[20px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:h-[24px] sm:w-[24px] lg:h-[27px] lg:w-[27px] group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
                                       <img
-                                        className="h-[21px] w-[21px] object-contain pointer-events-none"
+                                        className="h-[16px] w-[16px] object-contain pointer-events-none sm:h-[19px] sm:w-[19px] lg:h-[21px] lg:w-[21px]"
                                         alt=""
                                         src={homeResultsEnterpriseCtaIcon}
                                       />
