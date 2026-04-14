@@ -78,6 +78,8 @@ export function MultiSelectDropdown({
   isLoadingOptions = false,
   loadingOptionsText = 'Загружаем варианты...',
   noOptionsText = 'Нет вариантов',
+  lazyOptionsUntilInput = false,
+  lazyOptionsHintText = 'Начните вводить код ФККО',
 }: {
   options: string[];
   selected: string[];
@@ -121,6 +123,10 @@ export function MultiSelectDropdown({
   isLoadingOptions?: boolean;
   loadingOptionsText?: string;
   noOptionsText?: string;
+  /** В режиме input не рендерить весь список до ввода текста (для больших справочников). */
+  lazyOptionsUntilInput?: boolean;
+  /** Текст-заглушка, когда список скрыт до ввода. */
+  lazyOptionsHintText?: string;
 }): JSX.Element {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -155,6 +161,9 @@ export function MultiSelectDropdown({
   const normalizedInput = normalize(inputValue ?? '');
   const hasInputMode = typeof onInputValueChange === 'function';
   const visibleOptions = useMemo(() => {
+    if (hasInputMode && lazyOptionsUntilInput && !normalizedInput) {
+      return normalizedOptions.filter((opt) => selectedSet.has(opt));
+    }
     if (!hasInputMode || !normalizedInput) return normalizedOptions;
     const q = normalizedInput.toLowerCase();
     return normalizedOptions.filter((opt) => {
@@ -163,7 +172,16 @@ export function MultiSelectDropdown({
       const labelLower = label.toLowerCase();
       return opt.toLowerCase().includes(q) || labelLower.includes(q);
     });
-  }, [hasInputMode, normalizedInput, normalizedOptions, formatOptionLabel, filterOption]);
+  }, [
+    hasInputMode,
+    lazyOptionsUntilInput,
+    normalizedInput,
+    normalizedOptions,
+    selectedSet,
+    formatOptionLabel,
+    filterOption,
+  ]);
+  const showLazyHint = hasInputMode && lazyOptionsUntilInput && !normalizedInput && visibleOptions.length === 0;
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -360,7 +378,7 @@ export function MultiSelectDropdown({
             })}
             {visibleOptions.length === 0 && (
               <div className={emptyOptionsClassName ?? 'px-[15px] py-3 text-sm font-nunito font-semibold text-[#828583]'}>
-                {isLoadingOptions ? loadingOptionsText : noOptionsText}
+                {showLazyHint ? lazyOptionsHintText : isLoadingOptions ? loadingOptionsText : noOptionsText}
               </div>
             )}
           </div>
