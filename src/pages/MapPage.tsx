@@ -20,8 +20,14 @@ import {
   fkkoCodesToQueryParam,
   normalizeFkkoCodeList,
   normalizeFkkoDigits,
-  parseFkkoCodesFromQuery,
 } from '@/utils/fkko';
+import {
+  buildCanonicalSearchKey,
+  buildSearchParamsFromFilters,
+  parseFiltersFromSearchParams,
+  readCachedResults,
+  writeCachedResults,
+} from '@/utils/searchState';
 import { LicenseResultCard } from '@/components/licenses/LicenseResultCard';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
@@ -310,7 +316,7 @@ function ClusterMarkers({
 }
 
 export default function MapPage(): JSX.Element {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
@@ -464,18 +470,10 @@ export default function MapPage(): JSX.Element {
   // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
 
   useEffect(() => {
-    const r = searchParams.get('region');
-    const f = searchParams.get('fkko');
-    const v = searchParams.get('vid');
-    if (r != null) setFilterRegion(r);
-    if (f != null) setFilterFkko(parseFkkoCodesFromQuery(f));
-    if (v != null) {
-      const parsed = String(v)
-        .split(/[,;]+/)
-        .map((x) => x.trim())
-        .filter(Boolean);
-      setFilterVid(parsed);
-    }
+    const parsed = parseFiltersFromSearchParams(searchParams);
+    setFilterRegion(parsed.region);
+    setFilterFkko(parsed.fkko);
+    setFilterVid(parsed.vid);
   }, [searchParams]);
 
   const focusSiteId = useMemo(() => {
@@ -522,24 +520,37 @@ export default function MapPage(): JSX.Element {
   const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
 
   const runSearch = useCallback(
-    async (overrides?: { region?: string; fkko?: string; vid?: string }): Promise<void> => {
-      const region = (overrides?.region ?? filterRegion).trim();
-      const fkkoStr =
-        overrides?.fkko != null
-          ? fkkoCodesToQueryParam(parseFkkoCodesFromQuery(overrides.fkko))
-          : fkkoCodesToQueryParam(filterFkko);
-      const vid = (overrides?.vid ?? vidQuery).trim();
+    async (
+      overrides?: { region?: string; fkko?: string[]; vid?: string[]; searched?: boolean },
+      opts?: { cacheFirst?: boolean },
+    ): Promise<void> => {
+      const nextFilters = {
+        region: (overrides?.region ?? filterRegion).trim(),
+        fkko: overrides?.fkko ?? filterFkko,
+        vid: overrides?.vid ?? filterVid,
+        searched: overrides?.searched ?? true,
+      };
+      const vid = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
+      const cacheKey = buildCanonicalSearchKey(nextFilters);
 
       if (!vid) {
         if (!overrides) setFilterValidationError('Укажите вид обращения.');
         return;
       }
+      if (opts?.cacheFirst) {
+        const cached = readCachedResults(cacheKey);
+        if (cached) {
+          setFilterValidationError('');
+          setSearchError('');
+          setHasSearched(true);
+          setSearchItems(cached);
+          return;
+        }
+      }
       setFilterValidationError('');
 
-      const qs = new URLSearchParams();
-      if (region) qs.set('region', region);
-      if (fkkoStr) qs.set('fkko', fkkoStr);
-      qs.set('vid', vid);
+      const qs = buildSearchParamsFromFilters(nextFilters);
+      qs.delete('searched');
 
       setHasSearched(true);
       setIsSearching(true);
@@ -552,7 +563,9 @@ export default function MapPage(): JSX.Element {
         throw new Error(msg ?? String(r.status));
       }
       const itemsArr = (data as { items?: LicenseData[] }).items;
-      setSearchItems(Array.isArray(itemsArr) ? itemsArr : []);
+      const nextItems = Array.isArray(itemsArr) ? itemsArr : [];
+      setSearchItems(nextItems);
+      writeCachedResults(cacheKey, nextItems);
     } catch (err) {
       setSearchItems([]);
       setSearchError(err instanceof Error ? err.message : 'Ошибка поиска');
@@ -560,24 +573,29 @@ export default function MapPage(): JSX.Element {
       setIsSearching(false);
     }
   },
-    [filterRegion, filterFkko, vidQuery]
+    [filterRegion, filterFkko, filterVid]
   );
 
   const lastAutoSearchKey = useRef<string | null>(null);
   useEffect(() => {
-    const r = searchParams.get('region') ?? '';
-    const f = searchParams.get('fkko') ?? '';
-    const v = searchParams.get('vid') ?? '';
-    if (!v) return;
-    const key = `${r}|${f}|${v}`;
+    const parsed = parseFiltersFromSearchParams(searchParams);
+    if (parsed.vid.length === 0 || !parsed.searched) return;
+    const key = buildCanonicalSearchKey(parsed);
     if (lastAutoSearchKey.current === key) return;
     lastAutoSearchKey.current = key;
-    runSearch({ region: r, fkko: f, vid: v });
+    runSearch(parsed, { cacheFirst: true });
   }, [searchParams, runSearch]);
 
   const handleFindClick = useCallback(async () => {
-    await runSearch();
-  }, [runSearch]);
+    const next = {
+      region: filterRegion.trim(),
+      fkko: filterFkko,
+      vid: filterVid,
+      searched: true,
+    };
+    setSearchParams(buildSearchParamsFromFilters(next));
+    await runSearch(next, { cacheFirst: true });
+  }, [filterRegion, filterFkko, filterVid, setSearchParams, runSearch]);
 
   const geocodeMissing = useCallback(async (siteId: number) => {
     try {
@@ -620,6 +638,7 @@ export default function MapPage(): JSX.Element {
     setHasSearched(false);
     setSearchError('');
     setFilterValidationError('');
+    setSearchParams(new URLSearchParams());
   };
 
   const defaultCenter: LatLngExpression = useMemo(() => {
@@ -639,6 +658,16 @@ export default function MapPage(): JSX.Element {
   }, [searchItems, focusedItem]);
 
   const mapPushedLeft = isLgUp && menuVisible;
+  const homePath = useMemo(() => {
+    const params = buildSearchParamsFromFilters({
+      region: filterRegion,
+      fkko: filterFkko,
+      vid: filterVid,
+      searched: hasSearched,
+    });
+    const qs = params.toString();
+    return qs ? `/?${qs}` : '/';
+  }, [filterRegion, filterFkko, filterVid, hasSearched]);
 
   const asideOpenLayout = useMemo((): CSSProperties => {
     if (!isLgUp) {
@@ -711,7 +740,7 @@ export default function MapPage(): JSX.Element {
                 >
                   <div className={`mb-3 max-lg:mb-2 lg:mb-5 ${mapSidebarChromeBarClass}`}>
                     <Link
-                      to="/"
+                      to={homePath}
                       className="inline-flex min-w-0 max-w-[min(100%,12rem)] items-center gap-1.5 text-sm font-semibold text-[#2b3335] transition-opacity hover:opacity-80 sm:max-w-none sm:gap-2 sm:text-base lg:text-[18px]"
                     >
                       <img className="h-[18px] w-[18px] shrink-0 object-contain sm:h-[21px] sm:w-[21px]" alt="" src={backToHomeIconPlaceholder} />

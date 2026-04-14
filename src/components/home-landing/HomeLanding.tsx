@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import {
   formatFkkoHuman,
@@ -7,6 +7,14 @@ import {
   normalizeFkkoCodeList,
   normalizeFkkoDigits,
 } from '@/utils/fkko';
+import {
+  buildCanonicalSearchKey,
+  buildSearchParamsFromFilters,
+  clearCachedResults,
+  parseFiltersFromSearchParams,
+  readCachedResults,
+  writeCachedResults,
+} from '@/utils/searchState';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 import { RUSSIAN_REGION_SUGGESTIONS } from '@/constants/regions';
 import heroBackground from '@/assets/home-landing/hero-background.png';
@@ -44,6 +52,7 @@ function getApiUrl(p: string): string {
 
 export function HomeLanding(): JSX.Element {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
@@ -186,6 +195,12 @@ export function HomeLanding(): JSX.Element {
   }, []);
 
   const handleResetFilters = useCallback((): void => {
+    const key = buildCanonicalSearchKey({
+      region: filterRegion.trim(),
+      fkko: filterFkko,
+      vid: filterVid,
+    });
+    clearCachedResults(key);
     setFilterFkko(INITIAL_FKKO);
     setFilterVid(INITIAL_VID);
     setFilterRegion(INITIAL_REGION);
@@ -194,55 +209,83 @@ export function HomeLanding(): JSX.Element {
     setHasSearched(false);
     setResultsReveal(false);
     setSearchError('');
-  }, []);
+    setSearchParams(new URLSearchParams());
+  }, [filterRegion, filterFkko, filterVid, setSearchParams]);
 
-  const vidQuery = useMemo(
-    () =>
-      filterVid
-        .map((x) => String(x).trim())
-        .filter(Boolean)
-        .join(', '),
-    [filterVid]
+  const runSearch = useCallback(
+    async (
+      filters?: { region: string; fkko: string[]; vid: string[]; searched: boolean },
+      opts?: { cacheFirst?: boolean },
+    ): Promise<void> => {
+      const nextFilters = filters ?? {
+        region: filterRegion.trim(),
+        fkko: filterFkko,
+        vid: filterVid,
+        searched: true,
+      };
+      const vidQuery = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
+      if (!vidQuery) {
+        setValidationError('Укажите вид обращения.');
+        return;
+      }
+
+      const key = buildCanonicalSearchKey(nextFilters);
+      if (opts?.cacheFirst) {
+        const cached = readCachedResults(key);
+        if (cached) {
+          setValidationError('');
+          setSearchError('');
+          setHasSearched(true);
+          setItems(cached);
+          return;
+        }
+      }
+
+      setValidationError('');
+      setSearchError('');
+      setIsSearching(true);
+      setHasSearched(true);
+      try {
+        const params = buildSearchParamsFromFilters(nextFilters);
+        params.delete('searched');
+        const resp = await fetch(getApiUrl(`/api/license-sites?${params.toString()}`));
+        const data = await (resp.ok ? resp.json() : resp.json().catch(() => ({})));
+        if (!resp.ok)
+          throw new Error((data as { message?: string }).message ?? `Ошибка ${resp.status}`);
+        const found = (data as { items?: LicenseData[] }).items;
+        const nextItems = Array.isArray(found) ? found : [];
+        setItems(nextItems);
+        writeCachedResults(key, nextItems);
+      } catch (err) {
+        setItems([]);
+        setSearchError(err instanceof Error ? err.message : 'Ошибка поиска');
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [filterRegion, filterFkko, filterVid],
   );
 
-  const runSearch = useCallback(async (): Promise<void> => {
-    const r = filterRegion.trim();
-    const f = fkkoCodesToQueryParam(filterFkko);
-    const v = vidQuery.trim();
-    if (!v) {
-      setValidationError('Укажите вид обращения.');
-      return;
-    }
-    setValidationError('');
-    setSearchError('');
-    setIsSearching(true);
-    setHasSearched(true);
-    try {
-      const params = new URLSearchParams({ vid: v });
-      if (f) params.set('fkko', f);
-      if (r) params.set('region', r);
-      const resp = await fetch(getApiUrl(`/api/licenses?${params.toString()}`));
-      const data = await (resp.ok ? resp.json() : resp.json().catch(() => ({})));
-      if (!resp.ok)
-        throw new Error((data as { message?: string }).message ?? `Ошибка ${resp.status}`);
-      const found = (data as { items?: LicenseData[] }).items;
-      setItems(Array.isArray(found) ? found : []);
-    } catch (err) {
-      setItems([]);
-      setSearchError(err instanceof Error ? err.message : 'Ошибка поиска');
-    } finally {
-      setIsSearching(false);
-    }
-  }, [filterRegion, filterFkko, vidQuery]);
-
   const toMapPath = useCallback((): string => {
-    const params = new URLSearchParams({ vid: vidQuery.trim() });
-    const f = fkkoCodesToQueryParam(filterFkko);
-    if (f) params.set('fkko', f);
-    const r = filterRegion.trim();
-    if (r) params.set('region', r);
+    const params = buildSearchParamsFromFilters({
+      region: filterRegion,
+      fkko: filterFkko,
+      vid: filterVid,
+      searched: hasSearched,
+    });
     return `/map?${params.toString()}`;
-  }, [filterRegion, filterFkko, vidQuery]);
+  }, [filterRegion, filterFkko, filterVid, hasSearched]);
+
+  useEffect(() => {
+    const parsed = parseFiltersFromSearchParams(searchParams);
+    setFilterRegion(parsed.region);
+    setFilterFkko(parsed.fkko);
+    setFilterVid(parsed.vid);
+
+    if (parsed.searched && parsed.vid.length > 0) {
+      void runSearch(parsed, { cacheFirst: true });
+    }
+  }, [searchParams, runSearch]);
 
   const heroInnerTransition = useMemo(() => {
     if (introStage < 2) return 'none';
@@ -343,7 +386,16 @@ export function HomeLanding(): JSX.Element {
               filterRegion={filterRegion}
               onFilterRegionChange={setFilterRegion}
               regionOptions={regionOptions}
-              onSearch={() => void runSearch()}
+              onSearch={() => {
+                const next = {
+                  region: filterRegion.trim(),
+                  fkko: filterFkko,
+                  vid: filterVid,
+                  searched: true,
+                };
+                setSearchParams(buildSearchParamsFromFilters(next));
+                void runSearch(next, { cacheFirst: true });
+              }}
               onReset={handleResetFilters}
               compactAfterSearch={hasSearched}
               compactMarginTopClass={
