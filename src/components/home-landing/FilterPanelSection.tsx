@@ -258,9 +258,9 @@ export function FilterPanelSection({
                   src={filterSectionTitleIcon}
                 />
               </div>
-              <div className="relative mt-[-1px] max-w-full bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text font-display font-bold text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] text-[clamp(1.125rem,2.8vw,2rem)] leading-tight tracking-[0] sm:whitespace-nowrap">
+              <h2 className="typo-h4 relative mt-[-1px] max-w-full bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] sm:whitespace-nowrap">
                 Фильтр объектов по экологии
-              </div>
+              </h2>
             </div>
             <p className="relative mt-2 max-w-[min(726px,100%)] font-nunito font-semibold text-[#5e6567] text-[clamp(0.9375rem,1.8vw,1.125rem)] leading-normal tracking-[0]">
               Настройте параметры и смотрите объекты, площадки и маршруты в вашем регионе
