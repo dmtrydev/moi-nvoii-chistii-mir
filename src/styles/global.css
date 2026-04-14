@@ -330,28 +330,36 @@
 
   /* Leaflet popup — light floating card */
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-content-wrapper {
-    background: var(--eco-surface);
+    background: transparent;
     color: var(--eco-ink);
-    border-radius: var(--radius-lg);
+    border-radius: 0;
     border: none;
-    box-shadow: var(--eco-shadow-card);
+    box-shadow: none;
     padding: 0;
   }
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-tip {
-    background: var(--eco-surface);
-    border: none;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    display: none;
   }
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-content {
-    margin: 16px 18px;
-    width: min(420px, calc(100vw - 72px));
+    margin: 0;
+    width: auto !important;
   }
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-close-button {
-    color: var(--eco-muted);
-    transition: color 0.2s ease;
+    top: 18px;
+    right: 18px;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #3a4346;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    transition: background 0.2s ease;
   }
   .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-close-button:hover {
-    color: var(--eco-ink);
+    background: rgba(255, 255, 255, 0.95);
   }
 
   .moinoviichistiimir-cadastre-card__title {
@@ -483,76 +491,156 @@
   .moinoviichistiimir-popup-enterprise {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    width: min(420px, calc(100vw - 96px));
+    gap: 12px;
+    width: min(455px, calc(100vw - 56px));
+    color: #2f383c;
   }
   .moinoviichistiimir-popup-enterprise__head {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 16px;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.3);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    gap: 12px;
+    padding: 22px 24px;
+    border-radius: 32px;
+    background: rgba(238, 240, 241, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.85);
   }
   .moinoviichistiimir-popup-enterprise__title {
     margin: 0;
-    font-family: var(--font-display);
-    font-size: 22px;
-    line-height: 1.1;
+    font-family: 'Nunito', system-ui, sans-serif;
+    font-size: 41px;
+    line-height: 0.98;
     font-weight: 700;
-    letter-spacing: 0;
-    color: var(--eco-ink);
+    letter-spacing: -0.02em;
+    color: #3b4447;
     word-break: break-word;
   }
   .moinoviichistiimir-popup-enterprise__address {
     margin: 0;
     font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 16px;
-    line-height: 1.35;
-    font-weight: 600;
-    color: #5e6567;
+    font-size: 34px;
+    line-height: 1.18;
+    font-weight: 500;
+    color: #6a7175;
     word-break: break-word;
   }
+  .moinoviichistiimir-popup-enterprise__headDivider {
+    width: 100%;
+    height: 1px;
+    background: rgba(93, 101, 104, 0.18);
+  }
+  .moinoviichistiimir-popup-enterprise__icons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+  .moinoviichistiimir-popup-enterprise__iconBubble {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    background: rgba(207, 210, 213, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .moinoviichistiimir-popup-enterprise__iconBubble--active {
+    background: #bedc58;
+  }
+  .moinoviichistiimir-popup-enterprise__icon {
+    width: 23px;
+    height: 23px;
+    color: #5a6468;
+  }
   .moinoviichistiimir-popup-enterprise__rows {
-    padding: 16px;
-    border-radius: 24px 24px 24px 0;
-    background: rgba(255, 255, 255, 0.3);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    padding: 22px 24px;
+    border-radius: 32px;
+    background: rgba(238, 240, 241, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.85);
   }
   .moinoviichistiimir-popup-enterprise__rowWrap {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
   .moinoviichistiimir-popup-enterprise__row {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
   }
   .moinoviichistiimir-popup-enterprise__label {
     font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 17px;
-    line-height: 1.25;
+    font-size: 35px;
+    line-height: 1.1;
     font-weight: 700;
-    color: #2b3335;
+    color: #3a4346;
   }
   .moinoviichistiimir-popup-enterprise__value {
     font-family: 'Nunito', system-ui, sans-serif;
-    font-size: 17px;
-    line-height: 1.3;
-    font-weight: 600;
-    color: #2b3335;
+    font-size: 36px;
+    line-height: 1.14;
+    font-weight: 500;
+    color: #30393d;
     word-break: break-word;
   }
   .moinoviichistiimir-popup-enterprise__divider {
     width: 100%;
     height: 1px;
-    background: linear-gradient(90deg, rgba(94, 101, 103, 0.18), rgba(94, 101, 103, 0.34), rgba(94, 101, 103, 0.18));
+    background: rgba(93, 101, 104, 0.2);
+  }
+  @media (max-width: 1024px) {
+    .moinoviichistiimir-popup-enterprise__title {
+      font-size: 30px;
+    }
+    .moinoviichistiimir-popup-enterprise__address {
+      font-size: 24px;
+    }
+    .moinoviichistiimir-popup-enterprise__label {
+      font-size: 26px;
+    }
+    .moinoviichistiimir-popup-enterprise__value {
+      font-size: 27px;
+    }
+  }
+  @media (max-width: 640px) {
+    .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-close-button {
+      top: 12px;
+      right: 12px;
+      width: 28px;
+      height: 28px;
+    }
+    .moinoviichistiimir-popup-enterprise {
+      width: min(455px, calc(100vw - 26px));
+    }
+    .moinoviichistiimir-popup-enterprise__head,
+    .moinoviichistiimir-popup-enterprise__rows {
+      padding: 16px;
+      border-radius: 24px;
+    }
+    .moinoviichistiimir-popup-enterprise__title {
+      font-size: 20px;
+    }
+    .moinoviichistiimir-popup-enterprise__address {
+      font-size: 15px;
+      line-height: 1.3;
+    }
+    .moinoviichistiimir-popup-enterprise__label {
+      font-size: 13px;
+    }
+    .moinoviichistiimir-popup-enterprise__value {
+      font-size: 16px;
+      line-height: 1.25;
+    }
+    .moinoviichistiimir-popup-enterprise__icons {
+      gap: 8px;
+    }
+    .moinoviichistiimir-popup-enterprise__iconBubble {
+      width: 44px;
+      height: 44px;
+    }
+    .moinoviichistiimir-popup-enterprise__icon {
+      width: 17px;
+      height: 17px;
+    }
   }
 
   .enterprise-activity-tooltip-target {

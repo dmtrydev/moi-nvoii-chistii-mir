@@ -1,0 +1,14 @@
+.git
+.gitignore
+.cursor
+node_modules
+server/node_modules
+dist
+coverage
+*.log
+.DS_Store
+.env
+.env.*
+docker-compose*.yml
+README.md
+agent-transcripts
