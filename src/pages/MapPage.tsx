@@ -1,6 +1,7 @@
 import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type L from 'leaflet';
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
@@ -142,6 +143,54 @@ function MapFocusController({
     });
   }, [center, zoom, map]);
   return null;
+}
+
+function MapPointMarker({
+  point,
+  isSelected,
+  onSelect,
+}: {
+  point: MapPoint;
+  isSelected: boolean;
+  onSelect: () => void;
+}): JSX.Element {
+  const markerRef = useRef<L.CircleMarker | null>(null);
+  const popupModel = useMemo(
+    () =>
+      buildMapEnterprisePopupViewModel({
+        pointAddress: point.address,
+        pointInn: point.inn,
+        source: point.source,
+        pointLat: point.lat,
+        pointLng: point.lng,
+      }),
+    [point],
+  );
+
+  useEffect(() => {
+    if (!isSelected) return;
+    markerRef.current?.openPopup();
+  }, [isSelected]);
+
+  return (
+    <CircleMarker
+      ref={markerRef}
+      key={point.key}
+      center={[point.lat, point.lng]}
+      radius={isSelected ? 11 : 8}
+      pathOptions={{
+        color: isSelected ? '#14532d' : '#1f7a35',
+        fillColor: isSelected ? '#22c55e' : '#16a34a',
+        fillOpacity: 0.9,
+        weight: isSelected ? 3 : 2,
+      }}
+      eventHandlers={{ click: onSelect }}
+    >
+      <Popup className="moinoviichistiimir-popup">
+        <MapEnterprisePopupCard model={popupModel} />
+      </Popup>
+    </CircleMarker>
+  );
 }
 
 function useMediaMinWidth(minWidth: number): boolean {
@@ -1072,36 +1121,17 @@ export default function MapPage(): JSX.Element {
           {mapPoints.map((point) => {
             const pointId = point.pointId;
             const isSelected = selectedId != null && pointId != null && selectedId === pointId;
-            const popupModel = buildMapEnterprisePopupViewModel({
-              pointAddress: point.address,
-              pointInn: point.inn,
-              source: point.source,
-              pointLat: point.lat,
-              pointLng: point.lng,
-            });
             return (
-              <CircleMarker
+              <MapPointMarker
                 key={point.key}
-                center={[point.lat, point.lng]}
-                radius={isSelected ? 11 : 8}
-                pathOptions={{
-                  color: isSelected ? '#14532d' : '#1f7a35',
-                  fillColor: isSelected ? '#22c55e' : '#16a34a',
-                  fillOpacity: 0.9,
-                  weight: isSelected ? 3 : 2,
+                point={point}
+                isSelected={isSelected}
+                onSelect={() => {
+                  setFocusedItem(point.source);
+                  if (pointId != null) setSelectedId(pointId);
+                  setFocusCenter([point.lat, point.lng]);
                 }}
-                eventHandlers={{
-                  click: () => {
-                    setFocusedItem(point.source);
-                    if (pointId != null) setSelectedId(pointId);
-                    setFocusCenter([point.lat, point.lng]);
-                  },
-                }}
-              >
-                <Popup className="moinoviichistiimir-popup">
-                  <MapEnterprisePopupCard model={popupModel} />
-                </Popup>
-              </CircleMarker>
+              />
             );
           })}
         </MapContainer>

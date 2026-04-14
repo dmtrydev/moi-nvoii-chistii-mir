@@ -494,6 +494,10 @@
     gap: 12px;
     width: min(455px, calc(100vw - 56px));
     color: #2f383c;
+    border-radius: 36px;
+    padding: 14px;
+    background: rgba(238, 240, 241, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.72);
   }
   .moinoviichistiimir-popup-enterprise__head {
     display: flex;
@@ -611,6 +615,8 @@
     }
     .moinoviichistiimir-popup-enterprise {
       width: min(455px, calc(100vw - 26px));
+      padding: 10px;
+      border-radius: 28px;
     }
     .moinoviichistiimir-popup-enterprise__head,
     .moinoviichistiimir-popup-enterprise__rows {
