@@ -40,6 +40,8 @@ import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShe
 import heroBackground from '@/assets/home-landing/hero-background.png';
 import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
+import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-icon.svg';
+import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
 import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
 import routeBuildIconPlaceholder from '@/assets/map/route-build-icon-placeholder.svg';
@@ -666,7 +668,7 @@ export default function MapPage(): JSX.Element {
 
   const mapCenter = focusCenter ?? defaultCenter;
   const cadastreUsesIframe = baseMapStyle === 'cadastral' && CADASTRE_IFRAME_URL.length > 0;
-  const useYandexMap = baseMapStyle === 'osm';
+  const useYandexMap = baseMapStyle === 'osm' && YANDEX_MAPS_API_KEY.length > 0;
   const markersItems = useMemo(() => {
     const all = [...searchItems];
     if (focusedItem && typeof focusedItem.id === 'number') {
@@ -999,7 +1001,7 @@ export default function MapPage(): JSX.Element {
                                   +{restCount}
                                 </span>
                               )}
-                              <div className="ml-auto flex items-center gap-5">
+                              <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3">
                                 <Link
                                   to={`/map?${mapParams.toString()}`}
                                   className="group home-find-button relative inline-flex h-[60px] items-center justify-center overflow-hidden rounded-[20px] px-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:min-w-[200px] lg:min-w-[435px]"
@@ -1007,6 +1009,13 @@ export default function MapPage(): JSX.Element {
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
                                     <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
                                       На карте
+                                    </span>
+                                    <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                                      <img
+                                        className="h-[21px] w-[21px] object-contain pointer-events-none"
+                                        alt=""
+                                        src={homeResultsMapCtaIcon}
+                                      />
                                     </span>
                                   </span>
                                 </Link>
@@ -1017,6 +1026,13 @@ export default function MapPage(): JSX.Element {
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
                                     <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-xl text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:translate-x-[calc((27px+0.625rem)/2)]">
                                       Карточка предприятия
+                                    </span>
+                                    <span className="relative flex h-[27px] w-[27px] shrink-0 items-center justify-center transition-[transform,opacity] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0">
+                                      <img
+                                        className="h-[21px] w-[21px] object-contain pointer-events-none"
+                                        alt=""
+                                        src={homeResultsEnterpriseCtaIcon}
+                                      />
                                     </span>
                                   </span>
                                 </Link>
