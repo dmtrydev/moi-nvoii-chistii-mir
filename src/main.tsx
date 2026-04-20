@@ -1,6 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from '@/App';
+import { getCookieConsentStatus, initMetrika } from '@/lib/metrika';
 import 'leaflet/dist/leaflet.css';
 import '@/styles/global.css';
 
@@ -85,3 +86,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </RootErrorBoundary>
   </React.StrictMode>
 );
+
+if (getCookieConsentStatus() === 'accepted') {
+  initMetrika();
+}

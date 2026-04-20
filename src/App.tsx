@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import HomePage from '@/pages/HomePage';
 import MapPage from '@/pages/MapPage';
 import UploadPage from '@/pages/UploadPage';
@@ -18,11 +18,26 @@ import SupportChatPage from '@/pages/SupportChatPage';
 import PersonalDataConsentPage from '@/pages/PersonalDataConsentPage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
+import { CookieConsentBanner } from '@/components/CookieConsentBanner';
+import { trackMetrikaPage } from '@/lib/metrika';
+import { useEffect } from 'react';
+
+function MetrikaPageTracker(): null {
+  const location = useLocation();
+
+  useEffect(() => {
+    const url = `${location.pathname}${location.search}${location.hash}`;
+    trackMetrikaPage(url);
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+}
 
 export default function App(): JSX.Element {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <MetrikaPageTracker />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/directory" element={<FkkoDirectoryPage />} />
@@ -76,6 +91,7 @@ export default function App(): JSX.Element {
             />
           </Route>
         </Routes>
+        <CookieConsentBanner />
       </BrowserRouter>
     </AuthProvider>
   );
