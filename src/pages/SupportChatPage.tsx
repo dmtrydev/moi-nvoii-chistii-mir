@@ -34,7 +34,7 @@ interface MessageItem {
 }
 
 export default function SupportChatPage(): JSX.Element {
-  const { accessToken, user } = useAuth();
+  const { user } = useAuth();
   const isAdmin = user?.role === 'SUPERADMIN';
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
@@ -47,14 +47,12 @@ export default function SupportChatPage(): JSX.Element {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const headers = useMemo(
-    () => ({
-      Authorization: accessToken ? `Bearer ${accessToken}` : '',
-    }),
-    [accessToken],
+    () => ({}),
+    [],
   );
 
   const loadConversations = useCallback(async () => {
-    if (!accessToken) return;
+    if (!user) return;
     if (isAdmin) {
       const resp = await fetch(getApiUrl('/api/support/conversations'), { headers, credentials: 'include' });
       const data = await resp.json().catch(() => ({}));
@@ -79,10 +77,10 @@ export default function SupportChatPage(): JSX.Element {
       setConversations([]);
       setActiveConversationId(null);
     }
-  }, [accessToken, activeConversationId, headers, isAdmin]);
+  }, [user, activeConversationId, headers, isAdmin]);
 
   const loadMessages = useCallback(async () => {
-    if (!accessToken || !activeConversationId) return;
+    if (!user || !activeConversationId) return;
     const resp = await fetch(getApiUrl(`/api/support/conversations/${activeConversationId}/messages`), {
       headers,
       credentials: 'include',
@@ -96,7 +94,7 @@ export default function SupportChatPage(): JSX.Element {
       headers,
       credentials: 'include',
     }).catch(() => {});
-  }, [accessToken, activeConversationId, headers]);
+  }, [user, activeConversationId, headers]);
 
   useEffect(() => {
     let alive = true;
@@ -134,7 +132,7 @@ export default function SupportChatPage(): JSX.Element {
   }, [messages]);
 
   const sendMessage = useCallback(async () => {
-    if (!activeConversationId || !accessToken) return;
+    if (!activeConversationId || !user) return;
     if (!text.trim() && !attachment) return;
     setSending(true);
     setError('');
@@ -144,7 +142,7 @@ export default function SupportChatPage(): JSX.Element {
       if (attachment) fd.append('attachment', attachment);
       const resp = await fetch(getApiUrl(`/api/support/conversations/${activeConversationId}/messages`), {
         method: 'POST',
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        headers: {},
         credentials: 'include',
         body: fd,
       });
@@ -159,11 +157,11 @@ export default function SupportChatPage(): JSX.Element {
     } finally {
       setSending(false);
     }
-  }, [accessToken, activeConversationId, attachment, isAdmin, loadConversations, loadMessages, text]);
+  }, [user, activeConversationId, attachment, isAdmin, loadConversations, loadMessages, text]);
 
   const openAttachment = useCallback(
     async (messageId: number) => {
-      if (!accessToken) return;
+      if (!user) return;
       try {
         const resp = await fetch(getApiUrl(`/api/support/messages/${messageId}/attachment`), {
           headers,
@@ -178,7 +176,7 @@ export default function SupportChatPage(): JSX.Element {
         setError(err instanceof Error ? err.message : 'Ошибка открытия вложения');
       }
     },
-    [accessToken, headers],
+    [user, headers],
   );
 
   return (

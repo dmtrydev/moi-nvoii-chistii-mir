@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/useAuth';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -20,7 +19,6 @@ interface AuditLogItem {
 }
 
 export default function AdminLogsPage(): JSX.Element {
-  const { accessToken } = useAuth();
   const [items, setItems] = useState<AuditLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +30,7 @@ export default function AdminLogsPage(): JSX.Element {
       setError(null);
       try {
         const res = await fetch(getApiUrl('/api/admin/logs?limit=50'), {
-          headers: {
-            Authorization: accessToken ? `Bearer ${accessToken}` : '',
-          },
+          headers: {},
           credentials: 'include',
         });
         const body = await res.json().catch(() => ({}));
@@ -55,7 +51,7 @@ export default function AdminLogsPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, []);
 
   return (
     <div className="space-y-4">

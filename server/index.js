@@ -33,6 +33,8 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
+const trustedProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+app.set('trust proxy', Number.isFinite(trustedProxyHops) ? trustedProxyHops : 1);
 
 async function ensureDatabaseSchema() {
   // Важно для Render: там Postgres обычно отдельный сервис, и таблицы создаются
@@ -112,11 +114,44 @@ app.use((req, res, next) => {
     "frame-ancestors 'none'",
   ].join('; ');
   res.setHeader('Content-Security-Policy', csp);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
   next();
 });
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (!req.cookies?.csrf_token) {
+    res.cookie('csrf_token', crypto.randomBytes(24).toString('hex'), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  const unsafeMethod = req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE';
+  if (!unsafeMethod || !req.path.startsWith('/api/')) return next();
+  const hasSessionCookie = Boolean(req.cookies?.refresh_token || req.cookies?.access_token);
+  if (!hasSessionCookie) return next();
+  const csrfCookie = String(req.cookies?.csrf_token ?? '');
+  const csrfHeader = String(req.headers['x-csrf-token'] ?? '');
+  if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
+    return res.status(403).json({ message: 'CSRF token mismatch' });
+  }
+  return next();
+});
+
 app.use(authMiddleware);
 
 /** Прокси ArcGIS export ПКК6 (тайлы с того же origin, иначе CORS / canvas). */
@@ -182,6 +217,9 @@ app.get('/api/cadastre-export', async (req, res) => {
 app.use('/api/cadastre', cadastreRouter);
 
 app.use('/api/', rateLimit({ name: 'global', windowMs: 60_000, max: 100 }));
+app.use('/api/auth/login', rateLimit({ name: 'auth-login', windowMs: 60_000, max: 10 }));
+app.use('/api/auth/register', rateLimit({ name: 'auth-register', windowMs: 60_000, max: 8 }));
+app.use('/api/auth/refresh', rateLimit({ name: 'auth-refresh', windowMs: 60_000, max: 30 }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);

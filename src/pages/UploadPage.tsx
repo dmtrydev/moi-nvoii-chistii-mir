@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Upload, Loader2, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
 import type { LicenseData } from '@/types';
 import { formatFkkoHuman } from '@/utils/fkko';
-import { useAuth } from '@/contexts/useAuth';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
@@ -43,19 +42,15 @@ function isNetworkError(err: unknown): boolean {
 const DUPLICATE_INN_MESSAGE =
   'Организация с этим ИНН уже зарегистрирована. Дубликаты лицензий по одному ИНН не допускаются.';
 
-async function analyzeLicense(file: File, accessToken: string | null): Promise<LicenseData> {
+async function analyzeLicense(file: File): Promise<LicenseData> {
   const formData = new FormData();
   formData.append('file', file);
   const url = getApiUrl('/api/analyze-license');
-
-  const headers: HeadersInit = {};
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers,
       body: formData,
     });
   } catch (err) {
@@ -90,10 +85,9 @@ async function analyzeLicense(file: File, accessToken: string | null): Promise<L
   return data;
 }
 
-async function publishLicense(payload: LicenseData, accessToken: string | null): Promise<LicenseData> {
+async function publishLicense(payload: LicenseData): Promise<LicenseData> {
   const url = getApiUrl('/api/licenses');
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const res = await fetch(url, {
     method: 'POST',
     headers,
@@ -109,7 +103,6 @@ async function publishLicense(payload: LicenseData, accessToken: string | null):
 
 export default function UploadPage(): JSX.Element {
   const navigate = useNavigate();
-  const { accessToken } = useAuth();
   const [step, setStep] = useState<Step>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<LicenseData | null>(null);
@@ -149,7 +142,7 @@ export default function UploadPage(): JSX.Element {
 
   const handleConfirmPublish = useCallback(async (payload: LicenseData) => {
     try {
-      const created = await publishLicense(payload, accessToken);
+      const created = await publishLicense(payload);
       const id = created.id;
       if (typeof id === 'number' && Number.isFinite(id)) {
         navigate(`/dashboard/licenses/${id}`);
@@ -161,7 +154,7 @@ export default function UploadPage(): JSX.Element {
       setErrorMessage(msg);
       setStep('error');
     }
-  }, [navigate, accessToken]);
+  }, [navigate]);
 
   const processFile = useCallback(
     async (file: File) => {
@@ -174,7 +167,7 @@ export default function UploadPage(): JSX.Element {
       setErrorMessage('');
       setStep('analyzing');
       try {
-        let data = await analyzeLicense(file, accessToken);
+        let data = await analyzeLicense(file);
         const coords = await getGeocode(data.address);
         if (coords) {
           data = { ...data, lat: coords.lat, lng: coords.lng };
@@ -186,7 +179,7 @@ export default function UploadPage(): JSX.Element {
         setStep('error');
       }
     },
-    [step, isPdfFile, accessToken]
+    [step, isPdfFile]
   );
 
   const onDrop = useCallback(

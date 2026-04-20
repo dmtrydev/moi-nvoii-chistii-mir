@@ -11,7 +11,7 @@ function getApiUrl(path: string): string {
 }
 
 export default function UserProfilePage(): JSX.Element {
-  const { accessToken, user, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -24,18 +24,12 @@ export default function UserProfilePage(): JSX.Element {
     setError(null);
     setSuccess(null);
 
-    if (!accessToken) {
-      setError('Нет доступа. Попробуйте перелогиниться.');
-      return;
-    }
-
     setLoading(true);
     try {
       const res = await fetch(getApiUrl('/api/auth/change-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
         },
         credentials: 'include',
         body: JSON.stringify({ oldPassword, newPassword }),

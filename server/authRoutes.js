@@ -28,8 +28,7 @@ function generateRefreshToken() {
 }
 
 function getClientIp(req) {
-  const raw = (req.headers['x-forwarded-for'] || req.ip || '').toString();
-  return raw.split(',')[0].trim() || null;
+  return String(req.ip || '').trim() || null;
 }
 
 async function createSession({ userId, req }) {
@@ -56,6 +55,16 @@ function setRefreshCookie(res, token, expiresAt) {
     sameSite: 'lax',
     expires: expiresAt,
     path: '/api/auth',
+  });
+}
+
+function setAccessCookie(res, token) {
+  res.cookie('access_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 24 * 60 * 60 * 1000,
   });
 }
 
@@ -98,10 +107,10 @@ router.post('/register', async (req, res) => {
     const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
     const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
     setRefreshCookie(res, refreshToken, expiresAt);
+    setAccessCookie(res, accessToken);
 
     return res.status(201).json({
       user,
-      accessToken,
     });
   } catch (err) {
     console.error('register error:', err);
@@ -160,6 +169,7 @@ router.post('/login', async (req, res) => {
     const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
     const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
     setRefreshCookie(res, refreshToken, expiresAt);
+    setAccessCookie(res, accessToken);
 
     await createAuditLog({
       req,
@@ -177,7 +187,6 @@ router.post('/login', async (req, res) => {
         fullName: user.fullName,
         role: user.role,
       },
-      accessToken,
     });
   } catch (err) {
     console.error('login error:', err);
@@ -226,6 +235,7 @@ router.post('/refresh', async (req, res) => {
 
     const accessToken = signAccessToken({ userId: row.userId, role: row.role, sessionId: row.id });
     setRefreshCookie(res, newToken, newExpires);
+    setAccessCookie(res, accessToken);
 
     await createAuditLog({
       req,
@@ -242,7 +252,6 @@ router.post('/refresh', async (req, res) => {
         fullName: row.fullName,
         role: row.role,
       },
-      accessToken,
     });
   } catch (err) {
     console.error('refresh error:', err);
@@ -263,6 +272,7 @@ router.post('/logout', async (req, res) => {
     );
   }
   res.clearCookie('refresh_token', { path: '/api/auth' });
+  res.clearCookie('access_token', { path: '/' });
 
   await createAuditLog({
     req,

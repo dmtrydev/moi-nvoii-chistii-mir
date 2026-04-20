@@ -4,6 +4,38 @@ import App from '@/App';
 import 'leaflet/dist/leaflet.css';
 import '@/styles/global.css';
 
+function readCookie(name: string): string | null {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+const originalFetch = window.fetch.bind(window);
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const requestInit: RequestInit = { ...(init ?? {}) };
+  const urlText = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  const isApiRequest =
+    urlText.startsWith('/api/') ||
+    urlText.includes('/api/');
+
+  if (isApiRequest) {
+    requestInit.credentials = requestInit.credentials ?? 'include';
+    const method = (requestInit.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+    const unsafeMethod = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+    if (unsafeMethod) {
+      const csrfToken = readCookie('csrf_token');
+      if (csrfToken) {
+        const headers = new Headers(requestInit.headers ?? (input instanceof Request ? input.headers : undefined));
+        headers.set('X-CSRF-Token', csrfToken);
+        requestInit.headers = headers;
+      }
+    }
+  }
+
+  return originalFetch(input, requestInit);
+};
+
 class RootErrorBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }

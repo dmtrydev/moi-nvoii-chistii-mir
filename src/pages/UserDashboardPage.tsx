@@ -22,7 +22,7 @@ interface UserLicense {
 }
 
 export default function UserDashboardPage(): JSX.Element {
-  const { accessToken, user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [licenses, setLicenses] = useState<UserLicense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export default function UserDashboardPage(): JSX.Element {
       setLoading(true);
       setError(null);
       try {
-        const headers = { Authorization: accessToken ? `Bearer ${accessToken}` : '' };
+        const headers = {};
         const licensesRes = await fetch(getApiUrl('/api/user/licenses'), { credentials: 'include', headers });
         const licensesBody = await licensesRes.json().catch(() => ({}));
 
@@ -88,7 +88,7 @@ export default function UserDashboardPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, []);
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 page-enter">

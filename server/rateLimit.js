@@ -1,8 +1,7 @@
 const buckets = new Map();
 
 function makeKey(req, name) {
-  const rawIp = (req.ip || req.headers['x-forwarded-for'] || '').toString();
-  const ip = rawIp.split(',')[0].trim() || 'unknown';
+  const ip = String(req.ip || '').trim() || 'unknown';
   return `${name}:${ip}`;
 }
 

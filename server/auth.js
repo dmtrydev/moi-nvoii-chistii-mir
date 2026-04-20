@@ -11,12 +11,15 @@ const ROLE_PRIORITY = {
 
 export function authMiddleware(req, _res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : null;
+  const cookieToken = req.cookies?.access_token ? String(req.cookies.access_token) : null;
+  const token = bearerToken || cookieToken;
+  if (!token) {
     req.user = { role: 'GUEST' };
     return next();
   }
-
-  const token = authHeader.slice('Bearer '.length).trim();
   try {
     const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     req.user = {

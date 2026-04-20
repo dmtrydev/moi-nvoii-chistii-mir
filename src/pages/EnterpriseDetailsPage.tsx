@@ -137,7 +137,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   const [patchError, setPatchError] = useState('');
   /** Ключ вида `license` или `site-0` во время запроса к /api/geocode */
   const [geocodeTarget, setGeocodeTarget] = useState<string | null>(null);
-  const { accessToken, user } = useAuth();
+  const { user } = useAuth();
   const fromAdminList = typeof (location.state as { from?: unknown } | null)?.from === 'string'
     ? ((location.state as { from?: string }).from ?? '/admin/licenses')
     : '/admin/licenses';
@@ -154,17 +154,14 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     setError('');
     async function load() {
       try {
-        if (accessToken) {
-          const r = await fetch(getApiUrl(`/api/licenses/${numId}/extended`), {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            credentials: 'include',
-          });
-          if (r.ok) {
-            const data = (await r.json()) as LicenseData;
-            if (!alive) return;
-            setItem(data);
-            return;
-          }
+        const r = await fetch(getApiUrl(`/api/licenses/${numId}/extended`), {
+          credentials: 'include',
+        });
+        if (r.ok) {
+          const data = (await r.json()) as LicenseData;
+          if (!alive) return;
+          setItem(data);
+          return;
         }
 
         const r2 = await fetch(getApiUrl(`/api/licenses/${numId}`));
@@ -184,7 +181,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     return () => {
       alive = false;
     };
-  }, [id, accessToken]);
+  }, [id]);
 
   const canModerate = user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN';
   const isSuperAdmin = user?.role === 'SUPERADMIN';
@@ -218,9 +215,8 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   const isOwner = user && item?.ownerUserId != null && Number(item.ownerUserId) === user.id;
 
   async function downloadPdf(): Promise<void> {
-    if (!accessToken || !item?.id || !item.fileStoredName) return;
+    if (!item?.id || !item.fileStoredName) return;
     const res = await fetch(getApiUrl(`/api/licenses/${item.id}/file`), {
-      headers: { Authorization: `Bearer ${accessToken}` },
       credentials: 'include',
     });
     if (!res.ok) throw new Error('Не удалось скачать файл');
@@ -236,10 +232,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   async function approveCurrent(): Promise<void> {
-    if (!accessToken || !item?.id) return;
+    if (!item?.id) return;
     const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/approve`), {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       credentials: 'include',
     });
     const body = (await res.json().catch(() => ({}))) as { message?: string };
@@ -249,13 +244,12 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   async function rejectCurrent(): Promise<void> {
-    if (!accessToken || !item?.id) return;
+    if (!item?.id) return;
     const note = window.prompt('Введите причину отклонения (будет отображаться заявителю):') ?? '';
     const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/reject`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
       },
       credentials: 'include',
       body: JSON.stringify({ note }),
@@ -265,10 +259,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   async function markCurrentAsRecheck(): Promise<void> {
-    if (!accessToken || !item?.id) return;
+    if (!item?.id) return;
     const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/recheck`), {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}` },
       credentials: 'include',
     });
     const body = (await res.json().catch(() => ({}))) as { message?: string };
@@ -277,7 +270,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   async function hardDeleteCurrent(): Promise<void> {
-    if (!accessToken || !item?.id || !isSuperAdmin) return;
+    if (!item?.id || !isSuperAdmin) return;
     const first = window.confirm(
       'Полностью удалить карточку из БД? Данные нельзя восстановить. Это действие только для SUPERADMIN.',
     );
@@ -290,7 +283,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/hard`), {
       method: 'DELETE',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       credentials: 'include',
@@ -346,7 +338,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   }
 
   async function saveDraft(): Promise<void> {
-    if (!accessToken || !draft?.id) return;
+    if (!draft?.id) return;
     setPatchLoading(true);
     setPatchError('');
     try {
@@ -354,7 +346,6 @@ export default function EnterpriseDetailsPage(): JSX.Element {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
         },
         credentials: 'include',
         body: JSON.stringify(buildPatchBody(draft)),

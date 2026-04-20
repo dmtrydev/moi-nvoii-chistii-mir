@@ -18,7 +18,7 @@ interface AdminUserRow {
 }
 
 export default function AdminUsersPage(): JSX.Element {
-  const { accessToken, user } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function AdminUsersPage(): JSX.Element {
     setError(null);
     try {
       const res = await fetch(getApiUrl('/api/admin/users'), {
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        headers: {},
         credentials: 'include',
       });
       const body = await res.json().catch(() => ({}));
@@ -47,7 +47,7 @@ export default function AdminUsersPage(): JSX.Element {
 
   useEffect(() => {
     void loadUsers();
-  }, [accessToken]);
+  }, []);
 
   async function changeRole(target: AdminUserRow, role: 'USER' | 'MODERATOR'): Promise<void> {
     if (target.role === role) return;
@@ -57,7 +57,6 @@ export default function AdminUsersPage(): JSX.Element {
       const res = await fetch(getApiUrl(`/api/admin/users/${target.id}/role`), {
         method: 'PATCH',
         headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
           'Content-Type': 'application/json',
         },
         credentials: 'include',

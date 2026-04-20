@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/useAuth';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -102,7 +101,6 @@ function parseRegistryStatusFilter(v: string | null): RegistryStatusFilter {
 }
 
 export default function AdminLicensesPage(): JSX.Element {
-  const { accessToken } = useAuth();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
@@ -178,7 +176,7 @@ export default function AdminLicensesPage(): JSX.Element {
 
   async function fetchStats(): Promise<void> {
     const res = await fetch(getApiUrl('/api/admin/licenses/stats'), {
-      headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+      headers: {},
       credentials: 'include',
     });
     const body = await res.json().catch(() => ({}));
@@ -209,7 +207,7 @@ export default function AdminLicensesPage(): JSX.Element {
     if (registryStatusFilter !== 'all') qs.set('importRegistryStatus', registryStatusFilter);
     if (listSearchQ) qs.set('q', listSearchQ);
     const res = await fetch(getApiUrl(`/api/admin/licenses?${qs}`), {
-      headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+      headers: {},
       credentials: 'include',
     });
     const body = await res.json().catch(() => ({}));
@@ -253,7 +251,7 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, page, importListFilter, statusFilter, registryStatusFilter, listSearchQ]);
+  }, [page, importListFilter, statusFilter, registryStatusFilter, listSearchQ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
@@ -273,7 +271,7 @@ export default function AdminLicensesPage(): JSX.Element {
     try {
       const res = await fetch(getApiUrl(`/api/admin/licenses/${id}/approve`), {
         method: 'POST',
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        headers: {},
         credentials: 'include',
       });
       if (!res.ok) {
@@ -303,7 +301,6 @@ export default function AdminLicensesPage(): JSX.Element {
       const res = await fetch(getApiUrl(`/api/admin/licenses/${id}/reject`), {
         method: 'POST',
         headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -323,7 +320,7 @@ export default function AdminLicensesPage(): JSX.Element {
     setDupScanLoading(true);
     try {
       const res = await fetch(getApiUrl('/api/admin/licenses/duplicate-groups'), {
-        headers: { Authorization: accessToken ? `Bearer ${accessToken}` : '' },
+        headers: {},
         credentials: 'include',
       });
       const body = await res.json().catch(() => ({}));
@@ -356,7 +353,6 @@ export default function AdminLicensesPage(): JSX.Element {
       const res = await fetch(getApiUrl('/api/admin/licenses/resolve-duplicate-inns'), {
         method: 'POST',
         headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -383,9 +379,7 @@ export default function AdminLicensesPage(): JSX.Element {
     try {
       const res = await fetch(getApiUrl(`/api/admin/licenses/${id}`), {
         method: 'DELETE',
-        headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
-        },
+        headers: {},
         credentials: 'include',
       });
       const body = await res.json().catch(() => ({}));

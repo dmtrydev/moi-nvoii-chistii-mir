@@ -55,7 +55,7 @@ type AdminStatsSummary = {
 };
 
 export default function AdminDashboardPage(): JSX.Element {
-  const { accessToken, user } = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState<AdminStatsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +72,8 @@ export default function AdminDashboardPage(): JSX.Element {
   const [registryPurgeOk, setRegistryPurgeOk] = useState<string | null>(null);
 
   const adminHeaders = useMemo(
-    () => ({
-      Authorization: accessToken ? `Bearer ${accessToken}` : '',
-    }),
-    [accessToken],
+    () => ({}),
+    [],
   );
 
   const refreshFkkoTitlesSyncStatus = useCallback(async () => {
@@ -187,9 +185,7 @@ export default function AdminDashboardPage(): JSX.Element {
 
   const refreshSummary = useCallback(async (): Promise<void> => {
     const res = await fetch(getApiUrl('/api/admin/stats/summary'), {
-      headers: {
-        Authorization: accessToken ? `Bearer ${accessToken}` : '',
-      },
+      headers: {},
       credentials: 'include',
     });
     const body = await res.json().catch(() => ({}));
@@ -197,7 +193,7 @@ export default function AdminDashboardPage(): JSX.Element {
       throw new Error((body as { message?: string }).message ?? 'Ошибка загрузки статистики');
     }
     setData(body as AdminStatsSummary);
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -216,7 +212,7 @@ export default function AdminDashboardPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, refreshSummary]);
+  }, [refreshSummary]);
 
   const purgeRegistryInactiveLicenses = useCallback(async () => {
     const n = data?.registryInactiveLicensesCount ?? 0;
@@ -236,7 +232,6 @@ export default function AdminDashboardPage(): JSX.Element {
       const res = await fetch(getApiUrl('/api/admin/licenses/purge-registry-inactive'), {
         method: 'POST',
         headers: {
-          Authorization: accessToken ? `Bearer ${accessToken}` : '',
           'Content-Type': 'application/json',
         },
         credentials: 'include',
@@ -251,7 +246,7 @@ export default function AdminDashboardPage(): JSX.Element {
     } finally {
       setRegistryPurgeBusy(false);
     }
-  }, [accessToken, data?.registryInactiveLicensesCount, refreshSummary]);
+  }, [data?.registryInactiveLicensesCount, refreshSummary]);
 
   return (
     <div className="space-y-5">

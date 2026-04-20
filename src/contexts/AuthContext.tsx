@@ -18,12 +18,10 @@ function getApiUrl(path: string): string {
 
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  const loadCurrentUser = useCallback(async (token: string) => {
+  const loadCurrentUser = useCallback(async () => {
     const res = await fetch(getApiUrl('/api/auth/me'), {
-      headers: { Authorization: `Bearer ${token}` },
       credentials: 'include',
     });
     if (!res.ok) {
@@ -41,9 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     if (!res.ok) {
       throw new Error('Сессия неактивна');
     }
-    const data = (await res.json()) as { user: AuthUser; accessToken: string };
+    const data = (await res.json()) as { user: AuthUser };
     setUser(data.user);
-    setAccessToken(data.accessToken);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -57,9 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     if (!res.ok) {
       throw new Error((data as { message?: string }).message ?? 'Ошибка входа');
     }
-    const payload = data as { user: AuthUser; accessToken: string };
+    const payload = data as { user: AuthUser };
     setUser(payload.user);
-    setAccessToken(payload.accessToken);
     return payload.user;
   }, []);
 
@@ -76,9 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       throw new Error((data as { message?: string }).message ?? 'Ошибка регистрации');
     }
 
-    const payload = data as { user: AuthUser; accessToken: string };
+    const payload = data as { user: AuthUser };
     setUser(payload.user);
-    setAccessToken(payload.accessToken);
     return payload.user;
   }, []);
 
@@ -90,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       });
     } finally {
       setUser(null);
-      setAccessToken(null);
     }
   }, []);
 
@@ -99,24 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
     async function bootstrapAuth(): Promise<void> {
       try {
-        const storedToken = localStorage.getItem('auth_access_token');
-        if (storedToken) {
-          try {
-            setAccessToken(storedToken);
-            await loadCurrentUser(storedToken);
-            return;
-          } catch {
-            // Access token мог протухнуть/стать недействительным.
-            // Тогда пробуем восстановить сессию через refresh cookie.
-            await refreshSession();
-            return;
-          }
-        }
         await refreshSession();
       } catch {
         if (!cancelled) {
           setUser(null);
-          setAccessToken(null);
         }
       } finally {
         if (!cancelled) {
@@ -133,25 +113,17 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   }, [loadCurrentUser, refreshSession]);
 
   useEffect(() => {
-    if (accessToken) {
-      localStorage.setItem('auth_access_token', accessToken);
-    } else {
-      localStorage.removeItem('auth_access_token');
-    }
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (!accessToken) return;
+    if (!user) return;
     const REFRESH_INTERVAL = 10 * 60 * 1000;
     const id = setInterval(() => {
       refreshSession().catch(() => {});
     }, REFRESH_INTERVAL);
     return () => clearInterval(id);
-  }, [accessToken, refreshSession]);
+  }, [user, refreshSession]);
 
   const value = useMemo(
-    () => ({ user, accessToken, isReady, login, register, logout }),
-    [user, accessToken, isReady, login, register, logout],
+    () => ({ user, isReady, login, register, logout }),
+    [user, isReady, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
