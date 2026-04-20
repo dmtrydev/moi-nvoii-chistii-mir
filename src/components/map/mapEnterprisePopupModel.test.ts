@@ -37,8 +37,7 @@ describe('buildMapEnterprisePopupViewModel', () => {
 
     expect(model.title).toBe('ООО Эко Тест');
     expect(model.subtitleAddress).toContain('Курганская область');
-    expect(model.infoRows).toHaveLength(5);
-    expect(model.infoRows.find((x) => x.key === 'fkkoCount')?.value).toBe('1');
+    expect(model.infoRows).toHaveLength(4);
     expect(model.infoRows.find((x) => x.key === 'siteLabel')?.value).toBe('Основная площадка');
     expect(model.infoRows.find((x) => x.key === 'contacts')?.value).toBe('Скоро по подписке');
   });
@@ -61,7 +60,6 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.title).toBe('Организация');
     expect(model.subtitleAddress).toBe('Адрес не указан');
     expect(model.infoRows.find((x) => x.key === 'inn')?.value).toBe('не указан');
-    expect(model.infoRows.find((x) => x.key === 'fkkoCount')?.value).toBe('0');
     expect(model.infoRows.find((x) => x.key === 'siteLabel')?.value).toBe('Основная площадка');
   });
 });

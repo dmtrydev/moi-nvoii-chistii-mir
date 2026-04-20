@@ -273,15 +273,22 @@ export function HomeLanding(): JSX.Element {
   }, [runSearch]);
   const lastHydratedSearchRef = useRef<string | null>(null);
 
-  const toMapPath = useCallback((): string => {
-    const params = buildSearchParamsFromFilters({
-      region: filterRegion,
-      fkko: filterFkko,
-      vid: filterVid,
-      searched: hasSearched,
-    });
-    return `/map?${params.toString()}`;
-  }, [filterRegion, filterFkko, filterVid, hasSearched]);
+  /** Переход на карту с теми же фильтрами; `focusSiteId` — открыть маркер и карточку этой площадки. */
+  const buildMapUrl = useCallback(
+    (focusSiteId?: number | null): string => {
+      const params = buildSearchParamsFromFilters({
+        region: filterRegion,
+        fkko: filterFkko,
+        vid: filterVid,
+        searched: hasSearched || (typeof focusSiteId === 'number' && focusSiteId > 0),
+      });
+      if (typeof focusSiteId === 'number' && focusSiteId > 0) {
+        params.set('focusSite', String(focusSiteId));
+      }
+      return `/map?${params.toString()}`;
+    },
+    [filterRegion, filterFkko, filterVid, hasSearched],
+  );
 
   const searchParamsKey = searchParams.toString();
   useEffect(() => {
@@ -291,6 +298,7 @@ export function HomeLanding(): JSX.Element {
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
+    setHasSearched(parsed.searched);
 
     if (parsed.searched && parsed.vid.length > 0) {
       void runSearchRef.current(parsed, { cacheFirst: true });
@@ -462,7 +470,7 @@ export function HomeLanding(): JSX.Element {
                   </h3>
                   <button
                     type="button"
-                    onClick={() => navigate(toMapPath())}
+                    onClick={() => navigate(buildMapUrl())}
                     className="group relative inline-flex h-[52px] items-center justify-center overflow-hidden rounded-[20px] bg-[#ffffff73] px-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-colors duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2"
                   >
                     <span className="relative z-[2] inline-flex items-center gap-2.5">
@@ -551,7 +559,7 @@ export function HomeLanding(): JSX.Element {
                                 <div className="flex flex-wrap items-center gap-2.5">
                                   <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3 lg:max-w-none lg:flex-row lg:items-center lg:gap-5">
                                     <Link
-                                      to={toMapPath()}
+                                      to={buildMapUrl(typeof item.siteId === 'number' ? item.siteId : null)}
                                       className="group home-find-button relative inline-flex h-[50px] w-full items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:px-8 lg:min-w-[435px]"
                                     >
                                       <span className="relative z-[2] inline-flex items-center gap-2.5">

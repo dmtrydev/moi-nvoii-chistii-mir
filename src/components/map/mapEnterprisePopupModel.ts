@@ -1,7 +1,7 @@
 import type { LicenseData, LicenseSiteData } from '@/types';
 
 export type PopupInfoRow = {
-  key: 'inn' | 'contacts' | 'address' | 'fkkoCount' | 'siteLabel';
+  key: 'inn' | 'contacts' | 'address' | 'siteLabel';
   label: string;
   value: string;
 };
@@ -55,12 +55,6 @@ function resolveSiteLabel(source: LicenseData, matchedSite: LicenseSiteData | nu
   return 'Основная площадка';
 }
 
-function resolveFkkoCount(source: LicenseData, matchedSite: LicenseSiteData | null): number {
-  const fromSite = Array.isArray(matchedSite?.fkkoCodes) ? matchedSite.fkkoCodes.length : 0;
-  if (fromSite > 0) return fromSite;
-  return Array.isArray(source.fkkoCodes) ? source.fkkoCodes.length : 0;
-}
-
 export function buildMapEnterprisePopupViewModel(
   input: BuildPopupViewModelInput,
 ): MapEnterprisePopupViewModel {
@@ -68,7 +62,6 @@ export function buildMapEnterprisePopupViewModel(
   const title = normalizeText(input.source.companyName) ?? 'Организация';
   const subtitleAddress = normalizeText(input.pointAddress) ?? normalizeText(input.source.address) ?? 'Адрес не указан';
   const inn = normalizeText(input.pointInn) ?? normalizeText(input.source.inn) ?? 'не указан';
-  const fkkoCount = resolveFkkoCount(input.source, matchedSite);
   const siteLabel = resolveSiteLabel(input.source, matchedSite);
 
   return {
@@ -78,7 +71,6 @@ export function buildMapEnterprisePopupViewModel(
       { key: 'inn', label: 'ИНН:', value: inn },
       { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
       { key: 'address', label: 'Адрес:', value: subtitleAddress },
-      { key: 'fkkoCount', label: 'Количество ФККО:', value: String(fkkoCount) },
       { key: 'siteLabel', label: 'Площадка:', value: siteLabel },
     ],
   };

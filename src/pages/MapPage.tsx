@@ -395,6 +395,7 @@ export default function MapPage(): JSX.Element {
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
+    setHasSearched(parsed.searched);
     queueMicrotask(() => {
       isApplyingQueryFiltersRef.current = false;
     });
@@ -508,7 +509,10 @@ export default function MapPage(): JSX.Element {
   const lastAutoSearchKey = useRef<string | null>(null);
   useEffect(() => {
     const parsed = parseFiltersFromSearchParams(searchParams);
-    if (parsed.vid.length === 0 || !parsed.searched) return;
+    if (parsed.vid.length === 0 || !parsed.searched) {
+      lastAutoSearchKey.current = null;
+      return;
+    }
     const key = buildCanonicalSearchKey(parsed);
     if (lastAutoSearchKey.current === key) return;
     lastAutoSearchKey.current = key;
@@ -568,6 +572,8 @@ export default function MapPage(): JSX.Element {
   const mapPoints = useMemo(
     () => {
       const points: MapPoint[] = [];
+      const seenPointIds = new Set<number>();
+
       for (const item of searchItems) {
         const baseId = item.siteId ?? item.id ?? null;
         if (
@@ -576,11 +582,13 @@ export default function MapPage(): JSX.Element {
           typeof item.lng === 'number' &&
           Number.isFinite(item.lng)
         ) {
+          const pointId = typeof baseId === 'number' ? baseId : null;
+          if (pointId != null) seenPointIds.add(pointId);
           points.push({
             key: `root-${baseId ?? `${item.inn}-${item.address}`}`,
             lat: item.lat,
             lng: item.lng,
-            pointId: typeof baseId === 'number' ? baseId : null,
+            pointId,
             companyName: item.companyName || 'Организация',
             address: item.address || 'Адрес не указан',
             inn: item.inn || 'не указан',
@@ -598,6 +606,7 @@ export default function MapPage(): JSX.Element {
             return;
           }
           const sitePointId = typeof site.id === 'number' ? site.id : typeof baseId === 'number' ? baseId : null;
+          if (sitePointId != null) seenPointIds.add(sitePointId);
           points.push({
             key: `site-${site.id ?? `${baseId ?? item.inn}-${idx}`}`,
             lat: site.lat,
@@ -610,9 +619,32 @@ export default function MapPage(): JSX.Element {
           });
         });
       }
+
+      if (
+        focusedItem &&
+        typeof focusedItem.lat === 'number' &&
+        Number.isFinite(focusedItem.lat) &&
+        typeof focusedItem.lng === 'number' &&
+        Number.isFinite(focusedItem.lng)
+      ) {
+        const sid = typeof focusedItem.siteId === 'number' ? focusedItem.siteId : null;
+        if (sid != null && !seenPointIds.has(sid)) {
+          points.push({
+            key: `deep-link-${sid}`,
+            lat: focusedItem.lat,
+            lng: focusedItem.lng,
+            pointId: sid,
+            companyName: focusedItem.companyName || 'Организация',
+            address: focusedItem.address || 'Адрес не указан',
+            inn: focusedItem.inn || 'не указан',
+            source: focusedItem,
+          });
+        }
+      }
+
       return points;
     },
-    [searchItems],
+    [searchItems, focusedItem],
   );
   const tileUrl =
     baseMapStyle === 'osm'

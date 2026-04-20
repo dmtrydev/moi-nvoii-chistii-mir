@@ -12,7 +12,6 @@ describe('MapEnterprisePopupCard', () => {
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
         { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
         { key: 'address', label: 'Адрес:', value: 'Курганская область, г. Курган, ул. Омская, 48 а' },
-        { key: 'fkkoCount', label: 'Количество ФККО:', value: '1652' },
         { key: 'siteLabel', label: 'Площадка:', value: 'Основная площадка' },
       ],
     };
@@ -36,7 +35,6 @@ describe('MapEnterprisePopupCard', () => {
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
         { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
         { key: 'address', label: 'Адрес:', value: longAddress },
-        { key: 'fkkoCount', label: 'Количество ФККО:', value: '2' },
         { key: 'siteLabel', label: 'Площадка:', value: 'Основная площадка' },
       ],
     };
