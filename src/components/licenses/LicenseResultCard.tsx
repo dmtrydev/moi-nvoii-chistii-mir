@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import type { LicenseData } from '@/types';
-import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
 
 interface LicenseResultCardProps {
@@ -10,8 +9,6 @@ interface LicenseResultCardProps {
   compact?: boolean;
   /** Тёмная тема только для устаревших встраиваний */
   variant?: 'dark' | 'light';
-  /** Подписи с РПН (ключ — 11 цифр без пробелов) для подсказок на чипах */
-  fkkoTitleByCode?: Record<string, string>;
 }
 
 export function LicenseResultCard({
@@ -20,12 +17,7 @@ export function LicenseResultCard({
   mapPath,
   compact = false,
   variant = 'light',
-  fkkoTitleByCode,
 }: LicenseResultCardProps): JSX.Element {
-  const fkkoCodes = Array.isArray(item.fkkoCodes) ? item.fkkoCodes : [];
-  const mainFkko = fkkoCodes.slice(0, compact ? 2 : 3);
-  const restCount = Math.max(0, fkkoCodes.length - mainFkko.length);
-  const fkkoTotal = fkkoCodes.length;
   const sitesCount = Array.isArray(item.sites) ? item.sites.length : 0;
   const hasAddress = Boolean(item.address?.trim()) || sitesCount > 0;
 
@@ -86,19 +78,8 @@ export function LicenseResultCard({
             </div>
           </div>
 
-          <div className={`mt-3 flex flex-wrap items-center gap-2 ${compact ? '' : 'mt-4'}`}>
-            {fkkoTotal > 0 && (
-              <span
-                className={
-                  isLight
-                    ? 'inline-flex items-center rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-[#1f5c14]'
-                    : 'inline-flex items-center rounded-full bg-[#4caf50]/15 px-2.5 py-1 text-[11px] font-medium text-[#b8f5bb] ring-1 ring-inset ring-[#4caf50]/25'
-                }
-              >
-                {fkkoTotal} {fkkoTotal === 1 ? 'код ФККО' : 'кодов ФККО'}
-              </span>
-            )}
-            {hasAddress && (
+          {hasAddress ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span
                 className={
                   isLight
@@ -112,41 +93,8 @@ export function LicenseResultCard({
                 </svg>
                 {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
               </span>
-            )}
-          </div>
-
-          {mainFkko.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {mainFkko.map((code) => {
-                const k = normalizeFkkoDigits(code);
-                const official = k.length === 11 ? fkkoTitleByCode?.[k] : undefined;
-                return (
-                  <span
-                    key={code}
-                    title={official || undefined}
-                    className={
-                      isLight
-                        ? 'rounded-lg bg-app-bg px-2 py-0.5 text-[11px] font-medium text-ink'
-                        : 'rounded-lg border border-white/15 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-white/85'
-                    }
-                  >
-                    {formatFkkoHuman(code)}
-                  </span>
-                );
-              })}
-              {restCount > 0 && (
-                <span
-                  className={
-                    isLight
-                      ? 'rounded-lg border border-dashed border-black/10 px-2 py-0.5 text-[11px] text-ink-muted'
-                      : 'rounded-lg border border-dashed border-white/20 px-2 py-0.5 text-[11px] text-white/55'
-                  }
-                >
-                  +{restCount}
-                </span>
-              )}
             </div>
-          )}
+          ) : null}
 
           <div className={`mt-4 flex flex-col gap-2 md:flex-row`}>
             <Link

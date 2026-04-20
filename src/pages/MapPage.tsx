@@ -898,10 +898,6 @@ export default function MapPage(): JSX.Element {
                   if (fkkoQ) mapParams.set('fkko', fkkoQ);
                   if (r) mapParams.set('region', r);
                   if (typeof it.siteId === 'number') mapParams.set('focusSite', String(it.siteId));
-                  const fkkoCodes = Array.isArray(it.fkkoCodes) ? it.fkkoCodes : [];
-                  const mainFkko = fkkoCodes.slice(0, 3);
-                  const restCount = Math.max(0, fkkoCodes.length - mainFkko.length);
-                  const fkkoTotal = fkkoCodes.length;
                   const sitesCount = Array.isArray(it.sites) ? it.sites.length : 0;
                   const hasAddress = Boolean(it.address?.trim()) || sitesCount > 0;
                   return (
@@ -927,32 +923,14 @@ export default function MapPage(): JSX.Element {
                           </div>
                           <EnterpriseActivityStrip activityTypes={it.activityTypes} variant="light" size="md" />
                           <div className="space-y-2.5">
-                            <div className="flex flex-wrap items-center gap-3">
-                              {fkkoTotal > 0 && (
-                                <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffffb2] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
-                                  {fkkoTotal} {fkkoTotal === 1 ? 'код ФККО' : 'кодов ФККО'}
-                                </span>
-                              )}
-                              {hasAddress && (
+                            {hasAddress ? (
+                              <div className="flex flex-wrap items-center gap-3">
                                 <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
                                   {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
                                 </span>
-                              )}
-                            </div>
+                              </div>
+                            ) : null}
                             <div className="flex flex-wrap items-center gap-2.5">
-                              {mainFkko.map((code) => (
-                                <span
-                                  key={code}
-                                  className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
-                                >
-                                  {formatFkkoHuman(code)}
-                                </span>
-                              ))}
-                              {restCount > 0 && (
-                                <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
-                                  +{restCount}
-                                </span>
-                              )}
                               <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3">
                                 <Link
                                   to={`/map?${mapParams.toString()}`}

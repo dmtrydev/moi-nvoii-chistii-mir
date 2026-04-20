@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
-import {
-  formatFkkoHuman,
-  fkkoCodesToQueryParam,
-  normalizeFkkoCodeList,
-  normalizeFkkoDigits,
-} from '@/utils/fkko';
+import { fkkoCodesToQueryParam, normalizeFkkoCodeList } from '@/utils/fkko';
 import {
   buildCanonicalSearchKey,
   buildSearchParamsFromFilters,
@@ -509,10 +504,6 @@ export function HomeLanding(): JSX.Element {
                   {!isSearching && !searchError && items.length > 0 && (
                     <div className="no-scrollbar flex max-h-[600px] flex-col gap-2.5 overflow-y-auto pr-1">
                       {items.map((item) => {
-                        const fkkoCodes = Array.isArray(item.fkkoCodes) ? item.fkkoCodes : [];
-                        const mainFkko = fkkoCodes.slice(0, 3);
-                        const restCount = Math.max(0, fkkoCodes.length - mainFkko.length);
-                        const fkkoTotal = fkkoCodes.length;
                         const sitesCount = Array.isArray(item.sites) ? item.sites.length : 0;
                         const hasAddress = Boolean(item.address?.trim()) || sitesCount > 0;
                         const detailsPath =
@@ -550,39 +541,14 @@ export function HomeLanding(): JSX.Element {
                               />
 
                               <div className="space-y-2.5">
-                                <div className="flex flex-wrap items-center gap-3">
-                                  {fkkoTotal > 0 && (
-                                    <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffffb2] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
-                                      {fkkoTotal} {fkkoTotal === 1 ? 'код ФККО' : 'кодов ФККО'}
-                                    </span>
-                                  )}
-                                  {hasAddress && (
+                                {hasAddress ? (
+                                  <div className="flex flex-wrap items-center gap-3">
                                     <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
                                       {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
                                     </span>
-                                  )}
-                                </div>
-                                {/* FKKO codes + CTA buttons on same row */}
+                                  </div>
+                                ) : null}
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  {mainFkko.map((code) => {
-                                    const k = normalizeFkkoDigits(code);
-                                    const official = k.length === 11 ? fkkoTitleByCode[k] : undefined;
-                                    return (
-                                      <span
-                                        key={code}
-                                        title={official || undefined}
-                                        className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base"
-                                      >
-                                        {formatFkkoHuman(code)}
-                                      </span>
-                                    );
-                                  })}
-                                  {restCount > 0 && (
-                                    <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff1c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-sm sm:text-base">
-                                      +{restCount}
-                                    </span>
-                                  )}
-
                                   <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3 lg:max-w-none lg:flex-row lg:items-center lg:gap-5">
                                     <Link
                                       to={toMapPath()}
