@@ -1,5 +1,6 @@
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
+import { Link } from 'react-router-dom';
 
 export default function PersonalDataConsentPage(): JSX.Element {
   return (
@@ -129,6 +130,14 @@ export default function PersonalDataConsentPage(): JSX.Element {
                 <span className="font-bold">10.</span> Начиная пользоваться платформой
                 https://app.moinovichistimir.ru/ тем самым я даю свое согласие на обработку своих
                 персональных данных.
+              </p>
+
+              <p className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-[#3b4447] shadow-[inset_0_0_0_1px_rgba(45,45,45,0.08)]">
+                Дополнительно: управление аналитическими cookies доступно через «Настройки
+                cookies» на любой странице. Связанные документы:{' '}
+                <Link to="/privacy-policy" className="glass-link">Политика обработки ПДн</Link>
+                {' · '}
+                <Link to="/cookie-policy" className="glass-link">Cookie Policy</Link>.
               </p>
             </div>
           </article>

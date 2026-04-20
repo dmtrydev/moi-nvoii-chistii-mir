@@ -2,6 +2,7 @@ const METRIKA_TAG_SRC = 'https://mc.yandex.ru/metrika/tag.js';
 const METRIKA_COUNTER_ID = 108683217;
 const CONSENT_STORAGE_KEY = 'cookie_consent_v1';
 const COOKIE_SETTINGS_EVENT = 'cookie-settings:open';
+const CONSENT_VERSION = 2;
 
 declare global {
   interface Window {
@@ -13,15 +14,93 @@ declare global {
 }
 
 export type CookieConsentStatus = 'accepted' | 'rejected';
+export type CookieConsentState = {
+  version: number;
+  necessary: true;
+  analytics: boolean;
+  updatedAt: string;
+};
+
+function normalizeConsentState(value: unknown): CookieConsentState | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Record<string, unknown>;
+  if (candidate.necessary !== true) return null;
+  if (typeof candidate.analytics !== 'boolean') return null;
+  const updatedAt =
+    typeof candidate.updatedAt === 'string' && candidate.updatedAt.trim()
+      ? candidate.updatedAt
+      : new Date().toISOString();
+  return {
+    version: CONSENT_VERSION,
+    necessary: true,
+    analytics: candidate.analytics,
+    updatedAt,
+  };
+}
+
+function migrateLegacyConsent(raw: string): CookieConsentState | null {
+  if (raw === 'accepted') {
+    return {
+      version: CONSENT_VERSION,
+      necessary: true,
+      analytics: true,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  if (raw === 'rejected') {
+    return {
+      version: CONSENT_VERSION,
+      necessary: true,
+      analytics: false,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return null;
+}
 
 export function getCookieConsentStatus(): CookieConsentStatus | null {
+  const state = getCookieConsentState();
+  if (!state) return null;
+  return state.analytics ? 'accepted' : 'rejected';
+}
+
+export function getCookieConsentState(): CookieConsentState | null {
   const raw = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-  if (raw === 'accepted' || raw === 'rejected') return raw;
+  if (!raw) return null;
+  const migrated = migrateLegacyConsent(raw);
+  if (migrated) {
+    window.localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(migrated));
+    return migrated;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const normalized = normalizeConsentState(parsed);
+    if (normalized) return normalized;
+  } catch {
+    return null;
+  }
   return null;
 }
 
 export function setCookieConsentStatus(status: CookieConsentStatus): void {
-  window.localStorage.setItem(CONSENT_STORAGE_KEY, status);
+  setCookieConsentState({
+    version: CONSENT_VERSION,
+    necessary: true,
+    analytics: status === 'accepted',
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export function setCookieConsentState(state: CookieConsentState): void {
+  window.localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify(state));
+}
+
+export function hasConsentChoice(): boolean {
+  return getCookieConsentState() !== null;
+}
+
+export function isAnalyticsEnabled(): boolean {
+  return getCookieConsentState()?.analytics === true;
 }
 
 function ensureYmQueue(): void {
@@ -65,9 +144,15 @@ export function initMetrika(): void {
 }
 
 export function trackMetrikaPage(url: string): void {
+  if (!isAnalyticsEnabled()) return;
   window.ym?.(METRIKA_COUNTER_ID, 'hit', url, {
     referrer: document.referrer,
   });
+}
+
+export function applyCookieConsent(): void {
+  if (!isAnalyticsEnabled()) return;
+  initMetrika();
 }
 
 export function openCookieSettings(): void {

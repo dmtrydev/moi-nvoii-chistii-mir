@@ -16,6 +16,8 @@ import UserUploadPage from '@/pages/UserUploadPage';
 import UserProfilePage from '@/pages/UserProfilePage';
 import SupportChatPage from '@/pages/SupportChatPage';
 import PersonalDataConsentPage from '@/pages/PersonalDataConsentPage';
+import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
+import CookiePolicyPage from '@/pages/CookiePolicyPage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { CookieConsentBanner } from '@/components/CookieConsentBanner';
@@ -45,6 +47,8 @@ export default function App(): JSX.Element {
           <Route path="/map" element={<MapPage />} />
           <Route path="/enterprise/:id" element={<EnterpriseDetailsPage />} />
           <Route path="/consent/personal-data" element={<PersonalDataConsentPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/cookie-policy" element={<CookiePolicyPage />} />
           <Route
             path="/upload"
             element={
