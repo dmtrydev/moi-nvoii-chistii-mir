@@ -255,6 +255,8 @@ export default function MapPage(): JSX.Element {
   const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
   const isApplyingQueryFiltersRef = useRef(false);
+  /** После применения фильтров из URL следующий проход эффекта «сброс при смене фильтров» не должен чистить результаты (иначе съедается авто-поиск). */
+  const suppressFilterResetFromUrlRef = useRef(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setIntroVisible(true), 30);
@@ -409,6 +411,7 @@ export default function MapPage(): JSX.Element {
   useEffect(() => {
     const parsed = parseFiltersFromSearchParams(searchParams);
     isApplyingQueryFiltersRef.current = true;
+    suppressFilterResetFromUrlRef.current = true;
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
@@ -416,6 +419,17 @@ export default function MapPage(): JSX.Element {
     queueMicrotask(() => {
       isApplyingQueryFiltersRef.current = false;
     });
+    let innerRaf = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(() => {
+        suppressFilterResetFromUrlRef.current = false;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+      suppressFilterResetFromUrlRef.current = false;
+    };
   }, [searchParams]);
 
   const focusSiteId = useMemo(() => {
@@ -455,6 +469,7 @@ export default function MapPage(): JSX.Element {
       return;
     }
     if (isApplyingQueryFiltersRef.current) return;
+    if (suppressFilterResetFromUrlRef.current) return;
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
