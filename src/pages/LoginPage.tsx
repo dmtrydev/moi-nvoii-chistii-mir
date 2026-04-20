@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
@@ -11,6 +11,7 @@ export default function LoginPage(): JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,10 @@ export default function LoginPage(): JSX.Element {
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError(null);
+    if (mode === 'register' && !consentAccepted) {
+      setError('Для регистрации нужно подтвердить согласие на обработку персональных данных.');
+      return;
+    }
     setLoading(true);
     try {
       if (mode === 'register') {
@@ -57,7 +62,10 @@ export default function LoginPage(): JSX.Element {
         <div className="glass-panel p-1.5 flex gap-2">
           <button
             type="button"
-            onClick={() => setMode('login')}
+            onClick={() => {
+              setMode('login');
+              setError(null);
+            }}
             className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'login'
                 ? 'bg-accent-soft text-[#1f5c14] shadow-sm'
@@ -68,7 +76,10 @@ export default function LoginPage(): JSX.Element {
           </button>
           <button
             type="button"
-            onClick={() => setMode('register')}
+            onClick={() => {
+              setMode('register');
+              setError(null);
+            }}
             className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'register'
                 ? 'bg-accent-soft text-[#1f5c14] shadow-sm'
@@ -116,6 +127,29 @@ export default function LoginPage(): JSX.Element {
               minLength={8}
             />
           </div>
+          {mode === 'register' && (
+            <label className="flex items-start gap-2.5 rounded-xl border border-black/[0.06] bg-[#ffffff70] p-3">
+              <input
+                type="checkbox"
+                checked={consentAccepted}
+                onChange={(e) => setConsentAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-black/20 text-[#2f7d32] focus:ring-[#2f7d32]/40"
+                required
+              />
+              <span className="text-[12px] leading-relaxed text-[#4b5457]">
+                Я даю согласие на обработку персональных данных в соответствии с{' '}
+                <Link
+                  to="/consent/personal-data"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#2f7d32] underline underline-offset-2"
+                >
+                  текстом согласия
+                </Link>
+                .
+              </span>
+            </label>
+          )}
           {error && <div className="text-xs glass-danger">{error}</div>}
           <button
             type="submit"

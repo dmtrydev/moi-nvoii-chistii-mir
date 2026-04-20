@@ -15,6 +15,7 @@ import UserDashboardPage from '@/pages/UserDashboardPage';
 import UserUploadPage from '@/pages/UserUploadPage';
 import UserProfilePage from '@/pages/UserProfilePage';
 import SupportChatPage from '@/pages/SupportChatPage';
+import PersonalDataConsentPage from '@/pages/PersonalDataConsentPage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
 
@@ -27,6 +28,7 @@ export default function App(): JSX.Element {
           <Route path="/directory" element={<FkkoDirectoryPage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/enterprise/:id" element={<EnterpriseDetailsPage />} />
+          <Route path="/consent/personal-data" element={<PersonalDataConsentPage />} />
           <Route
             path="/upload"
             element={
