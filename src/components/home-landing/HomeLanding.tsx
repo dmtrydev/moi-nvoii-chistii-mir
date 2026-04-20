@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { fkkoCodesToQueryParam, normalizeFkkoCodeList } from '@/utils/fkko';
+import {
+  SEARCH_RESULTS_PAGE_SIZE,
+  SearchResultsPagination,
+} from '@/components/search/SearchResultsPagination';
 import { toPositiveInt } from '@/utils/positiveInt';
 import {
   buildCanonicalSearchKey,
@@ -67,6 +71,8 @@ export function HomeLanding(): JSX.Element {
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [validationError, setValidationError] = useState('');
   const [items, setItems] = useState<LicenseData[]>([]);
+  /** Страница списка результатов на главной (0-based). */
+  const [resultsListPage, setResultsListPage] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
@@ -209,6 +215,7 @@ export function HomeLanding(): JSX.Element {
     setFilterRegion(INITIAL_REGION);
     setValidationError('');
     setItems([]);
+    setResultsListPage(0);
     setHasSearched(false);
     setResultsReveal(false);
     setSearchError('');
@@ -240,6 +247,7 @@ export function HomeLanding(): JSX.Element {
           setSearchError('');
           setHasSearched(true);
           setItems(cached);
+          setResultsListPage(0);
           return;
         }
       }
@@ -258,9 +266,11 @@ export function HomeLanding(): JSX.Element {
         const found = (data as { items?: LicenseData[] }).items;
         const nextItems = Array.isArray(found) ? found : [];
         setItems(nextItems);
+        setResultsListPage(0);
         writeCachedResults(key, nextItems);
       } catch (err) {
         setItems([]);
+        setResultsListPage(0);
         setSearchError(err instanceof Error ? err.message : 'Ошибка поиска');
       } finally {
         setIsSearching(false);
@@ -290,6 +300,22 @@ export function HomeLanding(): JSX.Element {
     },
     [filterRegion, filterFkko, filterVid, hasSearched],
   );
+
+  const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
+  const homeResultsTotal = items.length;
+  const homeResultsPageCount = Math.max(1, Math.ceil(homeResultsTotal / resultsPageSize));
+  const homeResultsPageClamped = Math.min(resultsListPage, homeResultsPageCount - 1);
+  const pagedHomeItems = useMemo(
+    () =>
+      items.slice(
+        homeResultsPageClamped * resultsPageSize,
+        homeResultsPageClamped * resultsPageSize + resultsPageSize,
+      ),
+    [items, homeResultsPageClamped, resultsPageSize],
+  );
+  useEffect(() => {
+    if (homeResultsPageClamped !== resultsListPage) setResultsListPage(homeResultsPageClamped);
+  }, [homeResultsPageClamped, resultsListPage]);
 
   const searchParamsKey = searchParams.toString();
   useEffect(() => {
@@ -511,8 +537,22 @@ export function HomeLanding(): JSX.Element {
                     </p>
                   )}
                   {!isSearching && !searchError && items.length > 0 && (
-                    <div className="no-scrollbar flex max-h-[600px] flex-col gap-2.5 overflow-y-auto pr-1">
-                      {items.map((item) => {
+                    <div className="flex max-h-[600px] flex-col gap-2.5">
+                      <SearchResultsPagination
+                        total={homeResultsTotal}
+                        page={homeResultsPageClamped}
+                        pageCount={homeResultsPageCount}
+                        pageSize={resultsPageSize}
+                        onPrev={() => setResultsListPage((p) => Math.max(0, p - 1))}
+                        onNext={() =>
+                          setResultsListPage((p) => {
+                            const last = Math.max(0, Math.ceil(items.length / resultsPageSize) - 1);
+                            return Math.min(last, p + 1);
+                          })
+                        }
+                      />
+                      <div className="no-scrollbar flex flex-col gap-2.5 overflow-y-auto pr-1">
+                      {pagedHomeItems.map((item) => {
                         const sitesCount = Array.isArray(item.sites) ? item.sites.length : 0;
                         const hasAddress = Boolean(item.address?.trim()) || sitesCount > 0;
                         const detailsPath =
@@ -600,6 +640,7 @@ export function HomeLanding(): JSX.Element {
                           </article>
                         );
                       })}
+                      </div>
                     </div>
                   )}
                 </div>

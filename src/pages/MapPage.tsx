@@ -33,6 +33,10 @@ import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
+import {
+  SEARCH_RESULTS_PAGE_SIZE,
+  SearchResultsPagination,
+} from '@/components/search/SearchResultsPagination';
 import heroBackground from '@/assets/home-landing/hero-background.png';
 import filterSearchIcon from '@/assets/home-landing/filter-search-icon.svg';
 import filterResetIcon from '@/assets/home-landing/filter-reset-icon.svg';
@@ -245,6 +249,8 @@ export default function MapPage(): JSX.Element {
   const [activityTypeOptions, setActivityTypeOptions] = useState<string[]>([]);
   const [filterValidationError, setFilterValidationError] = useState<string>('');
   const [searchItems, setSearchItems] = useState<LicenseData[]>([]);
+  /** Страница списка в сайдбаре (0-based); карта показывает все точки из полного `searchItems`. */
+  const [resultsListPage, setResultsListPage] = useState(0);
   const [focusedItem, setFocusedItem] = useState<LicenseData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [introVisible, setIntroVisible] = useState(false);
@@ -413,7 +419,24 @@ export default function MapPage(): JSX.Element {
   /** Стабильная строка query: иначе `useSearchParams()` может давать новый объект на каждом рендере и ломать эффекты. */
   const mapQueryKey = useMemo(() => searchParams.toString(), [searchParams]);
 
+  const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
+  const resultsListTotal = searchItems.length;
+  const resultsListPageCount = Math.max(1, Math.ceil(resultsListTotal / resultsPageSize));
+  const resultsListPageClamped = Math.min(resultsListPage, resultsListPageCount - 1);
+  const pagedSearchItems = useMemo(
+    () =>
+      searchItems.slice(
+        resultsListPageClamped * resultsPageSize,
+        resultsListPageClamped * resultsPageSize + resultsPageSize,
+      ),
+    [searchItems, resultsListPageClamped, resultsPageSize],
+  );
   useEffect(() => {
+    if (resultsListPageClamped !== resultsListPage) setResultsListPage(resultsListPageClamped);
+  }, [resultsListPageClamped, resultsListPage]);
+
+  useEffect(() => {
+    setResultsListPage(0);
     const parsed = parseFiltersFromSearchParams(new URLSearchParams(mapQueryKey));
     isApplyingQueryFiltersRef.current = true;
     suppressFilterResetFromUrlRef.current = true;
@@ -529,6 +552,7 @@ export default function MapPage(): JSX.Element {
           setSearchError('');
           setHasSearched(true);
           setSearchItems(cached);
+          setResultsListPage(0);
           return;
         }
       }
@@ -550,9 +574,11 @@ export default function MapPage(): JSX.Element {
       const itemsArr = (data as { items?: LicenseData[] }).items;
       const nextItems = Array.isArray(itemsArr) ? itemsArr : [];
       setSearchItems(nextItems);
+      setResultsListPage(0);
       writeCachedResults(cacheKey, nextItems);
     } catch (err) {
       setSearchItems([]);
+      setResultsListPage(0);
       setSearchError(err instanceof Error ? err.message : 'Ошибка поиска');
     } finally {
       setIsSearching(false);
@@ -566,6 +592,7 @@ export default function MapPage(): JSX.Element {
   }, [runSearch]);
 
   const handleFindClick = useCallback(async () => {
+    setResultsListPage(0);
     const next = {
       region: filterRegion.trim(),
       fkko: filterFkko,
@@ -612,6 +639,7 @@ export default function MapPage(): JSX.Element {
     setFilterFkko(INITIAL_FKKO);
     setFilterVid(INITIAL_VID);
     setFilterRegion(INITIAL_REGION);
+    setResultsListPage(0);
     setSearchItems([]);
     setHasSearched(false);
     setSearchError('');
@@ -987,8 +1015,21 @@ export default function MapPage(): JSX.Element {
               <div className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
                 Найдено: {searchItems.length}
               </div>
+              <SearchResultsPagination
+                total={resultsListTotal}
+                page={resultsListPageClamped}
+                pageCount={resultsListPageCount}
+                pageSize={resultsPageSize}
+                onPrev={() => setResultsListPage((p) => Math.max(0, p - 1))}
+                onNext={() =>
+                  setResultsListPage((p) => {
+                    const last = Math.max(0, Math.ceil(searchItems.length / resultsPageSize) - 1);
+                    return Math.min(last, p + 1);
+                  })
+                }
+              />
               <div className="space-y-3">
-                {searchItems.slice(0, 20).map((it) => {
+                {pagedSearchItems.map((it) => {
                   const id = typeof it.id === 'number' ? it.id : null;
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
                   const mapParams = buildSearchParamsFromFilters({
