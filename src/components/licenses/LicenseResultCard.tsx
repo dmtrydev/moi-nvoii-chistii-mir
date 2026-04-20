@@ -148,20 +148,20 @@ export function LicenseResultCard({
             </div>
           )}
 
-          <div className={`mt-4 flex flex-col sm:flex-row gap-2`}>
+          <div className={`mt-4 flex flex-col gap-2 md:flex-row`}>
             <Link
               to={mapPath}
               className={
                 isLight
-                  ? 'inline-flex flex-1 items-center justify-center h-10 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white hover:shadow-sm transition-all'
-                  : 'inline-flex flex-1 items-center justify-center h-9 rounded-xl border border-white/20 px-4 text-xs font-medium text-white/90 hover:bg-white/10 transition-colors'
+                  ? 'inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-10 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white hover:shadow-sm transition-all'
+                  : 'inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-9 rounded-xl border border-white/20 px-4 text-xs font-medium text-white/90 hover:bg-white/10 transition-colors'
               }
             >
               На карте
             </Link>
             <Link
               to={detailsPath}
-              className="inline-flex flex-1 items-center justify-center h-10 rounded-xl px-4 text-xs font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
+              className="inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-10 rounded-xl px-4 text-xs font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
             >
               Карточка предприятия
             </Link>
