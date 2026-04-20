@@ -1,6 +1,7 @@
 const METRIKA_TAG_SRC = 'https://mc.yandex.ru/metrika/tag.js';
 const METRIKA_COUNTER_ID = 108683217;
 const CONSENT_STORAGE_KEY = 'cookie_consent_v1';
+const COOKIE_SETTINGS_EVENT = 'cookie-settings:open';
 
 declare global {
   interface Window {
@@ -68,4 +69,15 @@ export function trackMetrikaPage(url: string): void {
   window.ym?.(METRIKA_COUNTER_ID, 'hit', url, {
     referrer: document.referrer,
   });
+}
+
+export function openCookieSettings(): void {
+  window.dispatchEvent(new CustomEvent(COOKIE_SETTINGS_EVENT));
+}
+
+export function subscribeCookieSettingsOpen(handler: () => void): () => void {
+  window.addEventListener(COOKIE_SETTINGS_EVENT, handler);
+  return () => {
+    window.removeEventListener(COOKIE_SETTINGS_EVENT, handler);
+  };
 }

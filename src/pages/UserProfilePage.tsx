@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/useAuth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
+import { openCookieSettings } from '@/lib/metrika';
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 
@@ -97,6 +98,15 @@ export default function UserProfilePage(): JSX.Element {
               <div className="w-[140px] text-ink-muted">Пароль</div>
               <div className="font-medium text-ink-muted">********</div>
             </div>
+          </div>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => openCookieSettings()}
+              className="glass-btn-soft !h-9 !px-4 !text-xs"
+            >
+              Настройки cookies
+            </button>
           </div>
         </div>
 

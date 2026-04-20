@@ -1,23 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   getCookieConsentStatus,
   initMetrika,
   setCookieConsentStatus,
+  subscribeCookieSettingsOpen,
 } from '@/lib/metrika';
 
 export function CookieConsentBanner(): JSX.Element | null {
   const [status, setStatus] = useState(() => getCookieConsentStatus());
-  if (status) return null;
+  const [isOpen, setIsOpen] = useState(() => status === null);
+
+  useEffect(() => {
+    return subscribeCookieSettingsOpen(() => {
+      setIsOpen(true);
+    });
+  }, []);
+
+  if (!isOpen) return null;
 
   function accept(): void {
     setCookieConsentStatus('accepted');
     initMetrika();
     setStatus('accepted');
+    setIsOpen(false);
   }
 
   function reject(): void {
     setCookieConsentStatus('rejected');
     setStatus('rejected');
+    setIsOpen(false);
   }
 
   return (
