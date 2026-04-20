@@ -54,6 +54,19 @@ function areStringArraysEqual(a: string[], b: string[]): boolean {
   return true;
 }
 
+/** PG bigint / JSON иногда приходят строкой — для сопоставления с маркерами и URL нужен единый number. */
+function toPositiveInt(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  if (typeof value === 'string') {
+    const t = value.trim();
+    if (/^\d+$/.test(t)) {
+      const n = Number(t);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return null;
+}
+
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
 function getApiUrl(p: string): string {
   const base = String(API_BASE).replace(/\/$/, '');
@@ -462,7 +475,8 @@ export default function MapPage(): JSX.Element {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((data: LicenseData) => {
         if (!alive) return;
-        if (typeof data.siteId === 'number') setSelectedId(data.siteId);
+        const sid = toPositiveInt(data.siteId);
+        if (sid != null) setSelectedId(sid);
         if (typeof data.lat === 'number' && typeof data.lng === 'number') {
           setFocusCenter([data.lat, data.lng]);
         }
@@ -501,8 +515,6 @@ export default function MapPage(): JSX.Element {
     setSearchItems([]);
     setSearchError('');
   }, [filterFkko, filterRegion, filterVid, searchParams]);
-
-  const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
 
   const runSearch = useCallback(
     async (
@@ -579,8 +591,8 @@ export default function MapPage(): JSX.Element {
   const geocodeMissing = useCallback(async (siteId: number) => {
     try {
       const item =
-        searchItems.find((x) => typeof x.siteId === 'number' && x.siteId === siteId) ??
-        (focusedItem && typeof focusedItem.siteId === 'number' && focusedItem.siteId === siteId ? focusedItem : null);
+        searchItems.find((x) => toPositiveInt(x.siteId) === siteId) ??
+        (focusedItem && toPositiveInt(focusedItem.siteId) === siteId ? focusedItem : null);
       const addr = String(item?.address ?? '').trim();
       if (!addr) throw new Error('У объекта нет адреса');
 
@@ -596,12 +608,13 @@ export default function MapPage(): JSX.Element {
       }
 
       const updated = data as LicenseData;
-      setSearchItems((prev) => prev.map((x) => (typeof x.siteId === 'number' && x.siteId === siteId ? updated : x)));
-      if (focusedItem && typeof focusedItem.siteId === 'number' && focusedItem.siteId === siteId) setFocusedItem(updated);
+      setSearchItems((prev) => prev.map((x) => (toPositiveInt(x.siteId) === siteId ? updated : x)));
+      if (focusedItem && toPositiveInt(focusedItem.siteId) === siteId) setFocusedItem(updated);
       if (typeof updated.lat === 'number' && typeof updated.lng === 'number') {
         setFocusCenter([updated.lat, updated.lng]);
       }
-      if (typeof updated.siteId === 'number') setSelectedId(updated.siteId);
+      const updSid = toPositiveInt(updated.siteId);
+      if (updSid != null) setSelectedId(updSid);
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Ошибка геокодирования');
     }
@@ -623,7 +636,7 @@ export default function MapPage(): JSX.Element {
   /** Deep link focusSite: площадка загружена, но координаты в БД пустые — маркера нет, попап не открыть без геокода. */
   const focusMissingCoords = useMemo(() => {
     if (!focusSiteId || !focusedItem) return false;
-    const sid = typeof focusedItem.siteId === 'number' ? focusedItem.siteId : null;
+    const sid = toPositiveInt(focusedItem.siteId);
     if (sid !== focusSiteId) return false;
     const lat = focusedItem.lat;
     const lng = focusedItem.lng;
@@ -641,14 +654,14 @@ export default function MapPage(): JSX.Element {
       const seenPointIds = new Set<number>();
 
       for (const item of searchItems) {
-        const baseId = item.siteId ?? item.id ?? null;
+        const baseId = toPositiveInt(item.siteId) ?? toPositiveInt(item.id) ?? null;
         if (
           typeof item.lat === 'number' &&
           Number.isFinite(item.lat) &&
           typeof item.lng === 'number' &&
           Number.isFinite(item.lng)
         ) {
-          const pointId = typeof baseId === 'number' ? baseId : null;
+          const pointId = baseId;
           if (pointId != null) seenPointIds.add(pointId);
           points.push({
             key: `root-${baseId ?? `${item.inn}-${item.address}`}`,
@@ -671,7 +684,7 @@ export default function MapPage(): JSX.Element {
           ) {
             return;
           }
-          const sitePointId = typeof site.id === 'number' ? site.id : typeof baseId === 'number' ? baseId : null;
+          const sitePointId = toPositiveInt(site.id) ?? baseId;
           if (sitePointId != null) seenPointIds.add(sitePointId);
           points.push({
             key: `site-${site.id ?? `${baseId ?? item.inn}-${idx}`}`,
@@ -693,7 +706,7 @@ export default function MapPage(): JSX.Element {
         typeof focusedItem.lng === 'number' &&
         Number.isFinite(focusedItem.lng)
       ) {
-        const sid = typeof focusedItem.siteId === 'number' ? focusedItem.siteId : null;
+        const sid = toPositiveInt(focusedItem.siteId);
         if (sid != null && !seenPointIds.has(sid)) {
           points.push({
             key: `deep-link-${sid}`,
@@ -990,12 +1003,14 @@ export default function MapPage(): JSX.Element {
                 {searchItems.slice(0, 20).map((it) => {
                   const id = typeof it.id === 'number' ? it.id : null;
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
-                  const r = filterRegion.trim();
-                  const mapParams = new URLSearchParams({ vid: vidQuery.trim() });
-                  const fkkoQ = fkkoCodesToQueryParam(filterFkko);
-                  if (fkkoQ) mapParams.set('fkko', fkkoQ);
-                  if (r) mapParams.set('region', r);
-                  if (typeof it.siteId === 'number') mapParams.set('focusSite', String(it.siteId));
+                  const mapParams = buildSearchParamsFromFilters({
+                    region: filterRegion.trim(),
+                    fkko: filterFkko,
+                    vid: filterVid,
+                    searched: true,
+                  });
+                  const focusSid = toPositiveInt(it.siteId);
+                  if (focusSid != null) mapParams.set('focusSite', String(focusSid));
                   const sitesCount = Array.isArray(it.sites) ? it.sites.length : 0;
                   const hasAddress = Boolean(it.address?.trim()) || sitesCount > 0;
                   return (
@@ -1069,10 +1084,13 @@ export default function MapPage(): JSX.Element {
                           </div>
                         </div>
                       </article>
-                      {!hasCoords && typeof it.siteId === 'number' && (
+                      {!hasCoords && toPositiveInt(it.siteId) != null && (
                         <button
                           type="button"
-                          onClick={() => void geocodeMissing(it.siteId as number)}
+                          onClick={() => {
+                            const sid = toPositiveInt(it.siteId);
+                            if (sid != null) void geocodeMissing(sid);
+                          }}
                           className="mt-2 h-8 px-3 rounded-xl bg-app-bg border border-black/[0.06] text-[11px] text-ink hover:bg-white shadow-sm transition-colors"
                         >
                           Определить координаты по адресу
@@ -1245,7 +1263,7 @@ export default function MapPage(): JSX.Element {
             );
           })}
         </MapContainer>
-        {focusMissingCoords && typeof focusedItem?.siteId === 'number' ? (
+        {focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
           <div
             role="status"
             className="pointer-events-auto absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[5010] rounded-2xl border border-black/[0.06] bg-[#fffffff2] px-4 py-3 shadow-[0_12px_40px_rgba(43,51,53,0.18)] backdrop-blur-md sm:left-auto sm:right-6 sm:max-w-md sm:translate-x-0"
@@ -1261,8 +1279,10 @@ export default function MapPage(): JSX.Element {
                 type="button"
                 disabled={focusGeocodeBusy}
                 onClick={() => {
+                  const sid = toPositiveInt(focusedItem.siteId);
+                  if (sid == null) return;
                   setFocusGeocodeBusy(true);
-                  void geocodeMissing(focusedItem.siteId as number).finally(() => setFocusGeocodeBusy(false));
+                  void geocodeMissing(sid).finally(() => setFocusGeocodeBusy(false));
                 }}
                 className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-br from-accent-from to-accent-to px-4 text-sm font-semibold text-[#1a2e12] shadow-sm transition-opacity hover:shadow-eco-card disabled:opacity-60 sm:w-auto"
               >
