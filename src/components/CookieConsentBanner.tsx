@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   getCookieConsentStatus,
-  initMetrika,
   setCookieConsentStatus,
   subscribeCookieSettingsOpen,
 } from '@/lib/metrika';
@@ -18,16 +17,10 @@ export function CookieConsentBanner(): JSX.Element | null {
 
   if (!isOpen) return null;
 
-  function accept(): void {
+  function closeBanner(): void {
+    // Используем существующий статус как маркер, что пользователь видел уведомление.
     setCookieConsentStatus('accepted');
-    initMetrika();
     setStatus('accepted');
-    setIsOpen(false);
-  }
-
-  function reject(): void {
-    setCookieConsentStatus('rejected');
-    setStatus('rejected');
     setIsOpen(false);
   }
 
@@ -39,15 +32,12 @@ export function CookieConsentBanner(): JSX.Element | null {
             <div className="cookie-consent-kicker">Настройки cookies</div>
             <h2 className="typo-h2 mt-1 text-ink">Мы используем cookies</h2>
             <p className="mt-2 text-sm text-ink-muted">
-              Обязательные cookies нужны для входа и безопасности сайта. По согласию включим аналитику Яндекс.Метрики.
+              Используем обязательные cookies и Яндекс.Метрику для технической статистики и улучшения работы сервиса.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <button type="button" onClick={reject} className="cookie-consent-btn-soft">
-              Только обязательные
-            </button>
-            <button type="button" onClick={accept} className="cookie-consent-btn-accept">
-              Принять все
+            <button type="button" onClick={closeBanner} className="cookie-consent-btn-accept">
+              Понятно
             </button>
           </div>
         </div>

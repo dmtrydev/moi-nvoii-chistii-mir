@@ -65,7 +65,6 @@ export function initMetrika(): void {
 }
 
 export function trackMetrikaPage(url: string): void {
-  if (getCookieConsentStatus() !== 'accepted') return;
   window.ym?.(METRIKA_COUNTER_ID, 'hit', url, {
     referrer: document.referrer,
   });
