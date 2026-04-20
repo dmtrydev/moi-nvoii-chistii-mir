@@ -73,7 +73,7 @@ export function CookieConsentBanner(): JSX.Element | null {
                 </label>
               </div>
             </div>
-          </div>
+          )}
           <div className="flex shrink-0 flex-wrap gap-2">
             {!showDetails && (
               <button
