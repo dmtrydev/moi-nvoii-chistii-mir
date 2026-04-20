@@ -18,6 +18,7 @@ import {
   normalizeFkkoDigits,
   normalizeFkkoSearchQuery,
 } from '@/utils/fkko';
+import { toPositiveInt } from '@/utils/positiveInt';
 import {
   buildCanonicalSearchKey,
   buildSearchParamsFromFilters,
@@ -52,19 +53,6 @@ function areStringArraysEqual(a: string[], b: string[]): boolean {
     if (a[i] !== b[i]) return false;
   }
   return true;
-}
-
-/** PG bigint / JSON иногда приходят строкой — для сопоставления с маркерами и URL нужен единый number. */
-function toPositiveInt(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
-  if (typeof value === 'string') {
-    const t = value.trim();
-    if (/^\d+$/.test(t)) {
-      const n = Number(t);
-      if (Number.isFinite(n) && n > 0) return n;
-    }
-  }
-  return null;
 }
 
 const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');

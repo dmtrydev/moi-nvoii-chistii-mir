@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { fkkoCodesToQueryParam, normalizeFkkoCodeList } from '@/utils/fkko';
+import { toPositiveInt } from '@/utils/positiveInt';
 import {
   buildCanonicalSearchKey,
   buildSearchParamsFromFilters,
@@ -559,7 +560,7 @@ export function HomeLanding(): JSX.Element {
                                 <div className="flex flex-wrap items-center gap-2.5">
                                   <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3 lg:max-w-none lg:flex-row lg:items-center lg:gap-5">
                                     <Link
-                                      to={buildMapUrl(typeof item.siteId === 'number' ? item.siteId : null)}
+                                      to={buildMapUrl(toPositiveInt(item.siteId))}
                                       className="group home-find-button relative inline-flex h-[50px] w-full items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:px-8 lg:min-w-[435px]"
                                     >
                                       <span className="relative z-[2] inline-flex items-center gap-2.5">
