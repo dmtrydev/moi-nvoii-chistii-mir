@@ -19,6 +19,7 @@ import PersonalDataConsentPage from '@/pages/PersonalDataConsentPage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { CookieConsentBanner } from '@/components/CookieConsentBanner';
+import { CookieSettingsFloatingButton } from '@/components/CookieSettingsFloatingButton';
 import { trackMetrikaPage } from '@/lib/metrika';
 import { useEffect } from 'react';
 
@@ -91,6 +92,7 @@ export default function App(): JSX.Element {
             />
           </Route>
         </Routes>
+        <CookieSettingsFloatingButton />
         <CookieConsentBanner />
       </BrowserRouter>
     </AuthProvider>
