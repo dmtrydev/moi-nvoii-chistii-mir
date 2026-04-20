@@ -257,6 +257,7 @@ export default function MapPage(): JSX.Element {
   const isApplyingQueryFiltersRef = useRef(false);
   /** После применения фильтров из URL следующий проход эффекта «сброс при смене фильтров» не должен чистить результаты (иначе съедается авто-поиск). */
   const suppressFilterResetFromUrlRef = useRef(false);
+  const lastAutoSearchKey = useRef<string | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setIntroVisible(true), 30);
@@ -408,14 +409,28 @@ export default function MapPage(): JSX.Element {
   );
   // activityTypeHintOptions больше не нужен: выбор вида обращения через чекбоксы
 
+  /** Стабильная строка query: иначе `useSearchParams()` может давать новый объект на каждом рендере и ломать эффекты. */
+  const mapQueryKey = useMemo(() => searchParams.toString(), [searchParams]);
+
   useEffect(() => {
-    const parsed = parseFiltersFromSearchParams(searchParams);
+    const parsed = parseFiltersFromSearchParams(new URLSearchParams(mapQueryKey));
     isApplyingQueryFiltersRef.current = true;
     suppressFilterResetFromUrlRef.current = true;
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
     setHasSearched(parsed.searched);
+
+    if (parsed.vid.length > 0 && parsed.searched) {
+      const key = buildCanonicalSearchKey(parsed);
+      if (lastAutoSearchKey.current !== key) {
+        lastAutoSearchKey.current = key;
+        void runSearchRef.current(parsed, { cacheFirst: true });
+      }
+    } else {
+      lastAutoSearchKey.current = null;
+    }
+
     queueMicrotask(() => {
       isApplyingQueryFiltersRef.current = false;
     });
@@ -430,7 +445,7 @@ export default function MapPage(): JSX.Element {
       cancelAnimationFrame(innerRaf);
       suppressFilterResetFromUrlRef.current = false;
     };
-  }, [searchParams]);
+  }, [mapQueryKey]);
 
   const focusSiteId = useMemo(() => {
     const raw = searchParams.get('focusSite');
@@ -470,10 +485,22 @@ export default function MapPage(): JSX.Element {
     }
     if (isApplyingQueryFiltersRef.current) return;
     if (suppressFilterResetFromUrlRef.current) return;
+
+    const fromUrl = parseFiltersFromSearchParams(searchParams);
+    if (fromUrl.searched && fromUrl.vid.length > 0) {
+      const urlKey = buildCanonicalSearchKey(fromUrl);
+      const stateKey = buildCanonicalSearchKey({
+        region: filterRegion.trim(),
+        fkko: filterFkko,
+        vid: filterVid,
+      });
+      if (urlKey === stateKey) return;
+    }
+
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
-  }, [filterFkko, filterRegion, filterVid]);
+  }, [filterFkko, filterRegion, filterVid, searchParams]);
 
   const vidQuery = useMemo(() => filterVid.map((x) => String(x).trim()).filter(Boolean).join(', '), [filterVid]);
 
@@ -537,19 +564,6 @@ export default function MapPage(): JSX.Element {
   useEffect(() => {
     runSearchRef.current = runSearch;
   }, [runSearch]);
-
-  const lastAutoSearchKey = useRef<string | null>(null);
-  useEffect(() => {
-    const parsed = parseFiltersFromSearchParams(searchParams);
-    if (parsed.vid.length === 0 || !parsed.searched) {
-      lastAutoSearchKey.current = null;
-      return;
-    }
-    const key = buildCanonicalSearchKey(parsed);
-    if (lastAutoSearchKey.current === key) return;
-    lastAutoSearchKey.current = key;
-    runSearchRef.current(parsed, { cacheFirst: true });
-  }, [searchParams]);
 
   const handleFindClick = useCallback(async () => {
     const next = {
