@@ -157,6 +157,7 @@ function MapPointMarker({
   isSelected: boolean;
   onSelect: () => void;
 }): JSX.Element {
+  const map = useMap();
   const markerRef = useRef<L.CircleMarker | null>(null);
   const popupModel = useMemo(
     () =>
@@ -172,8 +173,23 @@ function MapPointMarker({
 
   useEffect(() => {
     if (!isSelected) return;
-    markerRef.current?.openPopup();
-  }, [isSelected]);
+    const open = (): void => {
+      markerRef.current?.openPopup();
+    };
+    map.whenReady(open);
+    let innerRaf = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      innerRaf = requestAnimationFrame(open);
+    });
+    const tShort = window.setTimeout(open, 80);
+    const tLong = window.setTimeout(open, 350);
+    return () => {
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+      window.clearTimeout(tShort);
+      window.clearTimeout(tLong);
+    };
+  }, [isSelected, map, point.key]);
 
   return (
     <CircleMarker
@@ -236,6 +252,7 @@ export default function MapPage(): JSX.Element {
   const [baseMapStyle, setBaseMapStyle] = useState<'osm' | 'cadastral'>('osm');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
+  const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
   const isApplyingQueryFiltersRef = useRef(false);
 
@@ -552,6 +569,10 @@ export default function MapPage(): JSX.Element {
       const updated = data as LicenseData;
       setSearchItems((prev) => prev.map((x) => (typeof x.siteId === 'number' && x.siteId === siteId ? updated : x)));
       if (focusedItem && typeof focusedItem.siteId === 'number' && focusedItem.siteId === siteId) setFocusedItem(updated);
+      if (typeof updated.lat === 'number' && typeof updated.lng === 'number') {
+        setFocusCenter([updated.lat, updated.lng]);
+      }
+      if (typeof updated.siteId === 'number') setSelectedId(updated.siteId);
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Ошибка геокодирования');
     }
@@ -569,6 +590,22 @@ export default function MapPage(): JSX.Element {
   };
 
   const hasMapFocus = Boolean(focusCenter);
+
+  /** Deep link focusSite: площадка загружена, но координаты в БД пустые — маркера нет, попап не открыть без геокода. */
+  const focusMissingCoords = useMemo(() => {
+    if (!focusSiteId || !focusedItem) return false;
+    const sid = typeof focusedItem.siteId === 'number' ? focusedItem.siteId : null;
+    if (sid !== focusSiteId) return false;
+    const lat = focusedItem.lat;
+    const lng = focusedItem.lng;
+    return (
+      typeof lat !== 'number' ||
+      !Number.isFinite(lat) ||
+      typeof lng !== 'number' ||
+      !Number.isFinite(lng)
+    );
+  }, [focusSiteId, focusedItem]);
+
   const mapPoints = useMemo(
     () => {
       const points: MapPoint[] = [];
@@ -1179,6 +1216,32 @@ export default function MapPage(): JSX.Element {
             );
           })}
         </MapContainer>
+        {focusMissingCoords && typeof focusedItem?.siteId === 'number' ? (
+          <div
+            role="status"
+            className="pointer-events-auto absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[5010] rounded-2xl border border-black/[0.06] bg-[#fffffff2] px-4 py-3 shadow-[0_12px_40px_rgba(43,51,53,0.18)] backdrop-blur-md sm:left-auto sm:right-6 sm:max-w-md sm:translate-x-0"
+          >
+            <p className="font-nunito text-sm font-semibold text-[#2b3335]">
+              Для этой площадки не заданы координаты на карте.
+              {String(focusedItem.address ?? '').trim()
+                ? ' Можно определить их по адресу.'
+                : ' Укажите адрес в данных лицензии или обратитесь к администратору.'}
+            </p>
+            {String(focusedItem.address ?? '').trim() ? (
+              <button
+                type="button"
+                disabled={focusGeocodeBusy}
+                onClick={() => {
+                  setFocusGeocodeBusy(true);
+                  void geocodeMissing(focusedItem.siteId as number).finally(() => setFocusGeocodeBusy(false));
+                }}
+                className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-br from-accent-from to-accent-to px-4 text-sm font-semibold text-[#1a2e12] shadow-sm transition-opacity hover:shadow-eco-card disabled:opacity-60 sm:w-auto"
+              >
+                {focusGeocodeBusy ? 'Определяем…' : 'Определить координаты по адресу'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         </div>
         <button
           type="button"
