@@ -38,17 +38,17 @@ export function CookieConsentBanner(): JSX.Element | null {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[1200] p-3 sm:p-5">
-      <div className="cookie-consent-shell mx-auto w-full max-w-5xl p-4 sm:p-5">
+    <div className="fixed bottom-4 right-4 z-[1202] w-[min(420px,calc(100vw-1.5rem))] sm:bottom-5 sm:right-5">
+      <div className="cookie-consent-shell p-3.5 sm:p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <div className="cookie-consent-kicker">Настройки cookies</div>
             <h2 className="typo-h2 mt-1 text-ink">Мы используем cookies</h2>
-            <p className="mt-2 text-sm text-ink-muted">
+            <p className="mt-1.5 text-xs text-ink-muted sm:text-sm">
               Обязательные cookies нужны для входа и безопасности сервиса. Аналитические cookies
               (Яндекс.Метрика) включаются только с вашего согласия.
             </p>
-            <p className="mt-2 text-xs text-ink-muted">
+            <p className="mt-1.5 text-[11px] text-ink-muted sm:text-xs">
               Подробнее: <Link to="/consent/personal-data" className="glass-link">Согласие</Link>
               {' · '}
               <Link to="/privacy-policy" className="glass-link">Политика обработки ПДн</Link>
@@ -57,11 +57,11 @@ export function CookieConsentBanner(): JSX.Element | null {
             </p>
           </div>
           {showDetails && (
-            <div className="mt-2 rounded-2xl bg-white/70 px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(45,45,45,0.08)]">
+            <div className="mt-1.5 rounded-xl bg-white/60 px-2.5 py-2 shadow-[inset_0_0_0_1px_rgba(45,45,45,0.08)]">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-[#2b3335]">Аналитические cookies</div>
-                  <div className="text-xs text-[#5d6568]">Яндекс.Метрика для статистики и улучшения сервиса</div>
+                  <div className="text-xs font-semibold text-[#2b3335] sm:text-sm">Аналитические cookies</div>
+                  <div className="text-[11px] text-[#5d6568] sm:text-xs">Яндекс.Метрика для статистики и улучшения сервиса</div>
                 </div>
                 <label className="inline-flex cursor-pointer items-center gap-2">
                   <input
@@ -74,7 +74,7 @@ export function CookieConsentBanner(): JSX.Element | null {
               </div>
             </div>
           )}
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="flex shrink-0 flex-wrap gap-1.5 sm:gap-2">
             {!showDetails && (
               <button
                 type="button"
