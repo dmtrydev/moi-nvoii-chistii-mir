@@ -29,6 +29,15 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
+const requestPasswordResetSchema = z.object({
+  email: z.string().email(),
+});
+
+const confirmPasswordResetSchema = z.object({
+  token: z.string().min(32).max(256),
+  newPassword: z.string().min(8).max(128),
+});
+
 function generateRefreshToken() {
   return crypto.randomBytes(48).toString('hex');
 }
@@ -83,6 +92,49 @@ async function sendVerificationCodeEmail({ email, code }) {
     to: email,
     subject: 'Код подтверждения регистрации',
     text: `Ваш код подтверждения: ${code}. Код действителен 10 минут.`,
+  });
+}
+
+async function sendPasswordResetEmail({ email, resetLink }) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.SMTP_FROM || user;
+
+  if (!host || !user || !pass || !from) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[auth] Password reset link for ${email}: ${resetLink}`);
+      return;
+    }
+    throw new Error('SMTP не настроен: задайте SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM');
+  }
+
+  let nodemailer;
+  try {
+    nodemailer = await import('nodemailer');
+  } catch {
+    throw new Error('Для SMTP-отправки установите зависимость nodemailer в server/package.json');
+  }
+  const transporter = nodemailer.default.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject: 'Сброс пароля',
+    text: `Чтобы сбросить пароль, перейдите по ссылке: ${resetLink}. Ссылка действует 30 минут.`,
+    html: `<div style="font-family:Arial,sans-serif;padding:20px;background:#f6f8fb">
+      <div style="max-width:560px;margin:0 auto;background:#fff;padding:24px;border-radius:12px">
+        <h2 style="margin:0 0 12px;color:#1f2937">Сброс пароля</h2>
+        <p style="color:#4b5563">Нажмите кнопку, чтобы задать новый пароль. Ссылка действует 30 минут.</p>
+        <a href="${resetLink}" style="display:inline-block;margin-top:8px;background:#2f7d32;color:#fff;padding:12px 16px;text-decoration:none;border-radius:8px">Сбросить пароль</a>
+      </div>
+    </div>`,
   });
 }
 
@@ -298,6 +350,155 @@ router.post('/register/confirm', async (req, res) => {
     console.error('register confirm error:', err);
     return res.status(500).json({
       message: err instanceof Error ? err.message : 'Ошибка подтверждения регистрации',
+    });
+  }
+});
+
+router.post('/password-reset/request', async (req, res) => {
+  try {
+    const parsed = requestPasswordResetSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+    }
+
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+    const now = new Date();
+    const TOKEN_TTL_MS = 30 * 60 * 1000;
+    const RESEND_COOLDOWN_MS = 60 * 1000;
+
+    const userResult = await query(
+      `SELECT id, email
+       FROM users
+       WHERE email = $1 AND is_active = TRUE
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+
+    if (!userResult.rows.length) {
+      return res.json({ ok: true, message: 'Если email существует, ссылка отправлена' });
+    }
+
+    const userRow = userResult.rows[0];
+    const existingToken = await query(
+      `SELECT id, last_sent_at AS "lastSentAt"
+       FROM password_reset_tokens
+       WHERE user_id = $1
+         AND consumed_at IS NULL
+         AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userRow.id],
+    );
+    if (existingToken.rows.length) {
+      const lastSentAt = new Date(existingToken.rows[0].lastSentAt);
+      if (now.getTime() - lastSentAt.getTime() < RESEND_COOLDOWN_MS) {
+        return res.status(429).json({ message: 'Повторный запрос возможен через 60 секунд' });
+      }
+    }
+
+    const plainToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
+    const expiresAt = new Date(now.getTime() + TOKEN_TTL_MS);
+    await query(
+      `UPDATE password_reset_tokens
+       SET consumed_at = NOW()
+       WHERE user_id = $1
+         AND consumed_at IS NULL`,
+      [userRow.id],
+    );
+    await query(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at, last_sent_at)
+       VALUES ($1,$2,$3,$4,$4)`,
+      [userRow.id, tokenHash, expiresAt.toISOString(), now.toISOString()],
+    );
+
+    const publicBaseUrl = process.env.APP_PUBLIC_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+    const resetLink = `${publicBaseUrl.replace(/\/$/, '')}/login?mode=reset&token=${encodeURIComponent(plainToken)}`;
+    await sendPasswordResetEmail({ email: userRow.email, resetLink });
+
+    await createAuditLog({
+      req,
+      action: 'USER_PASSWORD_RESET_REQUEST',
+      entityType: 'USER',
+      entityId: String(userRow.id),
+      severity: 'INFO',
+    });
+
+    return res.json({ ok: true, message: 'Если email существует, ссылка отправлена' });
+  } catch (err) {
+    console.error('password reset request error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка запроса на сброс пароля',
+    });
+  }
+});
+
+router.post('/password-reset/confirm', async (req, res) => {
+  try {
+    const parsed = confirmPasswordResetSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+    }
+
+    const { token, newPassword } = parsed.data;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const tokenResult = await query(
+      `SELECT t.id, t.user_id AS "userId", t.expires_at AS "expiresAt", t.consumed_at AS "consumedAt", u.is_active AS "isActive"
+       FROM password_reset_tokens t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = $1
+       LIMIT 1`,
+      [tokenHash],
+    );
+    if (!tokenResult.rows.length) {
+      return res.status(400).json({ message: 'Ссылка недействительна или истекла' });
+    }
+
+    const row = tokenResult.rows[0];
+    const now = new Date();
+    if (row.consumedAt || new Date(row.expiresAt) < now || !row.isActive) {
+      return res.status(400).json({ message: 'Ссылка недействительна или истекла' });
+    }
+
+    const newHash = await hashPassword(newPassword);
+    await query(
+      `UPDATE users
+       SET password_hash = $2, updated_at = NOW()
+       WHERE id = $1`,
+      [row.userId, newHash],
+    );
+    await query(
+      `UPDATE password_reset_tokens
+       SET consumed_at = NOW()
+       WHERE id = $1`,
+      [row.id],
+    );
+    await query(
+      `UPDATE sessions
+       SET revoked_at = NOW()
+       WHERE user_id = $1
+         AND revoked_at IS NULL`,
+      [row.userId],
+    );
+
+    await createAuditLog({
+      req,
+      action: 'USER_PASSWORD_RESET_CONFIRM',
+      entityType: 'USER',
+      entityId: String(row.userId),
+      severity: 'INFO',
+    });
+
+    res.clearCookie('refresh_token', { path: '/api/auth' });
+    res.clearCookie('access_token', { path: '/' });
+    return res.json({ ok: true, message: 'Пароль обновлен. Выполните вход с новым паролем' });
+  } catch (err) {
+    console.error('password reset confirm error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка подтверждения сброса пароля',
     });
   }
 });

@@ -4,17 +4,31 @@ import { useAuth } from '@/contexts/useAuth';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
+const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
+
+function getApiUrl(path: string): string {
+  const base = API_BASE.replace(/\/$/, '');
+  return base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
+}
+
 export default function LoginPage(): JSX.Element {
   const { login, requestRegistrationCode, confirmRegistration } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const query = new URLSearchParams(location.search);
+  const tokenFromUrl = query.get('token') ?? '';
+  const isResetFromUrl = query.get('mode') === 'reset';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [resetToken, setResetToken] = useState(tokenFromUrl);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [mode, setMode] = useState<'login' | 'register' | 'reset'>(isResetFromUrl ? 'reset' : 'login');
   const [registerStep, setRegisterStep] = useState<'request' | 'confirm'>('request');
+  const [resetStep, setResetStep] = useState<'request' | 'confirm'>(tokenFromUrl ? 'confirm' : 'request');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,6 +63,42 @@ export default function LoginPage(): JSX.Element {
         await redirectAfterAuth(created);
         return;
       }
+      if (mode === 'reset') {
+        if (resetStep === 'request') {
+          const res = await fetch(getApiUrl('/api/auth/password-reset/request'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error((data as { message?: string }).message ?? 'Не удалось отправить ссылку');
+          }
+          setNotice('Если email существует, ссылка для сброса отправлена.');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error('Пароли не совпадают');
+        }
+        const res = await fetch(getApiUrl('/api/auth/password-reset/confirm'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token: resetToken, newPassword }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((data as { message?: string }).message ?? 'Не удалось обновить пароль');
+        }
+        setNotice('Пароль обновлен. Теперь войдите с новым паролем.');
+        setMode('login');
+        setResetStep('request');
+        setResetToken('');
+        setNewPassword('');
+        setConfirmPassword('');
+        return;
+      }
 
       const loggedInUser = await login(email, password);
       await redirectAfterAuth(loggedInUser);
@@ -77,6 +127,7 @@ export default function LoginPage(): JSX.Element {
               setError(null);
               setNotice(null);
               setRegisterStep('request');
+              setResetStep('request');
             }}
             className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'login'
@@ -92,6 +143,7 @@ export default function LoginPage(): JSX.Element {
               setMode('register');
               setError(null);
               setNotice(null);
+              setResetStep('request');
             }}
             className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'register'
@@ -102,18 +154,33 @@ export default function LoginPage(): JSX.Element {
             Регистрация
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('reset');
+            setError(null);
+            setNotice(null);
+            setResetStep(tokenFromUrl ? 'confirm' : 'request');
+            setResetToken(tokenFromUrl);
+          }}
+          className="w-full text-xs text-ink-muted hover:underline"
+        >
+          Забыли пароль?
+        </button>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="block text-xs glass-muted mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="glass-input"
-              required
-            />
-          </div>
+          {(mode !== 'reset' || resetStep === 'request') && (
+            <div>
+              <label className="block text-xs glass-muted mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="glass-input"
+                required
+              />
+            </div>
+          )}
 
           {mode === 'register' && registerStep === 'request' && (
             <div>
@@ -129,7 +196,7 @@ export default function LoginPage(): JSX.Element {
             </div>
           )}
 
-          {(mode === 'login' || registerStep === 'request') && (
+          {(mode === 'login' || mode === 'register' && registerStep === 'request') && (
             <div>
               <label className="block text-xs glass-muted mb-1">Пароль</label>
               <input
@@ -141,6 +208,44 @@ export default function LoginPage(): JSX.Element {
                 minLength={8}
               />
             </div>
+          )}
+          {mode === 'reset' && resetStep === 'confirm' && (
+            <>
+              <div>
+                <label className="block text-xs glass-muted mb-1">Новый пароль</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="glass-input"
+                  required
+                  minLength={8}
+                />
+              </div>
+              <div>
+                <label className="block text-xs glass-muted mb-1">Повторите пароль</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="glass-input"
+                  required
+                  minLength={8}
+                />
+              </div>
+              {!resetToken && (
+                <div>
+                  <label className="block text-xs glass-muted mb-1">Токен из ссылки</label>
+                  <input
+                    type="text"
+                    value={resetToken}
+                    onChange={(e) => setResetToken(e.target.value)}
+                    className="glass-input"
+                    required
+                  />
+                </div>
+              )}
+            </>
           )}
           {mode === 'register' && registerStep === 'confirm' && (
             <div>
@@ -192,11 +297,19 @@ export default function LoginPage(): JSX.Element {
                 ? registerStep === 'request'
                   ? 'Отправка кода...'
                   : 'Подтверждение...'
+                : mode === 'reset'
+                  ? resetStep === 'request'
+                    ? 'Отправка ссылки...'
+                    : 'Сохранение...'
                 : 'Вход...'
               : mode === 'register'
                 ? registerStep === 'request'
                   ? 'Получить код'
                   : 'Подтвердить и создать аккаунт'
+                : mode === 'reset'
+                  ? resetStep === 'request'
+                    ? 'Отправить ссылку для сброса'
+                    : 'Сбросить пароль'
                 : 'Войти'}
           </button>
           {mode === 'register' && registerStep === 'confirm' && (
@@ -222,6 +335,19 @@ export default function LoginPage(): JSX.Element {
             </button>
           )}
         </form>
+        {mode === 'reset' && resetStep === 'request' && (
+          <button
+            type="button"
+            className="w-full glass-btn-soft disabled:opacity-60"
+            onClick={() => {
+              setError(null);
+              setNotice(null);
+              setResetStep('confirm');
+            }}
+          >
+            У меня уже есть ссылка
+          </button>
+        )}
 
         {mode === 'register' && (
           <div className="text-[11px] text-ink-muted leading-relaxed">
