@@ -62,6 +62,13 @@ const confirmSecurityPasswordChangeSchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/),
 });
 
+const updateSecuritySettingsSchema = z.object({
+  primaryLoginMethod: z.enum(['PASSWORD', 'PASSWORD_TOTP']).optional(),
+  allowImageLogin: z.boolean().optional(),
+  allowMessengerLogin: z.boolean().optional(),
+  allowQrLogin: z.boolean().optional(),
+});
+
 function generateRefreshToken() {
   return crypto.randomBytes(48).toString('hex');
 }
@@ -718,7 +725,12 @@ router.get('/security/overview', requireAuth, async (req, res) => {
 
   const [settingsResult, sessionsResult] = await Promise.all([
     query(
-      `SELECT two_factor_enabled AS "twoFactorEnabled", trusted_device_days AS "trustedDeviceDays"
+      `SELECT two_factor_enabled AS "twoFactorEnabled",
+              trusted_device_days AS "trustedDeviceDays",
+              primary_login_method AS "primaryLoginMethod",
+              allow_image_login AS "allowImageLogin",
+              allow_messenger_login AS "allowMessengerLogin",
+              allow_qr_login AS "allowQrLogin"
        FROM user_security_settings
        WHERE user_id = $1
        LIMIT 1`,
@@ -734,12 +746,106 @@ router.get('/security/overview', requireAuth, async (req, res) => {
     ),
   ]);
 
-  const settings = settingsResult.rows[0] || { twoFactorEnabled: false, trustedDeviceDays: 0 };
+  if (!settingsResult.rows.length) {
+    await query(
+      `INSERT INTO user_security_settings (user_id, created_at, updated_at)
+       VALUES ($1, NOW(), NOW())
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userId],
+    );
+  }
+  const settings = settingsResult.rows[0] || {
+    twoFactorEnabled: false,
+    trustedDeviceDays: 0,
+    primaryLoginMethod: 'PASSWORD',
+    allowImageLogin: false,
+    allowMessengerLogin: false,
+    allowQrLogin: false,
+  };
+  const eventsResult = await query(
+    `SELECT action, severity, created_at AS "createdAt", metadata
+     FROM audit_logs
+     WHERE user_id = $1
+       AND action IN (
+         'USER_LOGIN',
+         'USER_LOGIN_FAILED',
+         'USER_PASSWORD_CHANGE',
+         'USER_PASSWORD_RESET_REQUEST',
+         'USER_PASSWORD_RESET_CONFIRM',
+         'USER_PASSWORD_RESET_CONFIRM',
+         'USER_PASSWORD_RESET_REQUEST'
+       )
+     ORDER BY created_at DESC
+     LIMIT 30`,
+    [userId],
+  );
   return res.json({
     twoFactorEnabled: Boolean(settings.twoFactorEnabled),
     trustedDeviceDays: Number(settings.trustedDeviceDays) || 0,
+    primaryLoginMethod: settings.primaryLoginMethod || 'PASSWORD',
+    allowImageLogin: Boolean(settings.allowImageLogin),
+    allowMessengerLogin: Boolean(settings.allowMessengerLogin),
+    allowQrLogin: Boolean(settings.allowQrLogin),
     sessions: sessionsResult.rows,
+    events: eventsResult.rows,
   });
+});
+
+router.post('/security/settings', requireAuth, async (req, res) => {
+  const userId = Number(req.user?.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+  const parsed = updateSecuritySettingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+    return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+  }
+
+  const incoming = parsed.data;
+  const currentResult = await query(
+    `SELECT two_factor_enabled AS "twoFactorEnabled",
+            primary_login_method AS "primaryLoginMethod",
+            allow_image_login AS "allowImageLogin",
+            allow_messenger_login AS "allowMessengerLogin",
+            allow_qr_login AS "allowQrLogin"
+     FROM user_security_settings
+     WHERE user_id = $1
+     LIMIT 1`,
+    [userId],
+  );
+  const current = currentResult.rows[0] || {
+    twoFactorEnabled: false,
+    primaryLoginMethod: 'PASSWORD',
+    allowImageLogin: false,
+    allowMessengerLogin: false,
+    allowQrLogin: false,
+  };
+  const nextPrimary = incoming.primaryLoginMethod ?? current.primaryLoginMethod;
+  if (nextPrimary === 'PASSWORD_TOTP' && !current.twoFactorEnabled) {
+    return res.status(400).json({ message: 'Для входа с одноразовым кодом сначала включите 2FA' });
+  }
+  await query(
+    `INSERT INTO user_security_settings (
+       user_id, primary_login_method, allow_image_login, allow_messenger_login, allow_qr_login, created_at, updated_at
+     )
+     VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+     ON CONFLICT (user_id)
+     DO UPDATE SET
+       primary_login_method = EXCLUDED.primary_login_method,
+       allow_image_login = EXCLUDED.allow_image_login,
+       allow_messenger_login = EXCLUDED.allow_messenger_login,
+       allow_qr_login = EXCLUDED.allow_qr_login,
+       updated_at = NOW()`,
+    [
+      userId,
+      nextPrimary,
+      incoming.allowImageLogin ?? current.allowImageLogin,
+      incoming.allowMessengerLogin ?? current.allowMessengerLogin,
+      incoming.allowQrLogin ?? current.allowQrLogin,
+    ],
+  );
+  return res.json({ ok: true });
 });
 
 router.post('/security/sessions/revoke-all-others', requireAuth, async (req, res) => {
@@ -1167,15 +1273,16 @@ router.post('/login', async (req, res) => {
     }
 
     const securitySettingsResult = await query(
-      `SELECT two_factor_enabled AS "twoFactorEnabled"
+      `SELECT two_factor_enabled AS "twoFactorEnabled", primary_login_method AS "primaryLoginMethod"
        FROM user_security_settings
        WHERE user_id = $1
        LIMIT 1`,
       [user.id],
     );
     const twoFactorEnabled = Boolean(securitySettingsResult.rows[0]?.twoFactorEnabled);
+    const primaryLoginMethod = securitySettingsResult.rows[0]?.primaryLoginMethod || 'PASSWORD';
 
-    if (twoFactorEnabled) {
+    if (twoFactorEnabled && primaryLoginMethod === 'PASSWORD_TOTP') {
       const challengeToken = crypto.randomBytes(24).toString('hex');
       const challengeHash = hashOneTimeToken(challengeToken);
       const now = new Date();

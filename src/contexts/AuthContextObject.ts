@@ -17,8 +17,19 @@ export interface AuthContextValue {
   getSecurityOverview: () => Promise<{
     twoFactorEnabled: boolean;
     trustedDeviceDays: number;
+    primaryLoginMethod: 'PASSWORD' | 'PASSWORD_TOTP';
+    allowImageLogin: boolean;
+    allowMessengerLogin: boolean;
+    allowQrLogin: boolean;
     sessions: Array<{ id: string; userAgent?: string; ipAddress?: string; createdAt: string; expiresAt: string; revokedAt?: string | null }>;
+    events: Array<{ action: string; severity: string; createdAt: string; metadata?: Record<string, unknown> }>;
   }>;
+  updateSecuritySettings: (payload: {
+    primaryLoginMethod?: 'PASSWORD' | 'PASSWORD_TOTP';
+    allowImageLogin?: boolean;
+    allowMessengerLogin?: boolean;
+    allowQrLogin?: boolean;
+  }) => Promise<void>;
   requestSecurePasswordChange: (oldPassword: string, newPassword: string) => Promise<void>;
   confirmSecurePasswordChange: (code: string) => Promise<void>;
   setupTwoFactor: () => Promise<{ secret: string; otpauthUrl: string }>;

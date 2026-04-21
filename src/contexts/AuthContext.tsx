@@ -138,8 +138,31 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     return data as {
       twoFactorEnabled: boolean;
       trustedDeviceDays: number;
+      primaryLoginMethod: 'PASSWORD' | 'PASSWORD_TOTP';
+      allowImageLogin: boolean;
+      allowMessengerLogin: boolean;
+      allowQrLogin: boolean;
       sessions: Array<{ id: string; userAgent?: string; ipAddress?: string; createdAt: string; expiresAt: string; revokedAt?: string | null }>;
+      events: Array<{ action: string; severity: string; createdAt: string; metadata?: Record<string, unknown> }>;
     };
+  }, []);
+
+  const updateSecuritySettings = useCallback(async (payload: {
+    primaryLoginMethod?: 'PASSWORD' | 'PASSWORD_TOTP';
+    allowImageLogin?: boolean;
+    allowMessengerLogin?: boolean;
+    allowQrLogin?: boolean;
+  }) => {
+    const res = await fetch(getApiUrl('/api/auth/security/settings'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data as { message?: string }).message ?? 'Не удалось обновить настройки безопасности');
+    }
   }, []);
 
   const requestSecurePasswordChange = useCallback(async (oldPassword: string, newPassword: string) => {
@@ -285,6 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       requestRegistrationCode,
       confirmRegistration,
       getSecurityOverview,
+      updateSecuritySettings,
       requestSecurePasswordChange,
       confirmSecurePasswordChange,
       setupTwoFactor,
@@ -303,6 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       requestRegistrationCode,
       confirmRegistration,
       getSecurityOverview,
+      updateSecuritySettings,
       requestSecurePasswordChange,
       confirmSecurePasswordChange,
       setupTwoFactor,

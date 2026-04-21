@@ -200,10 +200,19 @@ CREATE TABLE IF NOT EXISTS user_security_settings (
   two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   two_factor_secret_enc TEXT,
   two_factor_enabled_at TIMESTAMPTZ,
+  primary_login_method TEXT NOT NULL DEFAULT 'PASSWORD',
+  allow_image_login BOOLEAN NOT NULL DEFAULT FALSE,
+  allow_messenger_login BOOLEAN NOT NULL DEFAULT FALSE,
+  allow_qr_login BOOLEAN NOT NULL DEFAULT FALSE,
   trusted_device_days INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE user_security_settings ADD COLUMN IF NOT EXISTS primary_login_method TEXT NOT NULL DEFAULT 'PASSWORD';
+ALTER TABLE user_security_settings ADD COLUMN IF NOT EXISTS allow_image_login BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE user_security_settings ADD COLUMN IF NOT EXISTS allow_messenger_login BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE user_security_settings ADD COLUMN IF NOT EXISTS allow_qr_login BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS two_factor_recovery_codes (
   id BIGSERIAL PRIMARY KEY,

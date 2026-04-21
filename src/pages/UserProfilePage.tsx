@@ -24,6 +24,7 @@ export default function UserProfilePage(): JSX.Element {
     regenerateRecoveryCodes,
     revokeSession,
     revokeAllOtherSessions,
+    updateSecuritySettings,
   } = useAuth();
 
   const [oldPassword, setOldPassword] = useState('');
@@ -36,7 +37,12 @@ export default function UserProfilePage(): JSX.Element {
   const [disableRecoveryCode, setDisableRecoveryCode] = useState('');
   const [latestRecoveryCodes, setLatestRecoveryCodes] = useState<string[]>([]);
   const [sessions, setSessions] = useState<Array<{ id: string; userAgent?: string; ipAddress?: string; createdAt: string; expiresAt: string; revokedAt?: string | null }>>([]);
+  const [events, setEvents] = useState<Array<{ action: string; severity: string; createdAt: string; metadata?: Record<string, unknown> }>>([]);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [primaryLoginMethod, setPrimaryLoginMethod] = useState<'PASSWORD' | 'PASSWORD_TOTP'>('PASSWORD');
+  const [allowImageLogin, setAllowImageLogin] = useState(false);
+  const [allowMessengerLogin, setAllowMessengerLogin] = useState(false);
+  const [allowQrLogin, setAllowQrLogin] = useState(false);
   const [pendingPasswordChange, setPendingPasswordChange] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -50,6 +56,11 @@ export default function UserProfilePage(): JSX.Element {
         if (cancelled) return;
         setSessions(overview.sessions);
         setTwoFactorEnabled(overview.twoFactorEnabled);
+        setPrimaryLoginMethod(overview.primaryLoginMethod);
+        setAllowImageLogin(overview.allowImageLogin);
+        setAllowMessengerLogin(overview.allowMessengerLogin);
+        setAllowQrLogin(overview.allowQrLogin);
+        setEvents(overview.events);
       } catch {
         if (!cancelled) {
           setError('Не удалось загрузить раздел безопасности');
@@ -89,6 +100,18 @@ export default function UserProfilePage(): JSX.Element {
   }
 
   const displayName = user?.fullName ?? user?.email ?? 'Пользователь';
+  const primaryMethodLabel = primaryLoginMethod === 'PASSWORD_TOTP' ? 'Пароль + одноразовый код' : 'Обычный пароль';
+
+  async function refreshSecurity(): Promise<void> {
+    const overview = await getSecurityOverview();
+    setSessions(overview.sessions);
+    setTwoFactorEnabled(overview.twoFactorEnabled);
+    setPrimaryLoginMethod(overview.primaryLoginMethod);
+    setAllowImageLogin(overview.allowImageLogin);
+    setAllowMessengerLogin(overview.allowMessengerLogin);
+    setAllowQrLogin(overview.allowQrLogin);
+    setEvents(overview.events);
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-5 page-enter">
@@ -147,11 +170,115 @@ export default function UserProfilePage(): JSX.Element {
           </div>
         </div>
 
-        <div className="glass-panel p-5">
-          <div className="glass-kicker">Безопасность аккаунта</div>
-          <div className="mt-3 text-xs glass-muted">
-            Статус 2FA: <span className="font-semibold">{twoFactorEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}</span>
+        <div className="glass-panel p-5 space-y-5">
+          <div>
+            <div className="glass-kicker">Безопасность</div>
+            <h2 className="text-2xl font-semibold text-ink mt-1">Максимум защиты</h2>
+            <p className="text-xs glass-muted mt-1">Настройте способы входа и контроль доступа как на крупных площадках.</p>
           </div>
+
+          <div className="rounded-xl border border-black/[0.08] bg-white/70 p-4 space-y-3">
+            <div className="text-sm font-semibold text-ink">Способы входа</div>
+            <div className="flex items-center justify-between rounded-lg border border-black/[0.06] p-3">
+              <div>
+                <div className="text-xs glass-muted">Основной способ</div>
+                <div className="text-sm font-medium">{primaryMethodLabel}</div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`glass-btn-soft !h-8 !px-3 !text-xs ${primaryLoginMethod === 'PASSWORD' ? 'ring-1 ring-black/20' : ''}`}
+                  onClick={async () => {
+                    try {
+                      await updateSecuritySettings({ primaryLoginMethod: 'PASSWORD' });
+                      await refreshSecurity();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Не удалось обновить способ входа');
+                    }
+                  }}
+                >
+                  Обычный пароль
+                </button>
+                <button
+                  type="button"
+                  className={`glass-btn-soft !h-8 !px-3 !text-xs ${primaryLoginMethod === 'PASSWORD_TOTP' ? 'ring-1 ring-[#2f7d32]/40' : ''}`}
+                  onClick={async () => {
+                    try {
+                      await updateSecuritySettings({ primaryLoginMethod: 'PASSWORD_TOTP' });
+                      await refreshSecurity();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Не удалось обновить способ входа');
+                    }
+                  }}
+                >
+                  Пароль + одноразовый код
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-3">
+              <label className="flex items-center justify-between rounded-lg border border-black/[0.06] p-3 text-xs">
+                <span>Вход по картинке</span>
+                <input
+                  type="checkbox"
+                  checked={allowImageLogin}
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    setAllowImageLogin(checked);
+                    try {
+                      await updateSecuritySettings({ allowImageLogin: checked });
+                    } catch (err) {
+                      setAllowImageLogin(!checked);
+                      setError(err instanceof Error ? err.message : 'Не удалось обновить настройку');
+                    }
+                  }}
+                />
+              </label>
+              <label className="flex items-center justify-between rounded-lg border border-black/[0.06] p-3 text-xs">
+                <span>Вход через мессенджер</span>
+                <input
+                  type="checkbox"
+                  checked={allowMessengerLogin}
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    setAllowMessengerLogin(checked);
+                    try {
+                      await updateSecuritySettings({ allowMessengerLogin: checked });
+                    } catch (err) {
+                      setAllowMessengerLogin(!checked);
+                      setError(err instanceof Error ? err.message : 'Не удалось обновить настройку');
+                    }
+                  }}
+                />
+              </label>
+              <label className="flex items-center justify-between rounded-lg border border-black/[0.06] p-3 text-xs">
+                <span>Вход с помощью QR-кода</span>
+                <input
+                  type="checkbox"
+                  checked={allowQrLogin}
+                  onChange={async (e) => {
+                    const checked = e.target.checked;
+                    setAllowQrLogin(checked);
+                    try {
+                      await updateSecuritySettings({ allowQrLogin: checked });
+                    } catch (err) {
+                      setAllowQrLogin(!checked);
+                      setError(err instanceof Error ? err.message : 'Не удалось обновить настройку');
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <div className="text-[11px] glass-muted">
+              Сейчас SMS отключен по вашему требованию. Одноразовый код — через Google Authenticator.
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-black/[0.08] bg-white/70 p-4 space-y-3">
+            <div className="text-sm font-semibold text-ink">Google Authenticator (одноразовый код)</div>
+            <div className="text-xs glass-muted">
+              Статус 2FA: <span className="font-semibold">{twoFactorEnabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН'}</span>
+            </div>
           {!twoFactorEnabled ? (
             <div className="mt-4 space-y-3">
               <button
@@ -288,9 +415,21 @@ export default function UserProfilePage(): JSX.Element {
             </div>
           )}
         </div>
+        </div>
 
         <div className="glass-panel p-5">
-          <div className="glass-kicker">Сессии</div>
+          <div className="glass-kicker">Контроль доступа</div>
+          <div className="mt-3 text-sm font-semibold text-ink">События</div>
+          <div className="mt-2 space-y-2">
+            {events.length === 0 && <div className="text-xs glass-muted">Пока нет событий безопасности.</div>}
+            {events.slice(0, 8).map((event, idx) => (
+              <div key={`${event.action}-${idx}`} className="rounded-lg border border-black/[0.06] p-2 text-xs flex items-center justify-between">
+                <span>{event.action}</span>
+                <span className="glass-muted">{new Date(event.createdAt).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 text-sm font-semibold text-ink">Ваши устройства</div>
           <div className="mt-3 space-y-2">
             <button
               type="button"
@@ -299,8 +438,7 @@ export default function UserProfilePage(): JSX.Element {
                 setError(null);
                 try {
                   await revokeAllOtherSessions();
-                  const overview = await getSecurityOverview();
-                  setSessions(overview.sessions);
+                  await refreshSecurity();
                   setSuccess('Все другие сессии завершены.');
                 } catch (err) {
                   setError(err instanceof Error ? err.message : 'Не удалось завершить сессии');
@@ -323,8 +461,7 @@ export default function UserProfilePage(): JSX.Element {
                       setError(null);
                       try {
                         await revokeSession(session.id);
-                        const overview = await getSecurityOverview();
-                        setSessions(overview.sessions);
+                        await refreshSecurity();
                       } catch (err) {
                         setError(err instanceof Error ? err.message : 'Не удалось завершить сессию');
                       }
