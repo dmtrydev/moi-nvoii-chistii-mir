@@ -59,8 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     return payload.user;
   }, []);
 
-  const register = useCallback(async (email: string, password: string, fullName: string) => {
-    const res = await fetch(getApiUrl('/api/auth/register'), {
+  const requestRegistrationCode = useCallback(async (email: string, password: string, fullName: string) => {
+    const res = await fetch(getApiUrl('/api/auth/register/request-code'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -69,7 +69,21 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error((data as { message?: string }).message ?? 'Ошибка регистрации');
+      throw new Error((data as { message?: string }).message ?? 'Ошибка отправки кода подтверждения');
+    }
+  }, []);
+
+  const confirmRegistration = useCallback(async (email: string, code: string) => {
+    const res = await fetch(getApiUrl('/api/auth/register/confirm'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, code }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data as { message?: string }).message ?? 'Ошибка подтверждения регистрации');
     }
 
     const payload = data as { user: AuthUser };
@@ -122,8 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   }, [user, refreshSession]);
 
   const value = useMemo(
-    () => ({ user, isReady, login, register, logout }),
-    [user, isReady, login, register, logout],
+    () => ({ user, isReady, login, requestRegistrationCode, confirmRegistration, logout }),
+    [user, isReady, login, requestRegistrationCode, confirmRegistration, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

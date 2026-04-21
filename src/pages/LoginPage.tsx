@@ -5,15 +5,18 @@ import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopN
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
 export default function LoginPage(): JSX.Element {
-  const { login, register } = useAuth();
+  const { login, requestRegistrationCode, confirmRegistration } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [registerStep, setRegisterStep] = useState<'request' | 'confirm'>('request');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function redirectAfterAuth(authUser: { role: string }): Promise<void> {
@@ -28,6 +31,7 @@ export default function LoginPage(): JSX.Element {
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     if (mode === 'register' && !consentAccepted) {
       setError('Для регистрации нужно подтвердить согласие на обработку персональных данных.');
       return;
@@ -35,7 +39,13 @@ export default function LoginPage(): JSX.Element {
     setLoading(true);
     try {
       if (mode === 'register') {
-        const created = await register(email, password, fullName);
+        if (registerStep === 'request') {
+          await requestRegistrationCode(email, password, fullName);
+          setRegisterStep('confirm');
+          setNotice('Код отправлен на ваш email. Введите его для завершения регистрации.');
+          return;
+        }
+        const created = await confirmRegistration(email, verificationCode);
         await redirectAfterAuth(created);
         return;
       }
@@ -65,6 +75,8 @@ export default function LoginPage(): JSX.Element {
             onClick={() => {
               setMode('login');
               setError(null);
+              setNotice(null);
+              setRegisterStep('request');
             }}
             className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'login'
@@ -79,6 +91,7 @@ export default function LoginPage(): JSX.Element {
             onClick={() => {
               setMode('register');
               setError(null);
+              setNotice(null);
             }}
             className={`flex-1 h-11 rounded-2xl text-sm font-semibold transition-all ${
               mode === 'register'
@@ -102,7 +115,7 @@ export default function LoginPage(): JSX.Element {
             />
           </div>
 
-          {mode === 'register' && (
+          {mode === 'register' && registerStep === 'request' && (
             <div>
               <label className="block text-xs glass-muted mb-1">Имя и фамилия</label>
               <input
@@ -116,18 +129,35 @@ export default function LoginPage(): JSX.Element {
             </div>
           )}
 
-          <div>
-            <label className="block text-xs glass-muted mb-1">Пароль</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="glass-input"
-              required
-              minLength={8}
-            />
-          </div>
-          {mode === 'register' && (
+          {(mode === 'login' || registerStep === 'request') && (
+            <div>
+              <label className="block text-xs glass-muted mb-1">Пароль</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="glass-input"
+                required
+                minLength={8}
+              />
+            </div>
+          )}
+          {mode === 'register' && registerStep === 'confirm' && (
+            <div>
+              <label className="block text-xs glass-muted mb-1">Код подтверждения</label>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="glass-input"
+                required
+                minLength={6}
+                maxLength={6}
+                inputMode="numeric"
+              />
+            </div>
+          )}
+          {mode === 'register' && registerStep === 'request' && (
             <label className="flex items-start gap-2.5 rounded-xl border border-black/[0.06] bg-[#ffffff70] p-3">
               <input
                 type="checkbox"
@@ -150,14 +180,47 @@ export default function LoginPage(): JSX.Element {
               </span>
             </label>
           )}
+          {notice && <div className="text-xs text-[#1f5c14]">{notice}</div>}
           {error && <div className="text-xs glass-danger">{error}</div>}
           <button
             type="submit"
             disabled={loading}
             className="w-full glass-btn-dark disabled:opacity-60"
           >
-            {loading ? (mode === 'register' ? 'Создание...' : 'Вход...') : mode === 'register' ? 'Создать аккаунт' : 'Войти'}
+            {loading
+              ? mode === 'register'
+                ? registerStep === 'request'
+                  ? 'Отправка кода...'
+                  : 'Подтверждение...'
+                : 'Вход...'
+              : mode === 'register'
+                ? registerStep === 'request'
+                  ? 'Получить код'
+                  : 'Подтвердить и создать аккаунт'
+                : 'Войти'}
           </button>
+          {mode === 'register' && registerStep === 'confirm' && (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={async () => {
+                setError(null);
+                setNotice(null);
+                setLoading(true);
+                try {
+                  await requestRegistrationCode(email, password, fullName);
+                  setNotice('Новый код отправлен на ваш email.');
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Не удалось отправить код повторно');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="w-full glass-btn-soft disabled:opacity-60"
+            >
+              Отправить код повторно
+            </button>
+          )}
         </form>
 
         {mode === 'register' && (

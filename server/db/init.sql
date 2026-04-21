@@ -165,6 +165,23 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
 
+CREATE TABLE IF NOT EXISTS email_verification_codes (
+  id BIGSERIAL PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  code_hash TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  attempts_used INTEGER NOT NULL DEFAULT 0,
+  resend_count INTEGER NOT NULL DEFAULT 1,
+  resend_window_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  consumed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verification_codes_expires_at ON email_verification_codes (expires_at);
+
 CREATE TABLE IF NOT EXISTS transactions (
   id BIGSERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

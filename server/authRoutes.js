@@ -13,6 +13,12 @@ const registerSchema = z.object({
   fullName: z.string().min(2).max(120),
 });
 
+const requestRegisterCodeSchema = registerSchema;
+const confirmRegisterCodeSchema = z.object({
+  email: z.string().email(),
+  code: z.string().trim().regex(/^\d{6}$/, 'Код должен содержать 6 цифр'),
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -29,6 +35,55 @@ function generateRefreshToken() {
 
 function getClientIp(req) {
   return String(req.ip || '').trim() || null;
+}
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function generateVerificationCode() {
+  return String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+function hashVerificationCode(code) {
+  const secret = process.env.EMAIL_OTP_SECRET || process.env.JWT_ACCESS_SECRET;
+  return crypto.createHmac('sha256', secret).update(code).digest('hex');
+}
+
+async function sendVerificationCodeEmail({ email, code }) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.SMTP_FROM || user;
+
+  if (!host || !user || !pass || !from) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[auth] Email verification code for ${email}: ${code}`);
+      return;
+    }
+    throw new Error('SMTP не настроен: задайте SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM');
+  }
+
+  let nodemailer;
+  try {
+    nodemailer = await import('nodemailer');
+  } catch {
+    throw new Error('Для SMTP-отправки установите зависимость nodemailer в server/package.json');
+  }
+  const transporter = nodemailer.default.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject: 'Код подтверждения регистрации',
+    text: `Ваш код подтверждения: ${code}. Код действителен 10 минут.`,
+  });
 }
 
 async function createSession({ userId, req }) {
@@ -68,9 +123,9 @@ function setAccessCookie(res, token) {
   });
 }
 
-router.post('/register', async (req, res) => {
+router.post('/register/request-code', async (req, res) => {
   try {
-    const parsed = registerSchema.safeParse(req.body);
+    const parsed = requestRegisterCodeSchema.safeParse(req.body);
     if (!parsed.success) {
       const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
       return res.status(400).json({
@@ -79,21 +134,150 @@ router.post('/register', async (req, res) => {
       });
     }
     const { email, password, fullName } = parsed.data;
+    const normalizedEmail = normalizeEmail(email);
+    const now = new Date();
+    const OTP_TTL_MS = 10 * 60 * 1000;
+    const RESEND_COOLDOWN_MS = 60 * 1000;
+    const RESEND_WINDOW_MS = 60 * 60 * 1000;
+    const MAX_RESEND_PER_WINDOW = 5;
 
-    const existing = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
+    const existing = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [normalizedEmail]);
     if (existing.rows.length) {
-      return res.status(409).json({ message: 'Пользователь с таким email уже существует' });
+      return res.json({ ok: true, message: 'Если email доступен, код будет отправлен' });
     }
 
     const passwordHash = await hashPassword(password);
+    const existingCode = await query(
+      `SELECT id, resend_count AS "resendCount", resend_window_started_at AS "windowStart", last_sent_at AS "lastSentAt"
+       FROM email_verification_codes
+       WHERE email = $1
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+
+    let resendCount = 1;
+    let windowStart = now;
+    if (existingCode.rows.length) {
+      const row = existingCode.rows[0];
+      const lastSentAt = new Date(row.lastSentAt);
+      if (now.getTime() - lastSentAt.getTime() < RESEND_COOLDOWN_MS) {
+        return res.status(429).json({ message: 'Повторная отправка возможна через 60 секунд' });
+      }
+      windowStart = new Date(row.windowStart);
+      if (now.getTime() - windowStart.getTime() > RESEND_WINDOW_MS) {
+        resendCount = 1;
+        windowStart = now;
+      } else {
+        resendCount = Number(row.resendCount) + 1;
+      }
+      if (resendCount > MAX_RESEND_PER_WINDOW) {
+        return res.status(429).json({ message: 'Превышен лимит отправки кода. Попробуйте позже' });
+      }
+    }
+
+    const code = generateVerificationCode();
+    const codeHash = hashVerificationCode(code);
+    const expiresAt = new Date(now.getTime() + OTP_TTL_MS);
+
+    await query(
+      `INSERT INTO email_verification_codes (
+         email, code_hash, password_hash, full_name, attempts_used, resend_count,
+         resend_window_started_at, expires_at, last_sent_at, consumed_at, created_at
+       )
+       VALUES ($1,$2,$3,$4,0,$5,$6,$7,$8,NULL,$8)
+       ON CONFLICT (email)
+       DO UPDATE SET
+         code_hash = EXCLUDED.code_hash,
+         password_hash = EXCLUDED.password_hash,
+         full_name = EXCLUDED.full_name,
+         attempts_used = 0,
+         resend_count = EXCLUDED.resend_count,
+         resend_window_started_at = EXCLUDED.resend_window_started_at,
+         expires_at = EXCLUDED.expires_at,
+         last_sent_at = EXCLUDED.last_sent_at,
+         consumed_at = NULL`,
+      [normalizedEmail, codeHash, passwordHash, fullName, resendCount, windowStart.toISOString(), expiresAt.toISOString(), now.toISOString()],
+    );
+
+    await sendVerificationCodeEmail({ email: normalizedEmail, code });
+
+    return res.status(201).json({
+      ok: true,
+      message: 'Код подтверждения отправлен на email',
+    });
+  } catch (err) {
+    console.error('register request-code error:', err);
+    return res.status(500).json({
+      message: err instanceof Error ? err.message : 'Ошибка отправки кода',
+    });
+  }
+});
+
+router.post('/register/confirm', async (req, res) => {
+  try {
+    const parsed = confirmRegisterCodeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные', issues: parsed.error.issues });
+    }
+
+    const { email, code } = parsed.data;
+    const normalizedEmail = normalizeEmail(email);
+    const now = new Date();
+    const MAX_ATTEMPTS = 5;
+
+    const pending = await query(
+      `SELECT id, email, code_hash AS "codeHash", password_hash AS "passwordHash", full_name AS "fullName",
+              attempts_used AS "attemptsUsed", expires_at AS "expiresAt", consumed_at AS "consumedAt"
+       FROM email_verification_codes
+       WHERE email = $1
+       LIMIT 1`,
+      [normalizedEmail],
+    );
+
+    if (!pending.rows.length) {
+      return res.status(400).json({ message: 'Код недействителен или истек' });
+    }
+
+    const row = pending.rows[0];
+    if (row.consumedAt || new Date(row.expiresAt) < now) {
+      return res.status(400).json({ message: 'Код недействителен или истек' });
+    }
+    if (Number(row.attemptsUsed) >= MAX_ATTEMPTS) {
+      return res.status(429).json({ message: 'Превышено количество попыток. Запросите новый код' });
+    }
+
+    const codeHash = hashVerificationCode(code);
+    if (codeHash !== row.codeHash) {
+      await query(
+        `UPDATE email_verification_codes
+         SET attempts_used = attempts_used + 1
+         WHERE id = $1`,
+        [row.id],
+      );
+      return res.status(400).json({ message: 'Неверный код подтверждения' });
+    }
+
+    const existing = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [normalizedEmail]);
+    if (existing.rows.length) {
+      await query('DELETE FROM email_verification_codes WHERE id = $1', [row.id]);
+      return res.status(409).json({ message: 'Пользователь с таким email уже существует' });
+    }
+
     const inserted = await query(
       `INSERT INTO users (email, password_hash, full_name, role)
        VALUES ($1,$2,$3,$4)
        RETURNING id, email, full_name AS "fullName", role`,
-      [email, passwordHash, fullName, 'USER'],
+      [normalizedEmail, row.passwordHash, row.fullName, 'USER'],
     );
-
     const user = inserted.rows[0];
+
+    await query(
+      `UPDATE email_verification_codes
+       SET consumed_at = NOW()
+       WHERE id = $1`,
+      [row.id],
+    );
 
     await createAuditLog({
       req,
@@ -109,13 +293,11 @@ router.post('/register', async (req, res) => {
     setRefreshCookie(res, refreshToken, expiresAt);
     setAccessCookie(res, accessToken);
 
-    return res.status(201).json({
-      user,
-    });
+    return res.status(201).json({ user });
   } catch (err) {
-    console.error('register error:', err);
+    console.error('register confirm error:', err);
     return res.status(500).json({
-      message: err instanceof Error ? err.message : 'Ошибка регистрации',
+      message: err instanceof Error ? err.message : 'Ошибка подтверждения регистрации',
     });
   }
 });
