@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 import pdfPlaceholderIcon from '@/assets/upload/pdf-placeholder.svg';
-import uploadBackground from '@/assets/home-landing/home-map-background.webp';
+import uploadBackground from '@/assets/home-landing/hero-background.png';
 
 export default function UploadPage(): JSX.Element {
   const fileInputId = useId();
