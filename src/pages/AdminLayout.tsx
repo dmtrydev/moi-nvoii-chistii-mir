@@ -23,9 +23,9 @@ export default function AdminLayout(): JSX.Element {
   ];
 
   return (
-    <div className="min-h-screen glass-bg text-ink p-4 md:p-6 page-enter">
-      <div className="glass-shell min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-3rem)] flex overflow-hidden">
-        <aside className="w-[280px] shrink-0 bg-sidebar flex flex-col gap-6 p-5 md:p-6 border-r border-white/[0.06]">
+    <div className="min-h-screen text-ink p-3 md:p-4 page-enter">
+      <div className="relative min-h-[calc(100vh-1.5rem)] md:min-h-[calc(100vh-2rem)] flex gap-3 overflow-hidden rounded-[28px] border border-white/55 bg-white/20 backdrop-blur-[8px]">
+        <aside className="w-[280px] shrink-0 flex flex-col gap-6 p-5 md:p-6 rounded-[24px] bg-[#17191c]/92 border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/50">Система управления</div>
             <div className="mt-2 text-xl font-semibold tracking-tight text-white">Личный кабинет</div>
@@ -93,7 +93,7 @@ export default function AdminLayout(): JSX.Element {
             </Link>
           </div>
         </aside>
-        <main className="flex-1 min-w-0 bg-app-bg p-6 md:p-8 lg:p-10 overflow-auto brand-scroll">
+        <main className="flex-1 min-w-0 rounded-[24px] bg-white/28 p-3 md:p-4 overflow-auto brand-scroll backdrop-blur-[14px] border border-white/50">
           <Outlet />
         </main>
       </div>

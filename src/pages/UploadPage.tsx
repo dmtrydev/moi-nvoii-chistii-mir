@@ -50,19 +50,19 @@ export default function UploadPage(): JSX.Element {
   };
 
   return (
-    <SitePublicPageShell className="relative overflow-hidden">
+    <SitePublicPageShell className="relative min-h-full overflow-hidden rounded-[24px]">
       <img
-        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-40"
+        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-80"
         alt=""
         aria-hidden="true"
         src={uploadBackground}
       />
       <SiteFrameWithTopNav>
-        <div className="relative mx-4 mt-6 min-h-[calc(100vh-130px)] text-ink">
-          <div className="grid min-h-[calc(100vh-160px)] grid-cols-[455px_1fr] gap-10">
-            <aside className="glass-panel rounded-[32px]" />
-            <section className="glass-panel rounded-[32px] p-10">
-              <div className="mx-auto mt-14 w-full max-w-[935px] rounded-[32px] border border-white/60 bg-white/45 p-8 backdrop-blur-xl">
+        <div className="relative mx-4 mt-4 min-h-[calc(100vh-180px)] text-ink">
+          <div className="grid min-h-[calc(100vh-210px)] grid-cols-[280px_1fr] gap-3">
+            <aside className="rounded-[24px] border border-white/55 bg-white/28 backdrop-blur-[14px]" />
+            <section className="rounded-[24px] border border-white/55 bg-white/28 p-5 backdrop-blur-[14px]">
+              <div className="mx-auto mt-6 w-full max-w-[900px] rounded-[32px] border border-white/60 bg-white/22 p-8 backdrop-blur-[10px]">
                 <label
                   htmlFor={fileInputId}
                   onDragEnter={handleDragEnter}
@@ -71,7 +71,7 @@ export default function UploadPage(): JSX.Element {
                   onDrop={handleDrop}
                   onKeyDown={handleKeyDown}
                   tabIndex={0}
-                  className={`flex cursor-pointer flex-col items-center gap-9 rounded-[32px] border border-white/50 px-8 py-12 transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white ${
+                  className={`flex cursor-pointer flex-col items-center gap-9 rounded-[32px] border-2 border-dashed border-white/70 bg-white/10 px-8 py-12 transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white ${
                     isDragOver ? 'scale-[1.01]' : ''
                   }`}
                   aria-describedby="upload-description upload-status"
@@ -83,7 +83,7 @@ export default function UploadPage(): JSX.Element {
                     className="sr-only"
                     onChange={handleFileChange}
                   />
-                  <div className="flex h-[136px] w-[136px] items-center justify-center rounded-full border border-white/60 bg-white/55 backdrop-blur-xl">
+                  <div className="flex h-[136px] w-[136px] items-center justify-center rounded-full border border-white/70 bg-white/40 backdrop-blur-xl">
                     <img
                       className="h-14 w-[49px]"
                       alt=""
@@ -98,10 +98,7 @@ export default function UploadPage(): JSX.Element {
                     >
                       {selectedFileName || 'перетащите сюда лицензию в pdf'}
                     </p>
-                    <p
-                      id="upload-description"
-                      className="text-center font-['Nunito-SemiBold',Helvetica] text-lg font-semibold text-[#5e6567]"
-                    >
+                    <p id="upload-description" className="text-center font-['Nunito-SemiBold',Helvetica] text-lg font-semibold text-[#5e6567]">
                       или нажмите, чтобы выбрать файл
                     </p>
                     <p id="upload-status" className="sr-only" aria-live="polite">
