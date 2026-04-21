@@ -47,7 +47,7 @@ export default function UploadPage(): JSX.Element {
   };
 
   return (
-    <div className="mx-auto mt-4 w-full max-w-[900px] rounded-[32px] border border-white/60 bg-white/22 p-8 backdrop-blur-[10px]">
+    <div className="mx-auto mt-6 w-full max-w-[920px] rounded-[32px] border border-white/60 bg-white/22 p-9 backdrop-blur-[10px]">
       <label
         htmlFor={fileInputId}
         onDragEnter={handleDragEnter}
@@ -56,7 +56,7 @@ export default function UploadPage(): JSX.Element {
         onDrop={handleDrop}
         onKeyDown={handleKeyDown}
         tabIndex={0}
-        className={`flex cursor-pointer flex-col items-center gap-9 rounded-[32px] border-2 border-dashed border-white/70 bg-white/10 px-8 py-12 transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white ${
+        className={`flex cursor-pointer flex-col items-center gap-9 rounded-[32px] border-2 border-dashed border-white/70 bg-white/10 px-9 py-12 transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white ${
           isDragOver ? 'scale-[1.01]' : ''
         }`}
         aria-describedby="upload-description upload-status"
