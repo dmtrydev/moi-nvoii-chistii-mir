@@ -50,7 +50,7 @@ export default function UploadPage(): JSX.Element {
   };
 
   return (
-    <SitePublicPageShell className="relative min-h-full overflow-hidden rounded-[24px]">
+    <SitePublicPageShell className="relative min-h-screen overflow-hidden">
       <img
         className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-80"
         alt=""
@@ -58,11 +58,11 @@ export default function UploadPage(): JSX.Element {
         src={uploadBackground}
       />
       <SiteFrameWithTopNav>
-        <div className="relative mx-4 mt-4 min-h-[calc(100vh-180px)] text-ink">
-          <div className="grid min-h-[calc(100vh-210px)] grid-cols-[280px_1fr] gap-3">
+        <div className="relative mr-3 mt-0 min-h-[calc(100vh-120px)] text-ink">
+          <div className="grid min-h-[calc(100vh-140px)] grid-cols-[280px_1fr] gap-3">
             <aside className="rounded-[24px] border border-white/55 bg-white/28 backdrop-blur-[14px]" />
             <section className="rounded-[24px] border border-white/55 bg-white/28 p-5 backdrop-blur-[14px]">
-              <div className="mx-auto mt-6 w-full max-w-[900px] rounded-[32px] border border-white/60 bg-white/22 p-8 backdrop-blur-[10px]">
+              <div className="mx-auto mt-4 w-full max-w-[900px] rounded-[32px] border border-white/60 bg-white/22 p-8 backdrop-blur-[10px]">
                 <label
                   htmlFor={fileInputId}
                   onDragEnter={handleDragEnter}
