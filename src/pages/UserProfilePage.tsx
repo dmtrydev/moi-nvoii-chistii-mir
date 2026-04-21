@@ -167,10 +167,18 @@ export default function UserProfilePage(): JSX.Element {
               </button>
               {totpSetupSecret && (
                 <div className="rounded-xl border border-black/[0.08] bg-white/70 p-3 space-y-2">
+                  <div className="text-xs glass-muted">QR для Google Authenticator:</div>
+                  <div className="flex justify-center">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(totpSetupUrl)}`}
+                      alt="QR код для настройки Google Authenticator"
+                      width={220}
+                      height={220}
+                      className="rounded-lg border border-black/[0.08] bg-white p-2"
+                    />
+                  </div>
                   <div className="text-xs glass-muted">Секрет для ручного ввода:</div>
                   <div className="font-mono text-sm break-all">{totpSetupSecret}</div>
-                  <div className="text-xs glass-muted">Ссылка для QR:</div>
-                  <div className="text-[11px] break-all">{totpSetupUrl}</div>
                   <input
                     type="text"
                     className="glass-input"
