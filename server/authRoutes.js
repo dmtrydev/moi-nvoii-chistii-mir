@@ -969,6 +969,30 @@ router.post('/security/2fa/setup', requireAuth, async (req, res) => {
   return res.json({ secret, otpauthUrl });
 });
 
+router.get('/security/2fa/qr', requireAuth, async (req, res) => {
+  try {
+    const otpauth = String(req.query.otpauth || '').trim();
+    if (!otpauth.startsWith('otpauth://')) {
+      return res.status(400).json({ message: 'Некорректный параметр otpauth' });
+    }
+
+    const upstream = `https://quickchart.io/qr?size=220&text=${encodeURIComponent(otpauth)}`;
+    const response = await fetch(upstream);
+    if (!response.ok) {
+      return res.status(502).json({ message: 'Не удалось сгенерировать QR-код' });
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(imageBuffer);
+  } catch (err) {
+    console.error('2fa qr error:', err);
+    return res.status(500).json({ message: 'Ошибка генерации QR-кода' });
+  }
+});
+
 router.post('/security/2fa/enable', requireAuth, async (req, res) => {
   const parsed = setup2faEnableSchema.safeParse(req.body);
   if (!parsed.success) {

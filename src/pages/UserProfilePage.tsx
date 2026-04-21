@@ -4,6 +4,13 @@ import { useAuth } from '@/contexts/useAuth';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import { openCookieSettings } from '@/lib/metrika';
 
+const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
+
+function getApiUrl(path: string): string {
+  const base = API_BASE.replace(/\/$/, '');
+  return base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
+}
+
 export default function UserProfilePage(): JSX.Element {
   const {
     user,
@@ -170,7 +177,7 @@ export default function UserProfilePage(): JSX.Element {
                   <div className="text-xs glass-muted">QR для Google Authenticator:</div>
                   <div className="flex justify-center">
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(totpSetupUrl)}`}
+                      src={getApiUrl(`/api/auth/security/2fa/qr?otpauth=${encodeURIComponent(totpSetupUrl)}`)}
                       alt="QR код для настройки Google Authenticator"
                       width={220}
                       height={220}
