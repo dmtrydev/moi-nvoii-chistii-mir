@@ -224,8 +224,8 @@ export function FilterPanelSection({
   const sectionShellClass = [
     sectionShellTransition,
     compactAfterSearch
-      ? `relative z-[1] mx-auto ${compactTopMargin} w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-6 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)]`
-      : 'relative z-[1] mx-auto mt-8 w-full max-w-[min(1880px,100%)] overflow-visible px-4 pb-8 sm:mt-10 sm:px-6 md:mt-12 md:px-8 lg:mt-[clamp(2.5rem,6vw,8rem)] lg:px-[min(50px,3.5vw)]',
+      ? `relative z-[1] mx-auto ${compactTopMargin} w-full max-w-[1920px] overflow-visible px-4 pb-6`
+      : 'relative z-[1] mx-auto mt-8 w-full max-w-[1920px] overflow-visible px-4 pb-8 sm:mt-10 md:mt-12 lg:mt-[clamp(2.5rem,6vw,8rem)]',
   ].join(' ');
   const handleFkkoInput = (next: string): void => {
     setFkkoInput(String(next).slice(0, 120));
