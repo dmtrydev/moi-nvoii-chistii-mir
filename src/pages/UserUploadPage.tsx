@@ -1,7 +1,7 @@
-import UploadPage from '@/pages/UploadPage';
+import { UploadDropzone } from '@/pages/UploadPage';
 
 export default function UserUploadPage(): JSX.Element {
   // Отдельный маршрут для пользовательской загрузки (чтобы не путать с "общей" страницей).
-  return <UploadPage />;
+  return <UploadDropzone />;
 }
 

@@ -1,7 +1,10 @@
 import { useId, useState } from 'react';
+import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
+import uploadBackground from '@/assets/home-landing/hero-background.png';
 import pdfPlaceholderIcon from '@/assets/upload/pdf-placeholder.svg';
 
-export default function UploadPage(): JSX.Element {
+export function UploadDropzone(): JSX.Element {
   const fileInputId = useId();
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState('');
@@ -103,5 +106,25 @@ export default function UploadPage(): JSX.Element {
         </div>
       </label>
     </div>
+  );
+}
+
+export default function UploadPage(): JSX.Element {
+  return (
+    <SitePublicPageShell className="relative h-screen min-h-0 overflow-hidden">
+      <img
+        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-80"
+        alt=""
+        aria-hidden="true"
+        src={uploadBackground}
+      />
+      <SiteFrameWithTopNav>
+        <div className="relative mx-4 mb-3 mt-3 h-[calc(100dvh-162px)] text-ink overflow-hidden">
+          <div className="flex h-full items-center justify-center rounded-[24px] border border-white/55 bg-white/28 p-6 backdrop-blur-[14px]">
+            <UploadDropzone />
+          </div>
+        </div>
+      </SiteFrameWithTopNav>
+    </SitePublicPageShell>
   );
 }
