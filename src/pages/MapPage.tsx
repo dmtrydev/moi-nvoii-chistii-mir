@@ -805,7 +805,7 @@ export default function MapPage(): JSX.Element {
         />
 
         <div className="relative z-10 flex min-h-0 flex-1 flex-col lg:absolute lg:inset-x-0 lg:bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))] lg:top-[95px] lg:z-10">
-          <div className="relative mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 flex-col gap-3 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-2 sm:gap-3 sm:pb-4 lg:block lg:h-full lg:flex-none lg:gap-0 lg:pb-5 lg:pt-0">
+          <div className="relative mx-auto flex min-h-0 w-full max-w-[min(1880px,100%)] flex-1 flex-col gap-3 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-2 sm:gap-3 sm:px-6 sm:pb-4 md:px-8 lg:block lg:h-full lg:flex-none lg:gap-0 lg:px-[min(50px,3.5vw)] lg:pb-5 lg:pt-0">
             {(menuVisible || isLgUp) && (
               <div
                 className="w-full shrink-0 lg:absolute lg:left-0 lg:top-0 lg:z-30 lg:flex lg:h-full lg:min-h-0"
