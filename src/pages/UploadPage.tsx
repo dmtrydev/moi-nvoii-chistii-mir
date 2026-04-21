@@ -1,13 +1,25 @@
 import { useId, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
+import { useAuth } from '@/contexts/useAuth';
 import pdfPlaceholderIcon from '@/assets/upload/pdf-placeholder.svg';
 import uploadBackground from '@/assets/home-landing/hero-background.png';
 
 export default function UploadPage(): JSX.Element {
+  const { user, logout } = useAuth();
+  const location = useLocation();
   const fileInputId = useId();
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState('');
+  const menuLinks = [
+    { to: '/dashboard', label: 'Панель' },
+    { to: '/dashboard/profile', label: 'Профиль' },
+    { to: '/dashboard/upload', label: 'Загрузка лицензии' },
+    { to: '/dashboard/support', label: 'Поддержка' },
+    { to: '/map', label: 'Карта' },
+    { to: '/directory', label: 'Справочник ФККО' },
+  ];
 
   const handleDragEnter = (event: React.DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
@@ -60,7 +72,42 @@ export default function UploadPage(): JSX.Element {
       <SiteFrameWithTopNav>
         <div className="relative mr-3 mt-0 min-h-[calc(100vh-120px)] text-ink">
           <div className="grid min-h-[calc(100vh-140px)] grid-cols-[280px_1fr] gap-3">
-            <aside className="rounded-[24px] border border-white/55 bg-white/28 backdrop-blur-[14px]" />
+            <aside className="flex flex-col rounded-[24px] border border-white/55 bg-white/28 p-4 backdrop-blur-[14px]">
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5e6567]">Система управления</div>
+              <div className="mt-2 text-lg font-semibold text-[#2b3335]">Личный кабинет</div>
+              <nav className="mt-4 flex flex-col gap-1.5">
+                {menuLinks.map((item) => {
+                  const active = item.to === '/dashboard'
+                    ? location.pathname === '/dashboard'
+                    : location.pathname.startsWith(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`rounded-xl px-3 py-2 text-sm transition-colors ${
+                        active
+                          ? 'bg-white/65 text-[#2b3335] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)]'
+                          : 'text-[#4f5759] hover:bg-white/50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+              <div className="mt-auto space-y-2 rounded-xl border border-white/55 bg-white/40 p-3">
+                <div className="truncate text-[11px] text-[#5e6567]">{user?.email ?? '—'}</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout();
+                  }}
+                  className="w-full rounded-xl bg-gradient-to-r from-[#d4ff5c] to-[#5fd93a] px-3 py-2 text-sm font-semibold text-[#1f2d16]"
+                >
+                  Выйти
+                </button>
+              </div>
+            </aside>
             <section className="rounded-[24px] border border-white/55 bg-white/28 p-5 backdrop-blur-[14px]">
               <div className="mx-auto mt-4 w-full max-w-[900px] rounded-[32px] border border-white/60 bg-white/22 p-8 backdrop-blur-[10px]">
                 <label
