@@ -34,7 +34,7 @@ export default function AdminLayout(): JSX.Element {
         src={uploadBackground}
       />
       <SiteFrameWithTopNav>
-        <div className="relative mx-4 mb-3 mt-3 h-[calc(100dvh-138px)] max-h-[calc(100dvh-138px)] text-ink overflow-hidden">
+        <div className="relative mx-4 mb-3 mt-3 h-[calc(100dvh-162px)] max-h-[calc(100dvh-162px)] text-ink overflow-hidden">
           <div className="grid h-full grid-cols-[280px_1fr] gap-4">
             <aside className="flex h-full flex-col rounded-[24px] border border-white/55 bg-white/28 p-5 backdrop-blur-[14px] overflow-hidden">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5e6567]">Система управления</div>
