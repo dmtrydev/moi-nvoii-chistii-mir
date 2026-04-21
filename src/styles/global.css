@@ -246,6 +246,13 @@
     @apply appearance-none bg-transparent border-0 outline-none;
     color-scheme: light;
   }
+  input[type='checkbox'],
+  input[type='radio'] {
+    appearance: auto;
+    background: initial;
+    border: initial;
+    outline: revert;
+  }
 
   body,
   .brand-scroll {
