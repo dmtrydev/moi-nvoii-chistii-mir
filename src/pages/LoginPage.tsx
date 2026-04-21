@@ -12,7 +12,7 @@ function getApiUrl(path: string): string {
 }
 
 export default function LoginPage(): JSX.Element {
-  const { login, requestRegistrationCode, confirmRegistration } = useAuth();
+  const { login, loginWithTwoFactor, requestRegistrationCode, confirmRegistration } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const query = new URLSearchParams(location.search);
@@ -26,6 +26,10 @@ export default function LoginPage(): JSX.Element {
   const [resetToken, setResetToken] = useState(tokenFromUrl);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [challengeToken, setChallengeToken] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [twoFactorMethod, setTwoFactorMethod] = useState<'totp' | 'recovery'>('totp');
   const [mode, setMode] = useState<'login' | 'register' | 'reset'>(isResetFromUrl ? 'reset' : 'login');
   const [registerStep, setRegisterStep] = useState<'request' | 'confirm'>('request');
   const [resetStep, setResetStep] = useState<'request' | 'confirm'>(tokenFromUrl ? 'confirm' : 'request');
@@ -100,8 +104,14 @@ export default function LoginPage(): JSX.Element {
         return;
       }
 
-      const loggedInUser = await login(email, password);
-      await redirectAfterAuth(loggedInUser);
+      const loginResult = await login(email, password);
+      if ('requiresTwoFactor' in loginResult && loginResult.requiresTwoFactor) {
+        setChallengeToken(loginResult.challengeToken);
+        setMode('login');
+        setNotice('Введите код из Google Authenticator или recovery-код.');
+        return;
+      }
+      await redirectAfterAuth(loginResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : mode === 'register' ? 'Ошибка регистрации' : 'Ошибка входа');
     } finally {
@@ -167,6 +177,70 @@ export default function LoginPage(): JSX.Element {
         >
           Забыли пароль?
         </button>
+        {challengeToken && (
+          <div className="rounded-xl border border-black/[0.08] bg-white/70 p-3 space-y-2">
+            <div className="text-xs glass-muted">Вход защищен 2FA. Подтвердите авторизацию:</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`glass-btn-soft !h-8 !px-3 !text-xs ${twoFactorMethod === 'totp' ? 'ring-1 ring-[#2f7d32]/40' : ''}`}
+                onClick={() => setTwoFactorMethod('totp')}
+              >
+                Код приложения
+              </button>
+              <button
+                type="button"
+                className={`glass-btn-soft !h-8 !px-3 !text-xs ${twoFactorMethod === 'recovery' ? 'ring-1 ring-[#2f7d32]/40' : ''}`}
+                onClick={() => setTwoFactorMethod('recovery')}
+              >
+                Recovery-код
+              </button>
+            </div>
+            {twoFactorMethod === 'totp' ? (
+              <input
+                type="text"
+                className="glass-input"
+                inputMode="numeric"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="6-значный код"
+              />
+            ) : (
+              <input
+                type="text"
+                className="glass-input"
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+                placeholder="Recovery-код"
+              />
+            )}
+            <button
+              type="button"
+              disabled={loading}
+              className="w-full glass-btn-dark disabled:opacity-60"
+              onClick={async () => {
+                setError(null);
+                setLoading(true);
+                try {
+                  const user = await loginWithTwoFactor(challengeToken, {
+                    totpCode: twoFactorMethod === 'totp' ? totpCode : undefined,
+                    recoveryCode: twoFactorMethod === 'recovery' ? recoveryCode : undefined,
+                  });
+                  setChallengeToken('');
+                  setTotpCode('');
+                  setRecoveryCode('');
+                  await redirectAfterAuth(user);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Ошибка 2FA');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Подтвердить вход
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {(mode !== 'reset' || resetStep === 'request') && (

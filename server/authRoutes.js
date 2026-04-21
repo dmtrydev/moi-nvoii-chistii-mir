@@ -38,6 +38,30 @@ const confirmPasswordResetSchema = z.object({
   newPassword: z.string().min(8).max(128),
 });
 
+const login2faSchema = z.object({
+  challengeToken: z.string().min(24).max(256),
+  totpCode: z.string().trim().regex(/^\d{6}$/).optional(),
+  recoveryCode: z.string().trim().min(6).max(32).optional(),
+});
+
+const setup2faEnableSchema = z.object({
+  totpCode: z.string().trim().regex(/^\d{6}$/),
+});
+
+const disable2faSchema = z.object({
+  totpCode: z.string().trim().regex(/^\d{6}$/).optional(),
+  recoveryCode: z.string().trim().min(6).max(32).optional(),
+});
+
+const requestSecurityPasswordChangeSchema = z.object({
+  oldPassword: z.string().min(1).max(256),
+  newPassword: z.string().min(8).max(128),
+});
+
+const confirmSecurityPasswordChangeSchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/),
+});
+
 function generateRefreshToken() {
   return crypto.randomBytes(48).toString('hex');
 }
@@ -57,6 +81,112 @@ function generateVerificationCode() {
 function hashVerificationCode(code) {
   const secret = process.env.EMAIL_OTP_SECRET || process.env.JWT_ACCESS_SECRET;
   return crypto.createHmac('sha256', secret).update(code).digest('hex');
+}
+
+function hashOneTimeToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function getEncryptionKey() {
+  const secret = process.env.AUTH_ENCRYPTION_SECRET || process.env.EMAIL_OTP_SECRET || process.env.JWT_ACCESS_SECRET || 'dev-secret';
+  return crypto.createHash('sha256').update(secret).digest();
+}
+
+function encryptValue(plainText) {
+  const iv = crypto.randomBytes(12);
+  const key = getEncryptionKey();
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+function decryptValue(cipherText) {
+  const [ivHex, tagHex, dataHex] = String(cipherText || '').split(':');
+  if (!ivHex || !tagHex || !dataHex) return '';
+  const key = getEncryptionKey();
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(ivHex, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+  const decrypted = Buffer.concat([decipher.update(Buffer.from(dataHex, 'hex')), decipher.final()]);
+  return decrypted.toString('utf8');
+}
+
+function base32Encode(buffer) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0;
+  let value = 0;
+  let output = '';
+  for (const byte of buffer) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    output += alphabet[(value << (5 - bits)) & 31];
+  }
+  return output;
+}
+
+function base32Decode(base32) {
+  const clean = String(base32 || '').replace(/=+$/g, '').replace(/\s+/g, '').toUpperCase();
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0;
+  let value = 0;
+  const bytes = [];
+  for (const ch of clean) {
+    const idx = alphabet.indexOf(ch);
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(bytes);
+}
+
+function generateTotpSecret() {
+  return base32Encode(crypto.randomBytes(20));
+}
+
+function generateTotpCode(secret, timestamp = Date.now()) {
+  const step = 30;
+  const counter = Math.floor(timestamp / 1000 / step);
+  const buf = Buffer.alloc(8);
+  buf.writeUInt32BE(Math.floor(counter / 0x100000000), 0);
+  buf.writeUInt32BE(counter >>> 0, 4);
+  const key = base32Decode(secret);
+  const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = ((hmac[offset] & 0x7f) << 24)
+    | ((hmac[offset + 1] & 0xff) << 16)
+    | ((hmac[offset + 2] & 0xff) << 8)
+    | (hmac[offset + 3] & 0xff);
+  return String(code % 1_000_000).padStart(6, '0');
+}
+
+function verifyTotpCode(secret, code) {
+  const now = Date.now();
+  const normalized = String(code || '').trim();
+  for (const offset of [-30_000, 0, 30_000]) {
+    const valid = generateTotpCode(secret, now + offset);
+    if (crypto.timingSafeEqual(Buffer.from(valid), Buffer.from(normalized))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function generateRecoveryCodes() {
+  const codes = [];
+  for (let i = 0; i < 8; i += 1) {
+    codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
+  }
+  return codes;
 }
 
 async function sendVerificationCodeEmail({ email, code }) {
@@ -136,6 +266,78 @@ async function sendPasswordResetEmail({ email, resetLink }) {
       </div>
     </div>`,
   });
+}
+
+async function sendSecurityCodeEmail({ email, code, actionLabel }) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.SMTP_FROM || user;
+
+  if (!host || !user || !pass || !from) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[auth] Security code (${actionLabel}) for ${email}: ${code}`);
+      return;
+    }
+    throw new Error('SMTP не настроен: задайте SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM');
+  }
+
+  let nodemailer;
+  try {
+    nodemailer = await import('nodemailer');
+  } catch {
+    throw new Error('Для SMTP-отправки установите зависимость nodemailer в server/package.json');
+  }
+  const transporter = nodemailer.default.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject: `Подтверждение действия: ${actionLabel}`,
+    text: `Код подтверждения: ${code}. Код действителен 10 минут.`,
+  });
+}
+
+async function sendSecurityEventEmail({ email, subject, text }) {
+  const host = process.env.SMTP_HOST;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.SMTP_FROM || user;
+  if (!host || !user || !pass || !from) return;
+
+  let nodemailer;
+  try {
+    nodemailer = await import('nodemailer');
+  } catch {
+    return;
+  }
+  const transporter = nodemailer.default.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+  await transporter.sendMail({ from, to: email, subject, text });
+}
+
+async function completeLogin({ user, req, res }) {
+  const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
+  const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
+  setRefreshCookie(res, refreshToken, expiresAt);
+  setAccessCookie(res, accessToken);
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role,
+  };
 }
 
 async function createSession({ userId, req }) {
@@ -416,6 +618,11 @@ router.post('/password-reset/request', async (req, res) => {
     const publicBaseUrl = process.env.APP_PUBLIC_URL || process.env.CLIENT_URL || 'http://localhost:5173';
     const resetLink = `${publicBaseUrl.replace(/\/$/, '')}/login?mode=reset&token=${encodeURIComponent(plainToken)}`;
     await sendPasswordResetEmail({ email: userRow.email, resetLink });
+    void sendSecurityEventEmail({
+      email: userRow.email,
+      subject: 'Запрос на сброс пароля',
+      text: 'Если это были не вы, срочно смените пароль и включите 2FA.',
+    });
 
     await createAuditLog({
       req,
@@ -503,6 +710,392 @@ router.post('/password-reset/confirm', async (req, res) => {
   }
 });
 
+router.get('/security/overview', requireAuth, async (req, res) => {
+  const userId = Number(req.user?.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+
+  const [settingsResult, sessionsResult] = await Promise.all([
+    query(
+      `SELECT two_factor_enabled AS "twoFactorEnabled", trusted_device_days AS "trustedDeviceDays"
+       FROM user_security_settings
+       WHERE user_id = $1
+       LIMIT 1`,
+      [userId],
+    ),
+    query(
+      `SELECT id, user_agent AS "userAgent", ip_address::text AS "ipAddress", created_at AS "createdAt", expires_at AS "expiresAt", revoked_at AS "revokedAt"
+       FROM sessions
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [userId],
+    ),
+  ]);
+
+  const settings = settingsResult.rows[0] || { twoFactorEnabled: false, trustedDeviceDays: 0 };
+  return res.json({
+    twoFactorEnabled: Boolean(settings.twoFactorEnabled),
+    trustedDeviceDays: Number(settings.trustedDeviceDays) || 0,
+    sessions: sessionsResult.rows,
+  });
+});
+
+router.post('/security/sessions/revoke-all-others', requireAuth, async (req, res) => {
+  const userId = Number(req.user?.id);
+  const currentSessionId = req.user?.sessionId ? String(req.user.sessionId) : null;
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+
+  if (currentSessionId) {
+    await query(
+      `UPDATE sessions
+       SET revoked_at = NOW()
+       WHERE user_id = $1
+         AND id::text <> $2
+         AND revoked_at IS NULL`,
+      [userId, currentSessionId],
+    );
+  } else {
+    await query(
+      `UPDATE sessions
+       SET revoked_at = NOW()
+       WHERE user_id = $1
+         AND revoked_at IS NULL`,
+      [userId],
+    );
+  }
+  return res.json({ ok: true });
+});
+
+router.post('/security/sessions/revoke', requireAuth, async (req, res) => {
+  const userId = Number(req.user?.id);
+  const sessionId = String(req.body?.sessionId || '');
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+  if (!sessionId) {
+    return res.status(400).json({ message: 'Не передан sessionId' });
+  }
+  await query(
+    `UPDATE sessions
+     SET revoked_at = NOW()
+     WHERE user_id = $1
+       AND id::text = $2`,
+    [userId, sessionId],
+  );
+  return res.json({ ok: true });
+});
+
+router.post('/security/change-password/request-confirmation', requireAuth, async (req, res) => {
+  try {
+    const parsed = requestSecurityPasswordChangeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+    }
+    const userId = Number(req.user?.id);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return res.status(401).json({ message: 'Требуется аутентификация' });
+    }
+    const { oldPassword, newPassword } = parsed.data;
+    const userResult = await query(
+      `SELECT email, password_hash
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [userId],
+    );
+    if (!userResult.rows.length) {
+      return res.status(401).json({ message: 'Пользователь не найден' });
+    }
+    const user = userResult.rows[0];
+    const isValid = await verifyPassword(user.password_hash, oldPassword);
+    if (!isValid) {
+      return res.status(401).json({ message: 'Неверный старый пароль' });
+    }
+
+    const now = new Date();
+    const existingToken = await query(
+      `SELECT id, last_sent_at AS "lastSentAt"
+       FROM email_action_tokens
+       WHERE user_id = $1 AND action_type = 'CHANGE_PASSWORD' AND consumed_at IS NULL AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId],
+    );
+    if (existingToken.rows.length) {
+      const lastSentAt = new Date(existingToken.rows[0].lastSentAt);
+      if (now.getTime() - lastSentAt.getTime() < 60_000) {
+        return res.status(429).json({ message: 'Повторный запрос возможен через 60 секунд' });
+      }
+    }
+
+    const verificationCode = generateVerificationCode();
+    const newPasswordHash = await hashPassword(newPassword);
+    await query(
+      `UPDATE email_action_tokens
+       SET consumed_at = NOW()
+       WHERE user_id = $1
+         AND action_type = 'CHANGE_PASSWORD'
+         AND consumed_at IS NULL`,
+      [userId],
+    );
+    await query(
+      `INSERT INTO email_action_tokens (user_id, action_type, token_hash, metadata, expires_at, created_at, last_sent_at)
+       VALUES ($1,'CHANGE_PASSWORD',$2,$3,$4,$5,$5)`,
+      [userId, hashVerificationCode(verificationCode), JSON.stringify({ newPasswordHash }), new Date(now.getTime() + 10 * 60 * 1000).toISOString(), now.toISOString()],
+    );
+
+    await sendSecurityCodeEmail({ email: user.email, code: verificationCode, actionLabel: 'Смена пароля' });
+    void sendSecurityEventEmail({
+      email: user.email,
+      subject: 'Запрошена смена пароля',
+      text: 'Кто-то запросил смену пароля в вашем аккаунте. Если это не вы — немедленно выйдите из всех сессий.',
+    });
+    return res.json({ ok: true, message: 'Код подтверждения отправлен на email' });
+  } catch (err) {
+    console.error('security change-password request error:', err);
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка отправки кода' });
+  }
+});
+
+router.post('/security/change-password/confirm', requireAuth, async (req, res) => {
+  try {
+    const parsed = confirmSecurityPasswordChangeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+    }
+    const userId = Number(req.user?.id);
+    const currentSessionId = req.user?.sessionId ? String(req.user.sessionId) : null;
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return res.status(401).json({ message: 'Требуется аутентификация' });
+    }
+
+    const tokenResult = await query(
+      `SELECT id, token_hash AS "tokenHash", metadata, expires_at AS "expiresAt", consumed_at AS "consumedAt"
+       FROM email_action_tokens
+       WHERE user_id = $1
+         AND action_type = 'CHANGE_PASSWORD'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [userId],
+    );
+    if (!tokenResult.rows.length) {
+      return res.status(400).json({ message: 'Код недействителен или истек' });
+    }
+    const row = tokenResult.rows[0];
+    if (row.consumedAt || new Date(row.expiresAt) < new Date()) {
+      return res.status(400).json({ message: 'Код недействителен или истек' });
+    }
+    if (hashVerificationCode(parsed.data.code) !== row.tokenHash) {
+      return res.status(400).json({ message: 'Неверный код подтверждения' });
+    }
+    const newPasswordHash = row.metadata?.newPasswordHash;
+    if (!newPasswordHash) {
+      return res.status(400).json({ message: 'Код недействителен или истек' });
+    }
+
+    await query(
+      `UPDATE users
+       SET password_hash = $2, updated_at = NOW()
+       WHERE id = $1`,
+      [userId, newPasswordHash],
+    );
+    await query(
+      `UPDATE email_action_tokens
+       SET consumed_at = NOW()
+       WHERE id = $1`,
+      [row.id],
+    );
+    if (currentSessionId) {
+      await query(
+        `UPDATE sessions
+         SET revoked_at = NOW()
+         WHERE user_id = $1 AND revoked_at IS NULL AND id::text <> $2`,
+        [userId, currentSessionId],
+      );
+    } else {
+      await query(
+        `UPDATE sessions
+         SET revoked_at = NOW()
+         WHERE user_id = $1 AND revoked_at IS NULL`,
+        [userId],
+      );
+    }
+    await createAuditLog({
+      req,
+      action: 'USER_PASSWORD_CHANGE',
+      entityType: 'USER',
+      entityId: String(userId),
+      severity: 'INFO',
+      metadata: { via: 'EMAIL_CONFIRM' },
+    });
+    const emailResult = await query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (emailResult.rows.length) {
+      void sendSecurityEventEmail({
+        email: emailResult.rows[0].email,
+        subject: 'Пароль успешно изменен',
+        text: 'Пароль вашего аккаунта был изменен. Если это были не вы — немедленно восстановите доступ.',
+      });
+    }
+    return res.json({ ok: true, message: 'Пароль успешно изменен' });
+  } catch (err) {
+    console.error('security change-password confirm error:', err);
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка подтверждения смены пароля' });
+  }
+});
+
+router.post('/security/2fa/setup', requireAuth, async (req, res) => {
+  const userId = Number(req.user?.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+  const secret = generateTotpSecret();
+  await query(
+    `INSERT INTO user_security_settings (user_id, two_factor_enabled, two_factor_secret_enc, created_at, updated_at)
+     VALUES ($1,FALSE,$2,NOW(),NOW())
+     ON CONFLICT (user_id)
+     DO UPDATE SET two_factor_secret_enc = EXCLUDED.two_factor_secret_enc, two_factor_enabled = FALSE, updated_at = NOW()`,
+    [userId, encryptValue(secret)],
+  );
+  const emailResult = await query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
+  const email = emailResult.rows[0]?.email || 'user@example.com';
+  const appName = encodeURIComponent(process.env.TOTP_ISSUER || 'Moinoviichistiimir');
+  const otpauthUrl = `otpauth://totp/${appName}:${encodeURIComponent(email)}?secret=${secret}&issuer=${appName}&algorithm=SHA1&digits=6&period=30`;
+  return res.json({ secret, otpauthUrl });
+});
+
+router.post('/security/2fa/enable', requireAuth, async (req, res) => {
+  const parsed = setup2faEnableSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+    return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+  }
+  const userId = Number(req.user?.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+  const settingsResult = await query(
+    `SELECT two_factor_secret_enc AS "secretEnc"
+     FROM user_security_settings
+     WHERE user_id = $1
+     LIMIT 1`,
+    [userId],
+  );
+  if (!settingsResult.rows.length || !settingsResult.rows[0].secretEnc) {
+    return res.status(400).json({ message: 'Сначала выполните настройку 2FA' });
+  }
+  const secret = decryptValue(settingsResult.rows[0].secretEnc);
+  if (!verifyTotpCode(secret, parsed.data.totpCode)) {
+    return res.status(400).json({ message: 'Неверный код приложения' });
+  }
+
+  const recoveryCodes = generateRecoveryCodes();
+  await query('DELETE FROM two_factor_recovery_codes WHERE user_id = $1', [userId]);
+  for (const code of recoveryCodes) {
+    await query(
+      `INSERT INTO two_factor_recovery_codes (user_id, code_hash)
+       VALUES ($1,$2)`,
+      [userId, hashOneTimeToken(code)],
+    );
+  }
+  await query(
+    `UPDATE user_security_settings
+     SET two_factor_enabled = TRUE, two_factor_enabled_at = NOW(), updated_at = NOW()
+     WHERE user_id = $1`,
+    [userId],
+  );
+  const userEmail = await query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
+  if (userEmail.rows.length) {
+    void sendSecurityEventEmail({
+      email: userEmail.rows[0].email,
+      subject: '2FA включен',
+      text: 'Двухфакторная аутентификация успешно включена для вашего аккаунта.',
+    });
+  }
+  return res.json({ ok: true, recoveryCodes });
+});
+
+router.post('/security/2fa/disable', requireAuth, async (req, res) => {
+  const parsed = disable2faSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+    return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+  }
+  const userId = Number(req.user?.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+  const settingsResult = await query(
+    `SELECT two_factor_secret_enc AS "secretEnc", two_factor_enabled AS "enabled"
+     FROM user_security_settings
+     WHERE user_id = $1
+     LIMIT 1`,
+    [userId],
+  );
+  if (!settingsResult.rows.length || !settingsResult.rows[0].enabled) {
+    return res.status(400).json({ message: '2FA уже отключен' });
+  }
+  let ok = false;
+  if (parsed.data.totpCode) {
+    const secret = decryptValue(settingsResult.rows[0].secretEnc);
+    ok = verifyTotpCode(secret, parsed.data.totpCode);
+  }
+  if (!ok && parsed.data.recoveryCode) {
+    const recoveryHash = hashOneTimeToken(parsed.data.recoveryCode.toUpperCase());
+    const consumeRecoveryResult = await query(
+      `UPDATE two_factor_recovery_codes
+       SET consumed_at = NOW()
+       WHERE user_id = $1
+         AND code_hash = $2
+         AND consumed_at IS NULL
+       RETURNING id`,
+      [userId, recoveryHash],
+    );
+    ok = consumeRecoveryResult.rows.length > 0;
+  }
+  if (!ok) {
+    return res.status(400).json({ message: 'Подтверждение 2FA не прошло' });
+  }
+  await query(
+    `UPDATE user_security_settings
+     SET two_factor_enabled = FALSE, updated_at = NOW()
+     WHERE user_id = $1`,
+    [userId],
+  );
+  await query('DELETE FROM two_factor_recovery_codes WHERE user_id = $1', [userId]);
+  const userEmail = await query('SELECT email FROM users WHERE id = $1 LIMIT 1', [userId]);
+  if (userEmail.rows.length) {
+    void sendSecurityEventEmail({
+      email: userEmail.rows[0].email,
+      subject: '2FA отключен',
+      text: 'Двухфакторная аутентификация была отключена для вашего аккаунта.',
+    });
+  }
+  return res.json({ ok: true });
+});
+
+router.post('/security/2fa/recovery-codes/regenerate', requireAuth, async (req, res) => {
+  const userId = Number(req.user?.id);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(401).json({ message: 'Требуется аутентификация' });
+  }
+  const recoveryCodes = generateRecoveryCodes();
+  await query('DELETE FROM two_factor_recovery_codes WHERE user_id = $1', [userId]);
+  for (const code of recoveryCodes) {
+    await query(
+      `INSERT INTO two_factor_recovery_codes (user_id, code_hash)
+       VALUES ($1,$2)`,
+      [userId, hashOneTimeToken(code)],
+    );
+  }
+  return res.json({ ok: true, recoveryCodes });
+});
+
 router.post('/login', async (req, res) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
@@ -549,10 +1142,36 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Неверный email или пароль' });
     }
 
-    const { sessionId, refreshToken, expiresAt } = await createSession({ userId: user.id, req });
-    const accessToken = signAccessToken({ userId: user.id, role: user.role, sessionId });
-    setRefreshCookie(res, refreshToken, expiresAt);
-    setAccessCookie(res, accessToken);
+    const securitySettingsResult = await query(
+      `SELECT two_factor_enabled AS "twoFactorEnabled"
+       FROM user_security_settings
+       WHERE user_id = $1
+       LIMIT 1`,
+      [user.id],
+    );
+    const twoFactorEnabled = Boolean(securitySettingsResult.rows[0]?.twoFactorEnabled);
+
+    if (twoFactorEnabled) {
+      const challengeToken = crypto.randomBytes(24).toString('hex');
+      const challengeHash = hashOneTimeToken(challengeToken);
+      const now = new Date();
+      await query(
+        `INSERT INTO login_challenges (user_id, challenge_hash, expires_at, created_at)
+         VALUES ($1,$2,$3,$4)`,
+        [user.id, challengeHash, new Date(now.getTime() + 10 * 60 * 1000).toISOString(), now.toISOString()],
+      );
+      return res.json({
+        requiresTwoFactor: true,
+        challengeToken,
+      });
+    }
+
+    const loggedInUser = await completeLogin({ user, req, res });
+    void sendSecurityEventEmail({
+      email: user.email,
+      subject: 'Новый вход в аккаунт',
+      text: `Обнаружен вход в аккаунт. IP: ${getClientIp(req) || 'unknown'}, device: ${(req.headers['user-agent'] || '').toString() || 'unknown'}`,
+    });
 
     await createAuditLog({
       req,
@@ -560,22 +1179,92 @@ router.post('/login', async (req, res) => {
       entityType: 'USER',
       entityId: String(user.id),
       severity: 'INFO',
-      metadata: { sessionId },
+      metadata: { sessionId: req.user?.sessionId || null, twoFactor: false },
     });
 
     return res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
+      user: loggedInUser,
     });
   } catch (err) {
     console.error('login error:', err);
     return res.status(500).json({
       message: err instanceof Error ? err.message : 'Ошибка входа',
     });
+  }
+});
+
+router.post('/login/2fa', async (req, res) => {
+  try {
+    const parsed = login2faSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issueMsg = parsed.error.issues.map((i) => i.message).filter(Boolean)[0];
+      return res.status(400).json({ message: issueMsg ?? 'Неверные данные' });
+    }
+    const { challengeToken, totpCode, recoveryCode } = parsed.data;
+    if (!totpCode && !recoveryCode) {
+      return res.status(400).json({ message: 'Передайте totpCode или recoveryCode' });
+    }
+    const challengeHash = hashOneTimeToken(challengeToken);
+    const challengeResult = await query(
+      `SELECT c.id, c.user_id AS "userId", c.expires_at AS "expiresAt", c.consumed_at AS "consumedAt",
+              u.email, u.full_name AS "fullName", u.role, u.is_active AS "isActive",
+              s.two_factor_secret_enc AS "secretEnc", s.two_factor_enabled AS "twoFactorEnabled"
+       FROM login_challenges c
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN user_security_settings s ON s.user_id = c.user_id
+       WHERE c.challenge_hash = $1
+       LIMIT 1`,
+      [challengeHash],
+    );
+    if (!challengeResult.rows.length) {
+      return res.status(400).json({ message: 'Челлендж недействителен или истек' });
+    }
+    const row = challengeResult.rows[0];
+    if (!row.isActive || row.consumedAt || new Date(row.expiresAt) < new Date() || !row.twoFactorEnabled) {
+      return res.status(400).json({ message: 'Челлендж недействителен или истек' });
+    }
+
+    let verified = false;
+    if (totpCode) {
+      const secret = decryptValue(row.secretEnc);
+      verified = verifyTotpCode(secret, totpCode);
+    }
+    if (!verified && recoveryCode) {
+      const recoveryHash = hashOneTimeToken(recoveryCode.toUpperCase());
+      const consumeRecovery = await query(
+        `UPDATE two_factor_recovery_codes
+         SET consumed_at = NOW()
+         WHERE user_id = $1 AND code_hash = $2 AND consumed_at IS NULL
+         RETURNING id`,
+        [row.userId, recoveryHash],
+      );
+      verified = consumeRecovery.rows.length > 0;
+    }
+    if (!verified) {
+      return res.status(401).json({ message: 'Неверный код 2FA' });
+    }
+
+    await query(
+      `UPDATE login_challenges
+       SET consumed_at = NOW()
+       WHERE id = $1`,
+      [row.id],
+    );
+
+    const user = await completeLogin({
+      user: { id: row.userId, email: row.email, fullName: row.fullName, role: row.role },
+      req,
+      res,
+    });
+    void sendSecurityEventEmail({
+      email: row.email,
+      subject: 'Новый вход в аккаунт (2FA)',
+      text: `Вход в аккаунт подтвержден через 2FA. IP: ${getClientIp(req) || 'unknown'}`,
+    });
+    return res.json({ user });
+  } catch (err) {
+    console.error('login 2fa error:', err);
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка 2FA входа' });
   }
 });
 
