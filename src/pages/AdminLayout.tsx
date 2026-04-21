@@ -34,64 +34,66 @@ export default function AdminLayout(): JSX.Element {
         src={uploadBackground}
       />
       <SiteFrameWithTopNav>
-        <div className="relative mx-4 mt-3 min-h-[calc(100vh-132px)] text-ink">
-          <div className="grid min-h-[calc(100vh-160px)] grid-cols-[280px_1fr] gap-4">
-            <aside className="flex flex-col rounded-[24px] border border-white/55 bg-white/28 p-5 backdrop-blur-[14px]">
+        <div className="relative mx-4 mb-3 mt-3 h-[calc(100vh-138px)] text-ink overflow-hidden">
+          <div className="grid h-full grid-cols-[280px_1fr] gap-4">
+            <aside className="flex h-full flex-col rounded-[24px] border border-white/55 bg-white/28 p-5 backdrop-blur-[14px] overflow-hidden">
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5e6567]">Система управления</div>
               <div className="mt-2 text-lg font-semibold text-[#2b3335]">Личный кабинет</div>
-              <nav className="mt-5 flex flex-col gap-1.5">
-                {mainLinks.map((l) => {
-                  const active = l.to === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(l.to);
-                  return (
-                    <Link
-                      key={l.to}
-                      to={l.to}
-                      className={`rounded-xl px-3 py-2 text-sm transition-colors ${
-                        active
-                          ? 'bg-white/65 text-[#2b3335] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)]'
-                          : 'text-[#4f5759] hover:bg-white/50'
-                      }`}
-                    >
-                      {l.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-              {isModeratorOrAbove && (
-                <div className="mt-5 space-y-2">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5e6567]">Администрирование</div>
-                  <nav className="flex flex-col gap-1.5">
-                    {adminLinks.map((l) => {
-                      const active = location.pathname.startsWith(l.to);
-                      return (
-                        <Link
-                          key={l.to}
-                          to={l.to}
-                          className={`rounded-xl px-3 py-2 text-sm transition-colors ${
-                            active
-                              ? 'bg-white/65 text-[#2b3335] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)]'
-                              : 'text-[#4f5759] hover:bg-white/50'
-                          }`}
-                        >
-                          {l.label}
-                        </Link>
-                      );
-                    })}
-                    {isSuperAdmin ? (
+              <div className="mt-5 flex-1 overflow-y-auto pr-1 brand-scroll">
+                <nav className="flex flex-col gap-1.5">
+                  {mainLinks.map((l) => {
+                    const active = l.to === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(l.to);
+                    return (
                       <Link
-                        to="/admin/users"
+                        key={l.to}
+                        to={l.to}
                         className={`rounded-xl px-3 py-2 text-sm transition-colors ${
-                          location.pathname.startsWith('/admin/users')
+                          active
                             ? 'bg-white/65 text-[#2b3335] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)]'
                             : 'text-[#4f5759] hover:bg-white/50'
                         }`}
                       >
-                        Пользователи
+                        {l.label}
                       </Link>
-                    ) : null}
-                  </nav>
-                </div>
-              )}
+                    );
+                  })}
+                </nav>
+                {isModeratorOrAbove && (
+                  <div className="mt-5 space-y-2">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5e6567]">Администрирование</div>
+                    <nav className="flex flex-col gap-1.5">
+                      {adminLinks.map((l) => {
+                        const active = location.pathname.startsWith(l.to);
+                        return (
+                          <Link
+                            key={l.to}
+                            to={l.to}
+                            className={`rounded-xl px-3 py-2 text-sm transition-colors ${
+                              active
+                                ? 'bg-white/65 text-[#2b3335] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)]'
+                                : 'text-[#4f5759] hover:bg-white/50'
+                            }`}
+                          >
+                            {l.label}
+                          </Link>
+                        );
+                      })}
+                      {isSuperAdmin ? (
+                        <Link
+                          to="/admin/users"
+                          className={`rounded-xl px-3 py-2 text-sm transition-colors ${
+                            location.pathname.startsWith('/admin/users')
+                              ? 'bg-white/65 text-[#2b3335] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)]'
+                              : 'text-[#4f5759] hover:bg-white/50'
+                          }`}
+                        >
+                          Пользователи
+                        </Link>
+                      ) : null}
+                    </nav>
+                  </div>
+                )}
+              </div>
               <div className="mt-auto space-y-2 rounded-xl border border-white/55 bg-white/40 p-3.5">
                 <div className="truncate text-[11px] text-[#5e6567]">{user?.email ?? '—'}</div>
                 <button
@@ -105,7 +107,7 @@ export default function AdminLayout(): JSX.Element {
                 </button>
               </div>
             </aside>
-            <main className="rounded-[24px] border border-white/55 bg-white/28 p-6 backdrop-blur-[14px] overflow-auto brand-scroll">
+            <main className="h-full rounded-[24px] border border-white/55 bg-white/28 p-6 backdrop-blur-[14px] overflow-y-auto brand-scroll">
               <Outlet />
             </main>
           </div>
