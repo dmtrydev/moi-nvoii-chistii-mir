@@ -153,6 +153,24 @@ function MapFocusController({
   return null;
 }
 
+function MapViewportSync({ layoutKey }: { layoutKey: string }): null {
+  const map = useMap();
+  useEffect(() => {
+    const sync = (): void => {
+      map.invalidateSize();
+    };
+    const t1 = window.setTimeout(sync, 0);
+    const t2 = window.setTimeout(sync, 120);
+    const t3 = window.setTimeout(sync, 360);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [map, layoutKey]);
+  return null;
+}
+
 function MapPointMarker({
   point,
   isSelected,
@@ -1272,6 +1290,7 @@ export default function MapPage(): JSX.Element {
           className="absolute inset-0 z-0 h-full w-full min-h-0"
           zoomControl
         >
+          <MapViewportSync layoutKey={`${isLgUp}-${menuVisible}-${mapPushedLeft}`} />
           <TileLayer attribution={tileAttribution} url={tileUrl} />
           <CadastreVectorSystem enabled={baseMapStyle === 'cadastral'} apiBase={getApiUrl} />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
