@@ -56,7 +56,7 @@ export default function UploadPage(): JSX.Element {
         onDrop={handleDrop}
         onKeyDown={handleKeyDown}
         tabIndex={0}
-        className={`flex w-full max-w-[920px] cursor-pointer flex-col items-center gap-9 rounded-[32px] px-9 py-12 transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white ${
+        className={`flex w-full max-w-[920px] cursor-pointer flex-col items-center gap-9 rounded-[32px] border-2 border-dashed border-white/70 bg-white/10 px-9 py-12 transition-transform duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white ${
           isDragOver ? 'scale-[1.01]' : ''
         }`}
         aria-describedby="upload-description upload-status"
@@ -79,7 +79,7 @@ export default function UploadPage(): JSX.Element {
         <div className="flex w-full max-w-[781px] flex-col items-center gap-6">
           <p
             id="upload-title"
-            className="typo-h4 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-center text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]"
+            className="typo-h1 max-w-[min(920px,100%)] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-center text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]"
           >
             {selectedFileName || 'перетащите сюда лицензию в pdf'}
           </p>
