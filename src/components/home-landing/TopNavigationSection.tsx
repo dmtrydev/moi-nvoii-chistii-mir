@@ -125,7 +125,7 @@ export function TopNavigationSection(): JSX.Element {
 
   return (
     <header className="relative z-[2] w-full" ref={menuRef}>
-      <div className="mx-auto w-full max-w-[min(1880px,100%)] px-4 pt-4 sm:px-6 md:px-8 lg:px-[min(50px,3.5vw)]">
+      <div className="mx-auto w-full max-w-[1920px] px-4 pt-4">
         {/* Main bar */}
         <div className="relative flex min-h-[65px] items-center justify-between rounded-[25px] border-[none] bg-[#ffffff4c] p-3 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:gap-4 sm:p-4 md:px-5 md:py-3 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[25px] before:border before:border-transparent before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
           <Link
