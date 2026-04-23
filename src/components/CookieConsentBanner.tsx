@@ -38,8 +38,8 @@ export function CookieConsentBanner(): JSX.Element | null {
           </Link>
         </div>
         <div className="mt-4">
-          <button type="button" onClick={acceptCookies} className="group relative z-[2] flex h-[52px] w-full items-center justify-center overflow-hidden rounded-[20px] border-[none] bg-[#ffffff73] font-nunito text-base font-semibold text-[#2b3335] backdrop-blur-[10px] backdrop-brightness-[100%] transition-[background-color,box-shadow] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2 [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
-            Принять
+          <button type="button" onClick={acceptCookies} className="group relative home-find-button z-[2] flex h-[60px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2">
+            <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Принять</span>
           </button>
         </div>
         </div>
