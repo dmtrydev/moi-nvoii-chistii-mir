@@ -103,11 +103,11 @@ app.use(
 app.use((req, res, next) => {
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' https://mc.yandex.ru",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https:",
-    "connect-src 'self' https://agent.timeweb.cloud https://api.openai.com",
+    "connect-src 'self' https://agent.timeweb.cloud https://api.openai.com https://mc.yandex.ru",
     // Разрешаем загрузку внешней кадастровой подложки в iframe.
     // Нужна, чтобы VITE_CADASTRE_IFRAME_URL работал в проде.
     "frame-src 'self' https://ik8map.roscadastres.com",
