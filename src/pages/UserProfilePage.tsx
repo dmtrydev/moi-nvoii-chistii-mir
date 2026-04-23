@@ -117,7 +117,12 @@ export default function UserProfilePage(): JSX.Element {
       <div className="space-y-5">
         <div className="glass-panel p-5 flex items-start justify-between gap-4 flex-col md:flex-row">
           <div className="flex items-center gap-4">
-            <UserAvatar name={user?.fullName ?? null} email={user?.email ?? null} size={52} />
+            <UserAvatar
+              name={user?.fullName ?? null}
+              email={user?.email ?? null}
+              avatarUrl={user?.avatarUrl ?? null}
+              size={52}
+            />
             <div>
               <div className="glass-kicker">Профиль</div>
               <h1 className="typo-h1 mt-1 mb-0">{displayName}</h1>

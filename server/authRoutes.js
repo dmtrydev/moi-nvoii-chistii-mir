@@ -353,6 +353,7 @@ async function completeLogin({ user, req, res }) {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
+    avatarUrl: user.avatarUrl ?? null,
     role: user.role,
   };
 }
@@ -456,7 +457,7 @@ router.get('/yandex/callback', async (req, res) => {
 
     let user = null;
     const linked = await query(
-      `SELECT u.id, u.email, u.full_name AS "fullName", u.role, u.is_active AS "isActive"
+      `SELECT u.id, u.email, u.full_name AS "fullName", u.avatar_url AS "avatarUrl", u.role, u.is_active AS "isActive"
        FROM user_oauth_accounts oa
        JOIN users u ON u.id = oa.user_id
        WHERE oa.provider = 'YANDEX'
@@ -482,7 +483,7 @@ router.get('/yandex/callback', async (req, res) => {
         );
       }
       const existingByEmail = await query(
-        `SELECT id, email, full_name AS "fullName", role, is_active AS "isActive"
+        `SELECT id, email, full_name AS "fullName", avatar_url AS "avatarUrl", role, is_active AS "isActive"
          FROM users
          WHERE email = $1
          LIMIT 1`,
@@ -500,10 +501,10 @@ router.get('/yandex/callback', async (req, res) => {
       } else {
         const generatedPasswordHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
         const created = await query(
-          `INSERT INTO users (email, password_hash, full_name, role)
-           VALUES ($1,$2,$3,'USER')
-           RETURNING id, email, full_name AS "fullName", role, is_active AS "isActive"`,
-          [identity.email, generatedPasswordHash, identity.fullName || identity.email],
+          `INSERT INTO users (email, password_hash, full_name, avatar_url, role)
+           VALUES ($1,$2,$3,$4,'USER')
+           RETURNING id, email, full_name AS "fullName", avatar_url AS "avatarUrl", role, is_active AS "isActive"`,
+          [identity.email, generatedPasswordHash, identity.fullName || identity.email, identity.avatarUrl],
         );
         user = created.rows[0];
         await createAuditLog({
@@ -532,6 +533,19 @@ router.get('/yandex/callback', async (req, res) => {
           );
         }
         throw err;
+      }
+    }
+
+    if (user && identity.avatarUrl) {
+      const updatedUser = await query(
+        `UPDATE users
+         SET avatar_url = $2, updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, email, full_name AS "fullName", avatar_url AS "avatarUrl", role, is_active AS "isActive"`,
+        [user.id, identity.avatarUrl],
+      );
+      if (updatedUser.rows.length) {
+        user = updatedUser.rows[0];
       }
     }
 
@@ -706,7 +720,7 @@ router.post('/register/confirm', async (req, res) => {
     const inserted = await query(
       `INSERT INTO users (email, password_hash, full_name, role)
        VALUES ($1,$2,$3,$4)
-       RETURNING id, email, full_name AS "fullName", role`,
+       RETURNING id, email, full_name AS "fullName", avatar_url AS "avatarUrl", role`,
       [normalizedEmail, row.passwordHash, row.fullName, 'USER'],
     );
     const user = inserted.rows[0];
@@ -1417,7 +1431,7 @@ router.post('/login', async (req, res) => {
     const { email, password } = parsed.data;
 
     const result = await query(
-      `SELECT id, email, password_hash, full_name AS "fullName", role, is_active
+      `SELECT id, email, password_hash, full_name AS "fullName", avatar_url AS "avatarUrl", role, is_active
        FROM users WHERE email = $1 LIMIT 1`,
       [email],
     );
@@ -1516,7 +1530,7 @@ router.post('/login/2fa', async (req, res) => {
     const challengeHash = hashOneTimeToken(challengeToken);
     const challengeResult = await query(
       `SELECT c.id, c.user_id AS "userId", c.expires_at AS "expiresAt", c.consumed_at AS "consumedAt",
-              u.email, u.full_name AS "fullName", u.role, u.is_active AS "isActive",
+              u.email, u.full_name AS "fullName", u.avatar_url AS "avatarUrl", u.role, u.is_active AS "isActive",
               s.two_factor_secret_enc AS "secretEnc", s.two_factor_enabled AS "twoFactorEnabled"
        FROM login_challenges c
        JOIN users u ON u.id = c.user_id
@@ -1561,7 +1575,7 @@ router.post('/login/2fa', async (req, res) => {
     );
 
     const user = await completeLogin({
-      user: { id: row.userId, email: row.email, fullName: row.fullName, role: row.role },
+      user: { id: row.userId, email: row.email, fullName: row.fullName, avatarUrl: row.avatarUrl, role: row.role },
       req,
       res,
     });
@@ -1587,7 +1601,7 @@ router.post('/refresh', async (req, res) => {
     const now = new Date();
     const result = await query(
       `SELECT s.id, s.user_id AS "userId", s.expires_at AS "expiresAt", s.revoked_at AS "revokedAt",
-              u.email, u.full_name AS "fullName", u.role, u.is_active
+              u.email, u.full_name AS "fullName", u.avatar_url AS "avatarUrl", u.role, u.is_active
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.refresh_token = $1
@@ -1631,6 +1645,7 @@ router.post('/refresh', async (req, res) => {
         id: row.userId,
         email: row.email,
         fullName: row.fullName,
+        avatarUrl: row.avatarUrl ?? null,
         role: row.role,
       },
     });
@@ -1731,7 +1746,7 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 
   const result = await query(
-    `SELECT id, email, full_name AS "fullName", role
+    `SELECT id, email, full_name AS "fullName", avatar_url AS "avatarUrl", role
      FROM users
      WHERE id = $1 AND is_active = TRUE
      LIMIT 1`,

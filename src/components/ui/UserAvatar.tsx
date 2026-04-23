@@ -38,11 +38,13 @@ function initialsFromName(name: string): string {
 export function UserAvatar({
   name,
   email,
+  avatarUrl,
   size = 36,
   className,
 }: {
   name?: string | null;
   email?: string | null;
+  avatarUrl?: string | null;
   size?: number;
   className?: string;
 }): JSX.Element {
@@ -55,6 +57,18 @@ export function UserAvatar({
     height: size,
     backgroundColor: bg,
   };
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={base ? `Avatar ${base}` : 'Avatar'}
+        className={`rounded-full object-cover select-none ${className ?? ''}`}
+        style={{ width: size, height: size }}
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
 
   return (
     <div

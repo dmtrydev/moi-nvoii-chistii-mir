@@ -120,7 +120,7 @@ export function extractYandexIdentity(profile) {
 
 export function buildFrontendAuthRedirect({ ok, message }) {
   const base = String(process.env.APP_PUBLIC_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
-  const url = new URL(`${base}/login`);
+  const url = new URL(ok ? `${base}/dashboard/profile` : `${base}/login`);
   if (ok) {
     url.searchParams.set('auth', 'success');
   } else {
