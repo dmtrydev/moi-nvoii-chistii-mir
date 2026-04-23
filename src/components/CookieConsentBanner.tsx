@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   applyCookieConsent,
-  hasConsentChoice,
+  isAnalyticsEnabled,
   setCookieConsentState,
 } from '@/lib/metrika';
 
 export function CookieConsentBanner(): JSX.Element | null {
-  const [isOpen, setIsOpen] = useState(() => !hasConsentChoice());
+  const [isOpen, setIsOpen] = useState(() => !isAnalyticsEnabled());
 
   if (!isOpen) return null;
 
