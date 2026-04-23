@@ -264,9 +264,6 @@ export default function UserProfilePage(): JSX.Element {
                 />
               </label>
             </div>
-            <div className="text-[11px] glass-muted">
-              Сейчас SMS отключен по вашему требованию. Одноразовый код — через Google Authenticator.
-            </div>
           </div>
 
           <div className="rounded-xl border border-black/[0.08] bg-white/70 p-4 space-y-3">
