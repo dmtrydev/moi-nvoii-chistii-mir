@@ -11,7 +11,6 @@ import {
   USEFUL_INFO_LINKS,
   SERVICES_LINKS,
 } from '@/constants/links';
-import { openCookieSettings } from '@/lib/metrika';
 import type { SocialLink } from '@/types';
 
 const SOCIAL_LINKS: SocialLink[] = [
@@ -256,15 +255,6 @@ export function FooterSection(): JSX.Element {
               </div>
             </div>
             <div className="flex-col items-start self-stretch w-full flex-[0_0_auto] flex relative">
-              <div className="flex items-start justify-end flex-[0_0_auto] relative self-stretch w-full">
-                <button
-                  type="button"
-                  onClick={() => openCookieSettings()}
-                  className="relative flex items-center justify-end w-fit mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap underline underline-offset-4"
-                >
-                  Настройки cookies
-                </button>
-              </div>
               <div className="flex items-start justify-end flex-[0_0_auto] relative self-stretch w-full">
                 <div className="relative flex items-center justify-end w-fit mt-[-1.00px] font-manrope font-normal text-[#6b7b76] text-lg text-right tracking-[-0.36px] leading-[27px] whitespace-nowrap">
                   Designed by
