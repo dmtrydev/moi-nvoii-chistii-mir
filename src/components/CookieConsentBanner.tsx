@@ -23,23 +23,25 @@ export function CookieConsentBanner(): JSX.Element | null {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-[1202] w-[min(280px,calc(100vw-1.5rem))] sm:bottom-5 sm:right-5">
-      <div className="rounded-2xl border border-black/10 bg-[#f3f5f4] p-5 shadow-[0_16px_34px_rgba(15,23,42,0.18)]">
-        <p className="text-[22px] leading-tight font-semibold text-[#1f2a24]">
+    <div className="fixed bottom-4 right-4 z-[1202] w-[min(360px,calc(100vw-1.5rem))] sm:bottom-5 sm:right-5">
+      <div className="relative overflow-hidden rounded-[24px] border-[none] bg-[#ffffff4c] p-5 backdrop-blur-[10px] backdrop-brightness-[100%] shadow-[0_18px_40px_rgba(15,23,42,0.16)] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[24px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
+        <div className="relative z-[2]">
+        <p className="font-nunito text-[20px] leading-tight font-semibold text-[#2b3335]">
           Мы используем cookie и Яндекс.Метрику для аналитики
         </p>
-        <p className="mt-3 text-xs leading-5 text-[#5f6763]">
+        <p className="mt-2.5 font-nunito text-sm leading-5 text-[#5e6567]">
           Продолжая использование сайта, вы даете согласие на обработку данных.
         </p>
         <div className="mt-2">
-          <Link to="/privacy-policy" className="text-xs font-semibold text-[#4d5a53] underline underline-offset-4">
+          <Link to="/privacy-policy" className="font-nunito text-xs font-semibold text-[#5e6567] underline underline-offset-4 transition-colors hover:text-[#2b3335]">
             Политика конфиденциальности
           </Link>
         </div>
         <div className="mt-4">
-          <button type="button" onClick={acceptCookies} className="w-full rounded-xl bg-[#1f2328] px-5 py-3 text-sm font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.22)] transition hover:bg-[#171a1d]">
+          <button type="button" onClick={acceptCookies} className="group relative z-[2] flex h-[52px] w-full items-center justify-center overflow-hidden rounded-[20px] border-[none] bg-[#ffffff73] font-nunito text-base font-semibold text-[#2b3335] backdrop-blur-[10px] backdrop-brightness-[100%] transition-[background-color,box-shadow] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2 [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
             Принять
           </button>
+        </div>
         </div>
       </div>
     </div>
