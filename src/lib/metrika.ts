@@ -3,6 +3,8 @@ const METRIKA_COUNTER_ID = 108683217;
 const CONSENT_STORAGE_KEY = 'cookie_consent_v1';
 const COOKIE_SETTINGS_EVENT = 'cookie-settings:open';
 const CONSENT_VERSION = 2;
+// Временный режим для проверки Метрики: грузим и трекаем сразу, без cookie consent.
+const FORCE_ENABLE_METRIKA_FOR_TEST = true;
 
 declare global {
   interface Window {
@@ -100,6 +102,7 @@ export function hasConsentChoice(): boolean {
 }
 
 export function isAnalyticsEnabled(): boolean {
+  if (FORCE_ENABLE_METRIKA_FOR_TEST) return true;
   return getCookieConsentState()?.analytics === true;
 }
 
