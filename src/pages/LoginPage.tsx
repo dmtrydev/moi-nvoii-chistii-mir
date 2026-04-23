@@ -18,6 +18,8 @@ export default function LoginPage(): JSX.Element {
   const query = new URLSearchParams(location.search);
   const tokenFromUrl = query.get('token') ?? '';
   const isResetFromUrl = query.get('mode') === 'reset';
+  const oauthAuthStatus = query.get('auth') ?? '';
+  const oauthMessage = query.get('message') ?? '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -36,6 +38,8 @@ export default function LoginPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const yandexOauthUrl = getApiUrl('/api/auth/yandex/start');
 
   async function redirectAfterAuth(authUser: { role: string }): Promise<void> {
     const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
@@ -242,6 +246,13 @@ export default function LoginPage(): JSX.Element {
           </div>
         )}
 
+        <a
+          href={yandexOauthUrl}
+          className="w-full glass-btn-soft !h-11 !justify-center !text-sm"
+        >
+          Войти через Яндекс
+        </a>
+
         <form onSubmit={handleSubmit} className="space-y-3">
           {(mode !== 'reset' || resetStep === 'request') && (
             <div>
@@ -359,8 +370,16 @@ export default function LoginPage(): JSX.Element {
               </span>
             </label>
           )}
-          {notice && <div className="text-xs text-[#1f5c14]">{notice}</div>}
-          {error && <div className="text-xs glass-danger">{error}</div>}
+          {(notice || (oauthAuthStatus === 'success' ? 'Вход через Яндекс выполнен успешно.' : null)) && (
+            <div className="text-xs text-[#1f5c14]">
+              {notice || 'Вход через Яндекс выполнен успешно.'}
+            </div>
+          )}
+          {(error || (oauthAuthStatus === 'error' ? oauthMessage || 'Ошибка входа через Яндекс.' : null)) && (
+            <div className="text-xs glass-danger">
+              {error || oauthMessage || 'Ошибка входа через Яндекс.'}
+            </div>
+          )}
           <button
             type="submit"
             disabled={loading}

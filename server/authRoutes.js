@@ -4,6 +4,16 @@ import { z } from 'zod';
 import { query } from './db.js';
 import { hashPassword, verifyPassword, signAccessToken, requireAuth } from './auth.js';
 import { createAuditLog } from './audit.js';
+import {
+  buildFrontendAuthRedirect,
+  buildYandexAuthorizeUrl,
+  exchangeCodeForToken,
+  extractYandexIdentity,
+  fetchYandexProfile,
+  getYandexOauthConfig,
+  issueOauthState,
+  verifyAndConsumeOauthState,
+} from './oauth/yandex.js';
 
 const router = express.Router();
 
@@ -383,6 +393,174 @@ function setAccessCookie(res, token) {
     maxAge: 24 * 60 * 60 * 1000,
   });
 }
+
+router.get('/yandex/start', async (_req, res) => {
+  try {
+    const config = getYandexOauthConfig();
+    const state = issueOauthState(res);
+    const redirectUrl = buildYandexAuthorizeUrl({
+      authorizeUrl: config.authorizeUrl,
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
+      scope: config.scope,
+      state,
+    });
+    return res.redirect(302, redirectUrl);
+  } catch (err) {
+    console.error('yandex oauth start error:', err);
+    const redirectUrl = buildFrontendAuthRedirect({
+      ok: false,
+      message: 'Yandex OAuth is not configured',
+    });
+    return res.redirect(302, redirectUrl);
+  }
+});
+
+router.get('/yandex/callback', async (req, res) => {
+  try {
+    const code = String(req.query?.code ?? '').trim();
+    const incomingState = String(req.query?.state ?? '').trim();
+    const isStateValid = verifyAndConsumeOauthState(req, res, incomingState);
+    if (!isStateValid) {
+      return res.redirect(
+        302,
+        buildFrontendAuthRedirect({ ok: false, message: 'OAuth state is invalid or expired' }),
+      );
+    }
+    if (!code) {
+      return res.redirect(
+        302,
+        buildFrontendAuthRedirect({ ok: false, message: 'Yandex did not return authorization code' }),
+      );
+    }
+
+    const config = getYandexOauthConfig();
+    const accessToken = await exchangeCodeForToken({
+      tokenUrl: config.tokenUrl,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      redirectUri: config.redirectUri,
+      code,
+    });
+    const profile = await fetchYandexProfile({
+      infoUrl: config.infoUrl,
+      accessToken,
+    });
+    const identity = extractYandexIdentity(profile);
+    if (!identity.providerUserId) {
+      return res.redirect(
+        302,
+        buildFrontendAuthRedirect({ ok: false, message: 'Yandex profile does not include user id' }),
+      );
+    }
+
+    let user = null;
+    const linked = await query(
+      `SELECT u.id, u.email, u.full_name AS "fullName", u.role, u.is_active AS "isActive"
+       FROM user_oauth_accounts oa
+       JOIN users u ON u.id = oa.user_id
+       WHERE oa.provider = 'YANDEX'
+         AND oa.provider_user_id = $1
+       LIMIT 1`,
+      [identity.providerUserId],
+    );
+    if (linked.rows.length) {
+      user = linked.rows[0];
+      if (!user.isActive) {
+        return res.redirect(
+          302,
+          buildFrontendAuthRedirect({ ok: false, message: 'User is blocked' }),
+        );
+      }
+    }
+
+    if (!user) {
+      if (!identity.email) {
+        return res.redirect(
+          302,
+          buildFrontendAuthRedirect({ ok: false, message: 'Yandex account has no email' }),
+        );
+      }
+      const existingByEmail = await query(
+        `SELECT id, email, full_name AS "fullName", role, is_active AS "isActive"
+         FROM users
+         WHERE email = $1
+         LIMIT 1`,
+        [identity.email],
+      );
+
+      if (existingByEmail.rows.length) {
+        user = existingByEmail.rows[0];
+        if (!user.isActive) {
+          return res.redirect(
+            302,
+            buildFrontendAuthRedirect({ ok: false, message: 'User is blocked' }),
+          );
+        }
+      } else {
+        const generatedPasswordHash = await hashPassword(crypto.randomBytes(32).toString('hex'));
+        const created = await query(
+          `INSERT INTO users (email, password_hash, full_name, role)
+           VALUES ($1,$2,$3,'USER')
+           RETURNING id, email, full_name AS "fullName", role, is_active AS "isActive"`,
+          [identity.email, generatedPasswordHash, identity.fullName || identity.email],
+        );
+        user = created.rows[0];
+        await createAuditLog({
+          req,
+          action: 'USER_REGISTER',
+          entityType: 'USER',
+          entityId: String(user.id),
+          severity: 'INFO',
+          metadata: { via: 'YANDEX_OAUTH' },
+          changes: { after: { id: user.id, email: user.email, role: user.role } },
+        });
+      }
+
+      try {
+        await query(
+          `INSERT INTO user_oauth_accounts (user_id, provider, provider_user_id, email_at_link)
+           VALUES ($1,'YANDEX',$2,$3)
+           ON CONFLICT (provider, user_id) DO NOTHING`,
+          [user.id, identity.providerUserId, identity.email || null],
+        );
+      } catch (err) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === '23505') {
+          return res.redirect(
+            302,
+            buildFrontendAuthRedirect({ ok: false, message: 'Yandex account already linked to another user' }),
+          );
+        }
+        throw err;
+      }
+    }
+
+    await completeLogin({ user, req, res });
+    await createAuditLog({
+      req,
+      action: 'USER_LOGIN',
+      entityType: 'USER',
+      entityId: String(user.id),
+      severity: 'INFO',
+      metadata: { via: 'YANDEX_OAUTH', twoFactor: false },
+    });
+    void sendSecurityEventEmail({
+      email: user.email,
+      subject: 'Новый вход в аккаунт',
+      text: `Вход через Яндекс OAuth. IP: ${getClientIp(req) || 'unknown'}, device: ${(req.headers['user-agent'] || '').toString() || 'unknown'}`,
+    });
+
+    const redirectTo = buildFrontendAuthRedirect({ ok: true });
+    return res.redirect(302, redirectTo);
+  } catch (err) {
+    console.error('yandex oauth callback error:', err);
+    const redirectUrl = buildFrontendAuthRedirect({
+      ok: false,
+      message: err instanceof Error ? err.message : 'Yandex OAuth failed',
+    });
+    return res.redirect(302, redirectUrl);
+  }
+});
 
 router.post('/register/request-code', async (req, res) => {
   try {

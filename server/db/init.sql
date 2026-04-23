@@ -151,6 +151,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS eco_coins INTEGER NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);
 
+CREATE TABLE IF NOT EXISTS user_oauth_accounts (
+  id BIGSERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  provider_user_id TEXT NOT NULL,
+  email_at_link TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (provider, provider_user_id),
+  UNIQUE (provider, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_oauth_accounts_user_id ON user_oauth_accounts (user_id);
+
 CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
