@@ -22,7 +22,6 @@ import { fetchFkkoTitlesBatched } from './rpnFkkoClient.js';
 import { loadFkkoTitlesFromDb, upsertFkkoOfficialTitles } from './fkkoOfficialTitles.js';
 import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
 import authRouter from './authRoutes.js';
-import cadastreRouter from './cadastreRoutes.js';
 import userRouter from './userRoutes.js';
 import supportRouter from './supportRoutes.js';
 import { extractTextFromPdf } from './pdfText.js';
@@ -213,8 +212,6 @@ app.get('/api/cadastre-export', async (req, res) => {
     res.status(502).json({ message: 'Кадастровый слой недоступен' });
   }
 });
-
-app.use('/api/cadastre', cadastreRouter);
 
 app.use('/api/', rateLimit({ name: 'global', windowMs: 60_000, max: 100 }));
 app.use('/api/auth/login', rateLimit({ name: 'auth-login', windowMs: 60_000, max: 10 }));
