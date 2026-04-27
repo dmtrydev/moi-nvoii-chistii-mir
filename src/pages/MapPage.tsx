@@ -1314,9 +1314,6 @@ export default function MapPage(): JSX.Element {
               Кадастровая
             </button>
           </div>
-          <p className="mt-3 font-nunito text-[12.5px] font-semibold text-[#5e6567] leading-[1.35] tracking-[0]">
-            Обычная подложка работает через Leaflet (OpenStreetMap / CARTO), кадастровая — через внешний iframe-источник.
-          </p>
         </section>
 
                 </aside>
