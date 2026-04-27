@@ -8,6 +8,16 @@ import placementActiveIcon from '@/assets/home-landing/activity-strip/enterprise
 import utilizationInactiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-utilization-inactive.svg';
 import routeBuildIconPlaceholder from '@/assets/map/route-build-icon-placeholder.svg';
 
+const routeCtaDurationClass = 'duration-[600ms]';
+const routeCtaLabelShiftClass = [
+  'transition-transform',
+  routeCtaDurationClass,
+  'ease-[cubic-bezier(0.22,1,0.36,1)]',
+  'motion-reduce:transition-none',
+  'motion-reduce:group-hover:translate-x-0',
+  'group-hover:translate-x-[calc((16px+0.5rem)/2)]',
+].join(' ');
+
 type Props = {
   model: MapEnterprisePopupViewModel;
   onBuildRoute?: () => void;
@@ -72,9 +82,15 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
           onClick={onBuildRoute}
           className="group relative home-find-button flex h-[44px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[16px] border-[none] px-4 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] disabled:opacity-60"
         >
-          <span className="relative z-[2] inline-flex items-center gap-2 whitespace-nowrap font-nunito text-base font-bold text-[#2b3335]">
-            <img className="h-[16px] w-[16px] object-contain pointer-events-none" alt="" src={routeBuildIconPlaceholder} />
-            Построить маршрут
+          <span className="relative z-[2] inline-flex items-center gap-2">
+            <span className={`whitespace-nowrap font-nunito text-base font-bold text-[#2b3335] ${routeCtaLabelShiftClass}`}>
+              Построить маршрут
+            </span>
+            <span
+              className={`relative flex h-[16px] w-[16px] shrink-0 items-center justify-center transition-[transform,opacity] ${routeCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-6 group-hover:opacity-0`}
+            >
+              <img className="h-[16px] w-[16px] object-contain pointer-events-none" alt="" src={routeBuildIconPlaceholder} />
+            </span>
           </span>
         </button>
       </div>
