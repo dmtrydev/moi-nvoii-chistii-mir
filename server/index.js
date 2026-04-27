@@ -106,7 +106,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https:",
-    "connect-src 'self' https://agent.timeweb.cloud https://api.openai.com https://mc.yandex.ru wss://mc.yandex.ru",
+    "connect-src 'self' https://agent.timeweb.cloud https://api.openai.com https://mc.yandex.ru wss://mc.yandex.ru https://router.project-osrm.org https://nominatim.openstreetmap.org",
     // Разрешаем загрузку внешней кадастровой подложки в iframe.
     // Нужна, чтобы VITE_CADASTRE_IFRAME_URL работал в проде.
     "frame-src 'self' https://ik8map.roscadastres.com https://ik10map.roscadastres.com",
@@ -115,7 +115,8 @@ app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', csp);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Разрешаем геолокацию для текущего origin, иначе браузер не покажет системный prompt.
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
