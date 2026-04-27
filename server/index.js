@@ -22,7 +22,6 @@ import { fetchFkkoTitlesBatched } from './rpnFkkoClient.js';
 import { loadFkkoTitlesFromDb, upsertFkkoOfficialTitles } from './fkkoOfficialTitles.js';
 import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
 import authRouter from './authRoutes.js';
-import cadastreRouter from './cadastreRoutes.js';
 import userRouter from './userRoutes.js';
 import supportRouter from './supportRoutes.js';
 import { extractTextFromPdf } from './pdfText.js';
@@ -110,7 +109,7 @@ app.use((req, res, next) => {
     "connect-src 'self' https://agent.timeweb.cloud https://api.openai.com https://mc.yandex.ru wss://mc.yandex.ru",
     // Разрешаем загрузку внешней кадастровой подложки в iframe.
     // Нужна, чтобы VITE_CADASTRE_IFRAME_URL работал в проде.
-    "frame-src 'self' https://ik8map.roscadastres.com",
+    "frame-src 'self' https://ik8map.roscadastres.com https://ik10map.roscadastres.com",
     "frame-ancestors 'none'",
   ].join('; ');
   res.setHeader('Content-Security-Policy', csp);
@@ -213,8 +212,6 @@ app.get('/api/cadastre-export', async (req, res) => {
     res.status(502).json({ message: 'Кадастровый слой недоступен' });
   }
 });
-
-app.use('/api/cadastre', cadastreRouter);
 
 app.use('/api/', rateLimit({ name: 'global', windowMs: 60_000, max: 100 }));
 app.use('/api/auth/login', rateLimit({ name: 'auth-login', windowMs: 60_000, max: 10 }));
