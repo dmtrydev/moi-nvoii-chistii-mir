@@ -22,7 +22,7 @@ const LABELS: Record<string, string> = {
 };
 
 function pickRows(attrs: Record<string, string | number | null | undefined>): [string, string][] {
-  const order = ['cn', 'cad_num', 'statecd', 'address', 'category', 'category_type', 'fp', 'area_value', 'cad_cost'];
+  const order = ['cn', 'statecd', 'address', 'category', 'category_type', 'fp', 'area_value', 'cad_cost'];
   const seen = new Set<string>();
   const rows: [string, string][] = [];
   for (const k of order) {
@@ -35,6 +35,7 @@ function pickRows(attrs: Record<string, string | number | null | undefined>): [s
   for (const [k, v] of Object.entries(attrs)) {
     if (seen.has(k)) continue;
     if (v == null || String(v).trim() === '') continue;
+    if (k === 'cad_num' && attrs.cn && String(attrs.cn).trim() === String(v).trim()) continue;
     if (k === 'id' || k === 'type') continue;
     rows.push([LABELS[k] ?? k, String(v)]);
   }

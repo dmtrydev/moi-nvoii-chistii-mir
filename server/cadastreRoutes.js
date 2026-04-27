@@ -77,6 +77,32 @@ function normalizeGeoJson4326(fc) {
   return { type: 'FeatureCollection', features };
 }
 
+function extentToGeoJson(extent) {
+  if (!extent || typeof extent !== 'object') return null;
+  const xmin = Number(extent.xmin);
+  const xmax = Number(extent.xmax);
+  const ymin = Number(extent.ymin);
+  const ymax = Number(extent.ymax);
+  if (![xmin, xmax, ymin, ymax].every((n) => Number.isFinite(n))) return null;
+  const sw = xy3857ToLngLat(xmin, ymin);
+  const se = xy3857ToLngLat(xmax, ymin);
+  const ne = xy3857ToLngLat(xmax, ymax);
+  const nw = xy3857ToLngLat(xmin, ymax);
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[sw, se, ne, nw, sw]],
+        },
+      },
+    ],
+  };
+}
+
 function lonLatTo3857(lon, lat) {
   const x = (lon * 20037508.34) / 180;
   let y = Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) / (Math.PI / 180);
@@ -196,6 +222,7 @@ async function identifyByPoint({ lat, lng, typeId }) {
     id: String(attrs.id ?? ''),
     cn: String(attrs.cn ?? ''),
     attrs,
+    extent: f?.extent ?? null,
   };
 }
 
@@ -255,6 +282,9 @@ router.get('/identify', async (req, res) => {
       } catch {
         geojson = null;
       }
+    }
+    if (!geojson) {
+      geojson = extentToGeoJson(found.extent);
     }
 
     return res.json({

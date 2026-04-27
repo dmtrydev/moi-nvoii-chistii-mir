@@ -442,10 +442,17 @@
     margin-bottom: 10px;
     color: var(--eco-ink);
   }
+  .moinoviichistiimir-cadastre-card {
+    width: min(420px, calc(100vw - 60px));
+    max-height: min(420px, 58vh);
+    overflow: auto;
+    padding-right: 6px;
+  }
   .moinoviichistiimir-cadastre-table {
     width: 100%;
     font-size: 11px;
     border-collapse: collapse;
+    table-layout: fixed;
   }
   .moinoviichistiimir-cadastre-table th[scope='row'] {
     text-align: left;
@@ -458,7 +465,9 @@
   .moinoviichistiimir-cadastre-table td {
     padding: 5px 0;
     color: var(--eco-ink);
-    word-break: break-word;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
   }
 
   .moinoviichistiimir-popup-card {
