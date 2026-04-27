@@ -125,7 +125,7 @@ const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
 const CADASTRE_IFRAME_URL =
   String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim() ||
-  'https://ik10map.roscadastres.com/map';
+  'https://ik10map.roscadastres.com/map.html?v=91';
 
 type MapPoint = {
   key: string;
