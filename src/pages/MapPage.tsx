@@ -5,6 +5,7 @@ import type L from 'leaflet';
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
+import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
 import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 import {
@@ -123,9 +124,6 @@ const MAP_AREA_LEFT_OPEN_PX = 639;
 const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
-const CADASTRE_IFRAME_URL =
-  String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim() ||
-  'https://ik10map.roscadastres.com/map.html?v=91';
 
 type MapPoint = {
   key: string;
@@ -1187,7 +1185,7 @@ export default function MapPage(): JSX.Element {
             </button>
           </div>
           <p className="mt-3 font-nunito text-[12.5px] font-semibold text-[#5e6567] leading-[1.35] tracking-[0]">
-            Обычная подложка работает через Leaflet (OpenStreetMap / CARTO), кадастровая — через внешний iframe-источник.
+            Обычная подложка работает через Leaflet (OpenStreetMap / CARTO), кадастровая — с наложением контуров участков и карточкой по клику.
           </p>
         </section>
 
@@ -1275,6 +1273,7 @@ export default function MapPage(): JSX.Element {
           zoomControl
         >
           <TileLayer attribution={tileAttribution} url={tileUrl} />
+          <CadastreVectorSystem enabled={baseMapStyle === 'cadastral'} apiBase={getApiUrl} />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           {mapPoints.map((point) => {
             const pointId = point.pointId;
@@ -1293,21 +1292,7 @@ export default function MapPage(): JSX.Element {
             );
           })}
         </MapContainer>
-        {baseMapStyle === 'cadastral' && (
-          <div className="absolute inset-0 z-[2000] overflow-hidden bg-[#edf2f6]">
-            <iframe
-              src={CADASTRE_IFRAME_URL}
-              title="Публичная кадастровая карта"
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-            <div className="pointer-events-none absolute right-4 top-4 rounded-xl border border-white bg-[#ffffffe6] px-3 py-2 text-xs font-semibold text-[#5e6567] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
-              Кадастровая подложка: внешний источник
-            </div>
-          </div>
-        )}
-        {baseMapStyle !== 'cadastral' && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
+        {focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
           <div
             role="status"
             className="pointer-events-auto absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[5010] rounded-2xl border border-black/[0.06] bg-[#fffffff2] px-4 py-3 shadow-[0_12px_40px_rgba(43,51,53,0.18)] backdrop-blur-md sm:left-auto sm:right-6 sm:max-w-md sm:translate-x-0"

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import {
-  buildCadastrePopupHtmlFromFeature,
   buildCadastrePopupHtmlFromIdentify,
 } from '@/components/map/cadastrePopup';
 
@@ -19,7 +18,6 @@ const PARCEL_STYLE: L.PathOptions = {
   fillOpacity: 0.06,
 };
 
-const MIN_ZOOM_PARCELS = 14;
 const MIN_ZOOM_IDENTIFY = 12;
 
 type Props = {
@@ -30,7 +28,6 @@ type Props = {
 export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element | null {
   const map = useMap();
   const [collection, setCollection] = useState<ParcelFeatureCollection | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openPopup = useCallback(
     (latlng: L.LatLng, html: string) => {
@@ -74,30 +71,18 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
           return;
         }
         let html = buildCadastrePopupHtmlFromIdentify(data);
+        const geo =
+          data?.geojson?.type === 'FeatureCollection' && Array.isArray(data?.geojson?.features)
+            ? (data.geojson as ParcelFeatureCollection)
+            : null;
+        setCollection(geo);
         if (html) {
-          const f = data?.features?.[0];
-          const attrs = f?.attrs ?? {};
-          const cadForDetail =
-            (typeof attrs.cad_num === 'string' && /^\d+:\d+:\d+:\d+/.test(attrs.cad_num) && attrs.cad_num) ||
-            (typeof attrs.cn === 'string' && /^\d+:\d+:\d+:\d+/.test(attrs.cn) ? attrs.cn : null);
-          if (cadForDetail) {
-            try {
-              const r2 = await fetch(
-                apiBase(`/api/cadastre/feature/1/${encodeURIComponent(cadForDetail)}`),
-              );
-              const detail = await r2.json();
-              const full = buildCadastrePopupHtmlFromFeature(detail);
-              if (full) html = full;
-            } catch {
-              /* оставляем краткий ответ identify */
-            }
-          }
           openPopup(latlng, html);
           return;
         }
         openPopup(
           latlng,
-          `<div class="moinoviichistiimir-cadastre-card"><p style="font-size:12px;color:#64748b;margin:0">Объект не найден или сервис ПКК недоступен (проверьте CADASTRE_PKK_API_BASE на сервере).</p></div>`,
+          `<div class="moinoviichistiimir-cadastre-card"><p style="font-size:12px;color:#64748b;margin:0">Объект не найден в кадастровом слое.</p></div>`,
         );
       } catch {
         openPopup(
@@ -109,65 +94,12 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
     [apiBase, map, openPopup],
   );
 
-  const loadParcels = useCallback(() => {
-    if (!enabled) {
-      setCollection(null);
-      return;
-    }
-    const z = map.getZoom();
-    if (z < MIN_ZOOM_PARCELS) {
-      setCollection(null);
-      return;
-    }
-    // Leaflet иногда возвращает невалидные bounds, если карта ещё не успела
-    // отрендериться/получить размеры (часто проявляется на проде/Render).
-    const size = map.getSize?.();
-    if (!size || size.x <= 0 || size.y <= 0) return;
-
-    const b = map.getBounds();
-    const minLon = b.getWest();
-    const minLat = b.getSouth();
-    const maxLon = b.getEast();
-    const maxLat = b.getNorth();
-    if (![minLon, minLat, maxLon, maxLat].every((n) => Number.isFinite(n))) {
-      setCollection(null);
-      return;
-    }
-    const params = new URLSearchParams({
-      minLon: String(minLon),
-      minLat: String(minLat),
-      maxLon: String(maxLon),
-      maxLat: String(maxLat),
-      zoom: String(z),
-    });
-    fetch(apiBase(`/api/cadastre/parcels?${params.toString()}`))
-      .then((r) => r.json())
-      .then((data: ParcelFeatureCollection) => {
-        if (data?.type === 'FeatureCollection' && Array.isArray(data.features)) {
-          setCollection(data);
-        } else {
-          setCollection(null);
-        }
-      })
-      .catch(() => setCollection(null));
-  }, [enabled, map, apiBase]);
-
   useEffect(() => {
     if (!enabled) {
       setCollection(null);
-      return;
+      map.closePopup();
     }
-    const schedule = () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(loadParcels, 420);
-    };
-    map.on('moveend', schedule);
-    loadParcels();
-    return () => {
-      map.off('moveend', schedule);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [enabled, map, loadParcels]);
+  }, [enabled, map]);
 
   useMapEvents({
     click(e) {
