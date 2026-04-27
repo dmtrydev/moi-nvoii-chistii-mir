@@ -40,6 +40,8 @@ const MAPSERVER_TIMEOUT_MS = (() => {
   return Number.isFinite(n) ? n : 7_000;
 })();
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 function pkkReferer() {
   const fromEnv = String(process.env.CADASTRE_PKK_REFERER ?? '').trim();
   if (fromEnv) return fromEnv;
@@ -48,11 +50,45 @@ function pkkReferer() {
 }
 
 function relaxTlsForHost(hostname) {
+  if (IS_PRODUCTION) return false;
   return (
     hostname === 'pkk.rosreestr.ru' ||
     hostname === 'nspd.gov.ru' ||
     String(process.env.CADASTRE_TLS_INSECURE ?? '').trim() === '1'
   );
+}
+
+function bodySnippet(buf, maxLen = 240) {
+  const s = buf
+    .toString('utf8')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return '';
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+}
+
+function getHeaderValue(headers, name) {
+  const raw = headers?.[name];
+  if (Array.isArray(raw)) return String(raw[0] ?? '');
+  return String(raw ?? '');
+}
+
+function looksLikeJsonContentType(headers) {
+  const ct = getHeaderValue(headers, 'content-type').toLowerCase();
+  return ct.includes('application/json') || ct.includes('application/geo+json');
+}
+
+function parseJsonBodySafe(buf) {
+  try {
+    return { ok: true, data: JSON.parse(buf.toString('utf8')) };
+  } catch {
+    return { ok: false, data: null };
+  }
+}
+
+function logCadastreWarning(event, payload = {}) {
+  // Единый формат лога для быстрых алертов/фильтрации в лог-агрегаторе.
+  console.warn('[cadastre]', JSON.stringify({ event, ts: new Date().toISOString(), ...payload }));
 }
 
 function pkkHeaders(accept) {
@@ -250,24 +286,36 @@ async function identifyFallbackByIntersects(lat, lng, categoryId, limit) {
       ],
     },
   };
-  const targetUrl = `${PKK_API_BASE.replace(/\/$/, '')}/api/geoportal/v1/intersects?typeIntersect=fullObject`;
-  const upstream = await pkkRequest(targetUrl, {
-    method: 'POST',
-    accept: 'application/json, */*',
-    body: JSON.stringify(payload),
-  });
-  if (upstream.statusCode >= 400 || isProbablyHtml(upstream.body)) return null;
-  let fc;
-  try {
-    fc = JSON.parse(upstream.body.toString('utf8'));
-  } catch {
-    return null;
+  const base = PKK_API_BASE.replace(/\/$/, '');
+  const targets = [
+    `${base}/api/geoportal/v1/intersects?typeIntersect=fullObject`,
+    `${base}/api/geoportal/v1/intersects`,
+  ];
+  for (const targetUrl of targets) {
+    const upstream = await pkkRequest(targetUrl, {
+      method: 'POST',
+      accept: 'application/json, */*',
+      body: JSON.stringify(payload),
+    });
+    if (upstream.statusCode >= 400 || isProbablyHtml(upstream.body) || !looksLikeJsonContentType(upstream.headers)) {
+      logCadastreWarning('identify-fallback-intersects-upstream-invalid', {
+        targetUrl,
+        statusCode: upstream.statusCode,
+        contentType: getHeaderValue(upstream.headers, 'content-type'),
+        snippet: bodySnippet(upstream.body, 180),
+      });
+      continue;
+    }
+    const parsed = parseJsonBodySafe(upstream.body);
+    if (!parsed.ok) continue;
+    const fc = parsed.data;
+    if (fc?.type !== 'FeatureCollection' || !Array.isArray(fc.features)) continue;
+    const wrapped = wrapIdentifyFromGeoJson(fc);
+    if (!Array.isArray(wrapped.features) || wrapped.features.length === 0) continue;
+    wrapped.features = wrapped.features.slice(0, limit);
+    return wrapped;
   }
-  if (fc?.type !== 'FeatureCollection' || !Array.isArray(fc.features)) return null;
-  const wrapped = wrapIdentifyFromGeoJson(fc);
-  if (!Array.isArray(wrapped.features) || wrapped.features.length === 0) return null;
-  wrapped.features = wrapped.features.slice(0, limit);
-  return wrapped;
+  return null;
 }
 
 /**
@@ -314,7 +362,17 @@ router.get('/identify', async (req, res) => {
 
   try {
     const upstream = await pkkRequest(targetUrl, { accept: 'application/json, */*' });
-    if (upstream.statusCode >= 400 || isProbablyHtml(upstream.body)) {
+    if (
+      upstream.statusCode >= 400 ||
+      isProbablyHtml(upstream.body) ||
+      !looksLikeJsonContentType(upstream.headers)
+    ) {
+      logCadastreWarning('identify-upstream-invalid', {
+        statusCode: upstream.statusCode,
+        contentType: getHeaderValue(upstream.headers, 'content-type'),
+        targetUrl,
+        snippet: bodySnippet(upstream.body),
+      });
       const fallback = await identifyFallbackByIntersects(lat, lng, categoryId, limit);
       if (fallback) {
         res.setHeader('X-Cadastre-Warning', 'identify-fallback-intersects');
@@ -327,12 +385,17 @@ router.get('/identify', async (req, res) => {
         statusCode: upstream.statusCode,
       });
     }
-    let fc;
-    try {
-      fc = JSON.parse(upstream.body.toString('utf8'));
-    } catch {
+    const parsed = parseJsonBodySafe(upstream.body);
+    if (!parsed.ok) {
+      logCadastreWarning('identify-upstream-invalid-json', {
+        statusCode: upstream.statusCode,
+        contentType: getHeaderValue(upstream.headers, 'content-type'),
+        targetUrl,
+        snippet: bodySnippet(upstream.body),
+      });
       return res.status(502).json({ message: 'Некорректный JSON от НСПД' });
     }
+    const fc = parsed.data;
     if (fc.type !== 'FeatureCollection' || !Array.isArray(fc.features)) {
       return res.status(502).json({ message: 'Неожиданный ответ WMS (ожидался FeatureCollection)' });
     }
@@ -341,6 +404,129 @@ router.get('/identify', async (req, res) => {
   } catch {
     return res.status(502).json({ message: 'Запрос к НСПД не выполнен' });
   }
+});
+
+/**
+ * GET /api/cadastre/health
+ * Быстрая диагностика доступности НСПД и формата ответа.
+ */
+router.get('/health', async (_req, res) => {
+  const startedAt = Date.now();
+  const checks = [];
+  const base = PKK_API_BASE.replace(/\/$/, '');
+  const layerId = TYPE_MAP[1].wmsLayerId;
+  const lat = 55.751244;
+  const lng = 37.618423;
+  const { i, j } = wmsPixelFromLngLat(lng, lat);
+  const t = mercatorTile(lng, lat, WMS_ZOOM);
+  const b = tileBounds(t.x, t.y, t.z);
+  const wmsQs = new URLSearchParams({
+    REQUEST: 'GetFeatureInfo',
+    SERVICE: 'WMS',
+    VERSION: '1.3.0',
+    INFO_FORMAT: 'application/json',
+    FORMAT: 'image/png',
+    STYLES: '',
+    TRANSPARENT: 'true',
+    QUERY_LAYERS: String(layerId),
+    LAYERS: String(layerId),
+    WIDTH: String(TILE_SIZE),
+    HEIGHT: String(TILE_SIZE),
+    I: String(i),
+    J: String(j),
+    CRS: 'EPSG:4326',
+    BBOX: `${b.west},${b.south},${b.east},${b.north}`,
+    FEATURE_COUNT: '1',
+  });
+
+  try {
+    const targetUrl = `${base}/api/aeggis/v3/${layerId}/wms?${wmsQs.toString()}`;
+    const upstream = await pkkRequest(targetUrl, { accept: 'application/json, */*', timeoutMs: 10_000 });
+    const parsed = parseJsonBodySafe(upstream.body);
+    checks.push({
+      name: 'wms-identify',
+      ok:
+        upstream.statusCode < 400 &&
+        looksLikeJsonContentType(upstream.headers) &&
+        !isProbablyHtml(upstream.body) &&
+        parsed.ok,
+      statusCode: upstream.statusCode,
+      contentType: getHeaderValue(upstream.headers, 'content-type'),
+      snippet: bodySnippet(upstream.body, 120),
+    });
+  } catch (err) {
+    checks.push({
+      name: 'wms-identify',
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
+    const payload = {
+      categories: [{ id: TYPE_MAP[1].categoryId }],
+      geom: {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                [
+                  [lng - 0.00018, lat - 0.00012],
+                  [lng + 0.00018, lat - 0.00012],
+                  [lng + 0.00018, lat + 0.00012],
+                  [lng - 0.00018, lat + 0.00012],
+                  [lng - 0.00018, lat - 0.00012],
+                ],
+              ],
+              crs: { type: 'name', properties: { name: 'EPSG:4326' } },
+            },
+          },
+        ],
+      },
+    };
+    const targetUrl = `${base}/api/geoportal/v1/intersects?typeIntersect=fullObject`;
+    const upstream = await pkkRequest(targetUrl, {
+      method: 'POST',
+      accept: 'application/json, */*',
+      body: JSON.stringify(payload),
+      timeoutMs: 10_000,
+    });
+    const parsed = parseJsonBodySafe(upstream.body);
+    checks.push({
+      name: 'intersects',
+      ok:
+        upstream.statusCode < 400 &&
+        looksLikeJsonContentType(upstream.headers) &&
+        !isProbablyHtml(upstream.body) &&
+        parsed.ok,
+      statusCode: upstream.statusCode,
+      contentType: getHeaderValue(upstream.headers, 'content-type'),
+      snippet: bodySnippet(upstream.body, 120),
+    });
+  } catch (err) {
+    checks.push({
+      name: 'intersects',
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  const ok = checks.every((c) => c.ok);
+  const statusCode = ok ? 200 : 503;
+  return res.status(statusCode).json({
+    ok,
+    env: {
+      pkkApiBase: PKK_API_BASE,
+      tlsInsecureEnabled: !IS_PRODUCTION && String(process.env.CADASTRE_TLS_INSECURE ?? '').trim() === '1',
+      nodeEnv: process.env.NODE_ENV ?? '',
+    },
+    checks,
+    elapsedMs: Date.now() - startedAt,
+  });
 });
 
 /**
