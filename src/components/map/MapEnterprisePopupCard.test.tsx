@@ -23,6 +23,7 @@ describe('MapEnterprisePopupCard', () => {
     expect(screen.getByText('4501217153')).toBeInTheDocument();
     expect(screen.getByText('Скоро по подписке')).toBeInTheDocument();
     expect(screen.getByText('Основная площадка')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Построить маршрут' })).toBeInTheDocument();
   });
 
   it('keeps long values visible', () => {

@@ -43,7 +43,6 @@ import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-ic
 import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
 import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
-import routeBuildIconPlaceholder from '@/assets/map/route-build-icon-placeholder.svg';
 import backToHomeIconPlaceholder from '@/assets/map/back-to-home-icon-placeholder.svg';
 import collapseMenuIconPlaceholder from '@/assets/map/collapse-menu-icon-placeholder.svg';
 
@@ -146,6 +145,16 @@ type RouteBuildResult = {
   durationSeconds: number;
 };
 
+function getCurrentPosition(options?: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Геолокация недоступна в этом браузере.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
 function MapFocusController({
   center,
   zoom,
@@ -192,10 +201,14 @@ function MapPointMarker({
   point,
   isSelected,
   onSelect,
+  onBuildRoute,
+  routeBusy,
 }: {
   point: MapPoint;
   isSelected: boolean;
   onSelect: () => void;
+  onBuildRoute: (point: MapPoint) => void;
+  routeBusy: boolean;
 }): JSX.Element {
   const map = useMap();
   const markerRef = useRef<L.CircleMarker | null>(null);
@@ -246,7 +259,11 @@ function MapPointMarker({
       eventHandlers={{ click: onSelect }}
     >
       <Popup className="moinoviichistiimir-popup">
-        <MapEnterprisePopupCard model={popupModel} />
+        <MapEnterprisePopupCard
+          model={popupModel}
+          routeDisabled={routeBusy}
+          onBuildRoute={() => onBuildRoute(point)}
+        />
       </Popup>
     </CircleMarker>
   );
@@ -295,10 +312,8 @@ export default function MapPage(): JSX.Element {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
   const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
-  const [routeAddressA, setRouteAddressA] = useState('');
-  const [routeAddressB, setRouteAddressB] = useState('');
-  const [routeResolvedA, setRouteResolvedA] = useState<RouteEndpoint | null>(null);
-  const [routeResolvedB, setRouteResolvedB] = useState<RouteEndpoint | null>(null);
+  const [routeStartPoint, setRouteStartPoint] = useState<RouteEndpoint | null>(null);
+  const [routeTargetPoint, setRouteTargetPoint] = useState<RouteEndpoint | null>(null);
   const [routeBusy, setRouteBusy] = useState(false);
   const [routeError, setRouteError] = useState('');
   const [routeResult, setRouteResult] = useState<RouteBuildResult | null>(null);
@@ -792,8 +807,8 @@ export default function MapPage(): JSX.Element {
       ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       : '&copy; OpenStreetMap &copy; CARTO';
   const mapPushedLeft = isLgUp && menuVisible;
-  const routePointA = routeResolvedA;
-  const routePointB = routeResolvedB;
+  const routePointA = routeStartPoint;
+  const routePointB = routeTargetPoint;
   const homePath = useMemo(() => {
     const params = buildSearchParamsFromFilters({
       region: filterRegion,
@@ -804,77 +819,41 @@ export default function MapPage(): JSX.Element {
     const qs = params.toString();
     return qs ? `/?${qs}` : '/';
   }, [filterRegion, filterFkko, filterVid, hasSearched]);
-  const handleUseGeoForRouteA = useCallback(() => {
-    if (!navigator.geolocation) {
-      setRouteError('Геолокация недоступна в этом браузере.');
+  const handleBuildRouteFromClient = useCallback(async (target: MapPoint) => {
+    if (typeof target.lat !== 'number' || !Number.isFinite(target.lat) || typeof target.lng !== 'number' || !Number.isFinite(target.lng)) {
+      setRouteError('Для выбранного объекта отсутствуют координаты.');
       return;
     }
-    setRouteBusy(true);
-    setRouteError('');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-        const endpoint: RouteEndpoint = {
-          id: 'geo:current',
-          label: 'Моё местоположение',
-          coords,
-        };
-        setRouteAddressA(endpoint.label);
-        setRouteResolvedA(endpoint);
-        setFocusCenter(coords);
-        setRouteBusy(false);
-      },
-      () => {
-        setRouteError('Не удалось получить геолокацию. Разрешите доступ к местоположению.');
-        setRouteBusy(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
-  }, []);
-  const geocodeRouteAddress = useCallback(async (rawAddress: string): Promise<RouteEndpoint> => {
-    const address = rawAddress.trim();
-    if (!address) throw new Error('Укажите адрес.');
-    const url =
-      'https://nominatim.openstreetmap.org/search?' +
-      `q=${encodeURIComponent(address)}&format=jsonv2&limit=1&addressdetails=0`;
-    const response = await fetch(url, {
-      headers: { Accept: 'application/json' },
-    });
-    const payload = await response.json().catch(() => []);
-    const list = Array.isArray(payload) ? payload : [];
-    const first = list[0] as { lat?: string; lon?: string; display_name?: string } | undefined;
-    if (!response.ok || !first?.lat || !first?.lon) {
-      throw new Error(`Адрес не найден: ${address}`);
-    }
-    const lat = Number(first.lat);
-    const lng = Number(first.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new Error(`Некорректные координаты для адреса: ${address}`);
-    }
-    return {
-      id: `addr:${address.toLowerCase()}`,
-      label: String(first.display_name ?? address),
-      coords: [lat, lng],
-    };
-  }, []);
-  const handleBuildRoute = useCallback(async () => {
-    if (!routeAddressA.trim() || !routeAddressB.trim()) {
-      setRouteError('Укажите адреса для точек A и B.');
+    if (!window.isSecureContext) {
+      setRouteError('Геолокация работает только в безопасном контексте (HTTPS или localhost).');
       return;
     }
     setRouteBusy(true);
     setRouteError('');
     try {
-      const pointA =
-        routeResolvedA && routeResolvedA.label === routeAddressA.trim()
-          ? routeResolvedA
-          : await geocodeRouteAddress(routeAddressA);
-      const pointB = await geocodeRouteAddress(routeAddressB);
-      if (pointA.coords[0] === pointB.coords[0] && pointA.coords[1] === pointB.coords[1]) {
-        throw new Error('Точки A и B должны быть разными.');
+      if (navigator.permissions?.query) {
+        const permissionState = await navigator.permissions.query({ name: 'geolocation' });
+        if (permissionState.state === 'denied') {
+          throw new Error('Доступ к геолокации заблокирован в браузере. Разрешите его в настройках сайта.');
+        }
       }
-      setRouteResolvedA(pointA);
-      setRouteResolvedB(pointB);
+      const position = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      });
+      const pointA: RouteEndpoint = {
+        id: 'geo:client',
+        label: 'Моё местоположение',
+        coords: [position.coords.latitude, position.coords.longitude],
+      };
+      const pointB: RouteEndpoint = {
+        id: `site:${target.key}`,
+        label: target.address,
+        coords: [target.lat, target.lng],
+      };
+      setRouteStartPoint(pointA);
+      setRouteTargetPoint(pointB);
       const [aLat, aLng] = pointA.coords;
       const [bLat, bLng] = pointB.coords;
       const url =
@@ -904,12 +883,10 @@ export default function MapPage(): JSX.Element {
     } finally {
       setRouteBusy(false);
     }
-  }, [geocodeRouteAddress, routeAddressA, routeAddressB, routeResolvedA]);
+  }, []);
   const handleResetRoute = useCallback(() => {
-    setRouteAddressA('');
-    setRouteAddressB('');
-    setRouteResolvedA(null);
-    setRouteResolvedB(null);
+    setRouteStartPoint(null);
+    setRouteTargetPoint(null);
     setRouteResult(null);
     setRouteError('');
   }, []);
@@ -1342,88 +1319,6 @@ export default function MapPage(): JSX.Element {
           </p>
         </section>
 
-        <section className="relative z-10 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
-          <h3 className={`${mapSectionTitleClass} mb-3 max-lg:text-[1.05rem] sm:mb-4`}>
-            Маршрут
-          </h3>
-          <div className="w-full space-y-3">
-            {!!routeError && (
-              <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2.5 shadow-sm">
-                {routeError}
-              </div>
-            )}
-            <button
-              type="button"
-              disabled={routeBusy}
-              onClick={handleUseGeoForRouteA}
-              className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#ffffffa8] border border-black/[0.06] text-sm font-semibold text-[#2b3335] transition-colors hover:bg-white disabled:opacity-60"
-            >
-              Использовать мою геолокацию для точки A
-            </button>
-            <div>
-              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка А</p>
-              <input
-                type="text"
-                className="w-full rounded-[10px] border border-black/[0.06] bg-white px-[15px] py-3 font-nunito font-semibold text-[#2b3335] text-base focus:outline-none focus:ring-2 focus:ring-[#9cc978]"
-                value={routeAddressA}
-                onChange={(e) => setRouteAddressA(e.target.value)}
-                placeholder="Введите адрес точки A"
-              />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка В</p>
-              <input
-                type="text"
-                className="w-full rounded-[10px] border border-black/[0.06] bg-white px-[15px] py-3 font-nunito font-semibold text-[#2b3335] text-base focus:outline-none focus:ring-2 focus:ring-[#9cc978]"
-                value={routeAddressB}
-                onChange={(e) => setRouteAddressB(e.target.value)}
-                placeholder="Введите адрес точки B"
-              />
-            </div>
-            {routeResult && (
-              <div className="rounded-xl border border-white bg-[#ffffffa8] px-3 py-2 text-sm font-semibold text-[#2b3335]">
-                В пути: {formatRouteDuration(routeResult.durationSeconds)} | Расстояние: {formatRouteDistance(routeResult.distanceMeters)} | Режим: авто
-              </div>
-            )}
-          </div>
-          <div className="mt-6 flex w-full flex-col gap-3 sm:h-[60px] sm:flex-row sm:items-stretch">
-            <button
-              type="button"
-              onClick={() => {
-                void handleBuildRoute();
-              }}
-              disabled={routeBusy}
-              className="group relative home-find-button flex h-[52px] min-h-[52px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 sm:h-[60px] sm:min-h-[60px] sm:min-w-[200px] lg:min-w-[220px] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
-            >
-              <span className="relative z-[2] inline-flex items-center gap-2.5">
-                <span className={`font-nunito font-semibold text-[#2b3335] text-xl ${filterCtaLabelShiftClass}`}>
-                  {routeBusy ? 'Строим...' : 'Построить'}
-                </span>
-                <span
-                  className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}
-                >
-                  <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="Vector" src={routeBuildIconPlaceholder} />
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              className={`group relative z-[2] flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] py-2 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:mt-0 sm:h-[52px] sm:flex-1 sm:min-h-0 sm:min-w-0 sm:py-0 hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
-              onClick={handleResetRoute}
-            >
-              <span className="relative z-[2] inline-flex max-w-full items-center justify-center gap-2 px-1 sm:gap-2.5">
-                <span className={`relative mt-[-1px] text-center font-nunito text-sm font-semibold leading-snug tracking-[0] text-[#2b3335] sm:text-base ${filterCtaLabelShiftClass}`}>
-                  Сбросить
-                </span>
-                <span
-                  className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}
-                >
-                  <img className="h-[21px] w-[21px] object-contain pointer-events-none" alt="Vector" src={filterResetIcon} />
-                </span>
-              </span>
-            </button>
-          </div>
-        </section>
                 </aside>
               </div>
             )}
@@ -1478,6 +1373,10 @@ export default function MapPage(): JSX.Element {
                 key={point.key}
                 point={point}
                 isSelected={isSelected}
+                routeBusy={routeBusy}
+                onBuildRoute={(target) => {
+                  void handleBuildRouteFromClient(target);
+                }}
                 onSelect={() => {
                   setFocusedItem(point.source);
                   if (pointId != null) setSelectedId(pointId);
@@ -1529,6 +1428,29 @@ export default function MapPage(): JSX.Element {
             ) : null}
           </div>
         ) : null}
+        {(routeError || routeResult) && (
+          <div className="pointer-events-auto absolute left-4 right-4 top-4 z-[5010] flex flex-col gap-2 sm:left-auto sm:w-[380px]">
+            {routeError ? (
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm">
+                {routeError}
+              </div>
+            ) : null}
+            {routeResult ? (
+              <div className="rounded-xl border border-white bg-[#ffffffe6] px-3 py-2 text-sm font-semibold text-[#2b3335] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
+                В пути: {formatRouteDuration(routeResult.durationSeconds)} | Расстояние: {formatRouteDistance(routeResult.distanceMeters)}
+              </div>
+            ) : null}
+            {routeResult ? (
+              <button
+                type="button"
+                onClick={handleResetRoute}
+                className="h-9 rounded-xl border border-black/[0.08] bg-white/90 px-3 text-xs font-semibold text-[#2b3335] hover:bg-white"
+              >
+                Сбросить маршрут
+              </button>
+            ) : null}
+          </div>
+        )}
         </div>
         <button
           type="button"

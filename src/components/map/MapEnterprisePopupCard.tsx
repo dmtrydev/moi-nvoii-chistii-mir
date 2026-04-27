@@ -9,9 +9,15 @@ import utilizationInactiveIcon from '@/assets/home-landing/activity-strip/enterp
 
 type Props = {
   model: MapEnterprisePopupViewModel;
+  onBuildRoute?: () => void;
+  routeDisabled?: boolean;
 };
 
-export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ model }: Props): JSX.Element {
+export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
+  model,
+  onBuildRoute,
+  routeDisabled = false,
+}: Props): JSX.Element {
   const statusIcons = [
     { id: 'sbor', iconSrc: sborActiveIcon, active: true, label: 'Сбор' },
     { id: 'transport', iconSrc: transportActiveIcon, active: true, label: 'Транспортирование' },
@@ -57,6 +63,18 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({ mod
             {index < model.infoRows.length - 1 && <div className="moinoviichistiimir-popup-enterprise__divider" aria-hidden />}
           </div>
         ))}
+      </div>
+      <div className="mt-4">
+        <button
+          type="button"
+          disabled={routeDisabled}
+          onClick={onBuildRoute}
+          className="group relative home-find-button flex h-[46px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[16px] border-[none] px-4 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] disabled:opacity-60"
+        >
+          <span className="relative z-[2] whitespace-nowrap font-nunito text-base font-bold text-[#2b3335]">
+            Построить маршрут
+          </span>
+        </button>
       </div>
     </article>
   );
