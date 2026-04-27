@@ -68,10 +68,6 @@ const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
 const HOME_INTRO_MOTION_MS = 2200;
 const HOME_INTRO_DELAY_FILTER_MS = 160;
 const HOME_INTRO_DELAY_MAP_MS = 280;
-const ROUTE_POLY_A =
-  "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
-const ROUTE_POLY_B =
-  "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
 const POLY_IMG =
   "data:image/svg+xml,%3Csvg width='12' height='10' viewBox='0 0 12 10' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 10L0 0H12L6 10Z' fill='%23828583'/%3E%3C/svg%3E";
 const filterCtaDurationClass = 'duration-[600ms]';
@@ -299,9 +295,10 @@ export default function MapPage(): JSX.Element {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
   const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
-  const [routePointAId, setRoutePointAId] = useState('');
-  const [routePointBId, setRoutePointBId] = useState('');
-  const [routeGeoPointA, setRouteGeoPointA] = useState<RouteEndpoint | null>(null);
+  const [routeAddressA, setRouteAddressA] = useState('');
+  const [routeAddressB, setRouteAddressB] = useState('');
+  const [routeResolvedA, setRouteResolvedA] = useState<RouteEndpoint | null>(null);
+  const [routeResolvedB, setRouteResolvedB] = useState<RouteEndpoint | null>(null);
   const [routeBusy, setRouteBusy] = useState(false);
   const [routeError, setRouteError] = useState('');
   const [routeResult, setRouteResult] = useState<RouteBuildResult | null>(null);
@@ -795,35 +792,8 @@ export default function MapPage(): JSX.Element {
       ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       : '&copy; OpenStreetMap &copy; CARTO';
   const mapPushedLeft = isLgUp && menuVisible;
-  const routeEndpoints = useMemo(() => {
-    const seen = new Set<string>();
-    const base: RouteEndpoint[] = mapPoints.map((point) => {
-      const stableId = point.pointId != null ? `site:${point.pointId}` : `key:${point.key}`;
-      return {
-        id: stableId,
-        label: `${point.companyName} - ${point.address}`,
-        coords: [point.lat, point.lng],
-      };
-    }).filter((it) => {
-      const key = `${it.coords[0].toFixed(6)}:${it.coords[1].toFixed(6)}:${it.label}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    if (routeGeoPointA) {
-      return [routeGeoPointA, ...base];
-    }
-    return base;
-  }, [mapPoints, routeGeoPointA]);
-  const routeEndpointById = useMemo(() => {
-    const map = new Map<string, RouteEndpoint>();
-    for (const endpoint of routeEndpoints) {
-      map.set(endpoint.id, endpoint);
-    }
-    return map;
-  }, [routeEndpoints]);
-  const routePointA = routeEndpointById.get(routePointAId) ?? null;
-  const routePointB = routeEndpointById.get(routePointBId) ?? null;
+  const routePointA = routeResolvedA;
+  const routePointB = routeResolvedB;
   const homePath = useMemo(() => {
     const params = buildSearchParamsFromFilters({
       region: filterRegion,
@@ -849,8 +819,8 @@ export default function MapPage(): JSX.Element {
           label: 'Моё местоположение',
           coords,
         };
-        setRouteGeoPointA(endpoint);
-        setRoutePointAId(endpoint.id);
+        setRouteAddressA(endpoint.label);
+        setRouteResolvedA(endpoint);
         setFocusCenter(coords);
         setRouteBusy(false);
       },
@@ -861,20 +831,50 @@ export default function MapPage(): JSX.Element {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
   }, []);
-  const handleBuildRoute = useCallback(async () => {
-    const pointA = routeEndpointById.get(routePointAId);
-    const pointB = routeEndpointById.get(routePointBId);
-    if (!pointA || !pointB) {
-      setRouteError('Выберите обе точки маршрута.');
-      return;
+  const geocodeRouteAddress = useCallback(async (rawAddress: string): Promise<RouteEndpoint> => {
+    const address = rawAddress.trim();
+    if (!address) throw new Error('Укажите адрес.');
+    const url =
+      'https://nominatim.openstreetmap.org/search?' +
+      `q=${encodeURIComponent(address)}&format=jsonv2&limit=1&addressdetails=0`;
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+    });
+    const payload = await response.json().catch(() => []);
+    const list = Array.isArray(payload) ? payload : [];
+    const first = list[0] as { lat?: string; lon?: string; display_name?: string } | undefined;
+    if (!response.ok || !first?.lat || !first?.lon) {
+      throw new Error(`Адрес не найден: ${address}`);
     }
-    if (pointA.id === pointB.id) {
-      setRouteError('Точки A и B должны быть разными.');
+    const lat = Number(first.lat);
+    const lng = Number(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new Error(`Некорректные координаты для адреса: ${address}`);
+    }
+    return {
+      id: `addr:${address.toLowerCase()}`,
+      label: String(first.display_name ?? address),
+      coords: [lat, lng],
+    };
+  }, []);
+  const handleBuildRoute = useCallback(async () => {
+    if (!routeAddressA.trim() || !routeAddressB.trim()) {
+      setRouteError('Укажите адреса для точек A и B.');
       return;
     }
     setRouteBusy(true);
     setRouteError('');
     try {
+      const pointA =
+        routeResolvedA && routeResolvedA.label === routeAddressA.trim()
+          ? routeResolvedA
+          : await geocodeRouteAddress(routeAddressA);
+      const pointB = await geocodeRouteAddress(routeAddressB);
+      if (pointA.coords[0] === pointB.coords[0] && pointA.coords[1] === pointB.coords[1]) {
+        throw new Error('Точки A и B должны быть разными.');
+      }
+      setRouteResolvedA(pointA);
+      setRouteResolvedB(pointB);
       const [aLat, aLng] = pointA.coords;
       const [bLat, bLng] = pointB.coords;
       const url =
@@ -904,11 +904,12 @@ export default function MapPage(): JSX.Element {
     } finally {
       setRouteBusy(false);
     }
-  }, [routeEndpointById, routePointAId, routePointBId]);
+  }, [geocodeRouteAddress, routeAddressA, routeAddressB, routeResolvedA]);
   const handleResetRoute = useCallback(() => {
-    setRoutePointAId('');
-    setRoutePointBId('');
-    setRouteGeoPointA(null);
+    setRouteAddressA('');
+    setRouteAddressB('');
+    setRouteResolvedA(null);
+    setRouteResolvedB(null);
     setRouteResult(null);
     setRouteError('');
   }, []);
@@ -1361,33 +1362,23 @@ export default function MapPage(): JSX.Element {
             </button>
             <div>
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка А</p>
-              <select
+              <input
+                type="text"
                 className="w-full rounded-[10px] border border-black/[0.06] bg-white px-[15px] py-3 font-nunito font-semibold text-[#2b3335] text-base focus:outline-none focus:ring-2 focus:ring-[#9cc978]"
-                value={routePointAId}
-                onChange={(e) => setRoutePointAId(e.target.value)}
-              >
-                <option value="">Выберите точку A</option>
-                {routeEndpoints.map((endpoint) => (
-                  <option key={endpoint.id} value={endpoint.id}>
-                    {endpoint.label}
-                  </option>
-                ))}
-              </select>
+                value={routeAddressA}
+                onChange={(e) => setRouteAddressA(e.target.value)}
+                placeholder="Введите адрес точки A"
+              />
             </div>
             <div>
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка В</p>
-              <select
+              <input
+                type="text"
                 className="w-full rounded-[10px] border border-black/[0.06] bg-white px-[15px] py-3 font-nunito font-semibold text-[#2b3335] text-base focus:outline-none focus:ring-2 focus:ring-[#9cc978]"
-                value={routePointBId}
-                onChange={(e) => setRoutePointBId(e.target.value)}
-              >
-                <option value="">Выберите точку B</option>
-                {routeEndpoints.map((endpoint) => (
-                  <option key={endpoint.id} value={endpoint.id}>
-                    {endpoint.label}
-                  </option>
-                ))}
-              </select>
+                value={routeAddressB}
+                onChange={(e) => setRouteAddressB(e.target.value)}
+                placeholder="Введите адрес точки B"
+              />
             </div>
             {routeResult && (
               <div className="rounded-xl border border-white bg-[#ffffffa8] px-3 py-2 text-sm font-semibold text-[#2b3335]">
