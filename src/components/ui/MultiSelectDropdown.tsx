@@ -79,7 +79,7 @@ export function MultiSelectDropdown({
   loadingOptionsText = 'Загружаем варианты...',
   noOptionsText = 'Нет вариантов',
   lazyOptionsUntilInput = false,
-  lazyOptionsHintText = 'Начните вводить код ФККО',
+  lazyOptionsHintText = 'Начните вводить код ФККО или наименование отхода',
   maxRenderedOptions = 120,
 }: {
   options: string[];

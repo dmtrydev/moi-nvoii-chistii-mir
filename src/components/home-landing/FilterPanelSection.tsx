@@ -312,7 +312,7 @@ export function FilterPanelSection({
             loadingOptionsText="Загружаем названия..."
             noOptionsText="Совпадений не найдено"
             lazyOptionsUntilInput
-            lazyOptionsHintText="Начните вводить код ФККО"
+            lazyOptionsHintText="Начните вводить код ФККО или наименование отхода"
             maxRenderedOptions={80}
             inputClassName="min-w-0 flex-1 bg-transparent font-nunito font-semibold text-lg text-[#2b3335] placeholder:text-[#828583] outline-none"
             renderChevron={(open) => (

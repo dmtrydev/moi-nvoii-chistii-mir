@@ -889,7 +889,7 @@ export default function MapPage(): JSX.Element {
                 dropdownListClassName="no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0"
                 maxHeightClassName="max-h-64"
                 lazyOptionsUntilInput
-                lazyOptionsHintText="Начните вводить код ФККО"
+                lazyOptionsHintText="Начните вводить код ФККО или наименование отхода"
                 maxRenderedOptions={80}
                 inputClassName="relative z-[2] w-full bg-transparent border-0 font-nunito font-semibold text-[#828583] text-lg placeholder:text-[#828583] focus:ring-0 focus:outline-none"
                 formatOptionLabel={(code) => {
