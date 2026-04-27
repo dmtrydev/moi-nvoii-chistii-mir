@@ -2,7 +2,7 @@ import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type L from 'leaflet';
-import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
@@ -138,6 +138,18 @@ type MapPoint = {
   source: LicenseData;
 };
 
+type RouteEndpoint = {
+  id: string;
+  label: string;
+  coords: [number, number];
+};
+
+type RouteBuildResult = {
+  path: [number, number][];
+  distanceMeters: number;
+  durationSeconds: number;
+};
+
 function MapFocusController({
   center,
   zoom,
@@ -153,6 +165,31 @@ function MapFocusController({
     });
   }, [center, zoom, map]);
   return null;
+}
+
+function MapRouteFitController({ path }: { path: [number, number][] | null }): null {
+  const map = useMap();
+  useEffect(() => {
+    if (!path || path.length < 2) return;
+    const bounds = L.latLngBounds(path.map((p) => L.latLng(p[0], p[1])));
+    map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
+  }, [map, path]);
+  return null;
+}
+
+function formatRouteDuration(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '—';
+  const roundedMinutes = Math.max(1, Math.round(totalSeconds / 60));
+  if (roundedMinutes < 60) return `${roundedMinutes} мин`;
+  const hours = Math.floor(roundedMinutes / 60);
+  const minutes = roundedMinutes % 60;
+  return minutes > 0 ? `${hours} ч ${minutes} мин` : `${hours} ч`;
+}
+
+function formatRouteDistance(totalMeters: number): string {
+  if (!Number.isFinite(totalMeters) || totalMeters <= 0) return '—';
+  if (totalMeters < 1000) return `${Math.round(totalMeters)} м`;
+  return `${(totalMeters / 1000).toFixed(1)} км`;
 }
 
 function MapPointMarker({
@@ -262,6 +299,12 @@ export default function MapPage(): JSX.Element {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
   const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
+  const [routePointAId, setRoutePointAId] = useState('');
+  const [routePointBId, setRoutePointBId] = useState('');
+  const [routeGeoPointA, setRouteGeoPointA] = useState<RouteEndpoint | null>(null);
+  const [routeBusy, setRouteBusy] = useState(false);
+  const [routeError, setRouteError] = useState('');
+  const [routeResult, setRouteResult] = useState<RouteBuildResult | null>(null);
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
   const isApplyingQueryFiltersRef = useRef(false);
   /** После применения фильтров из URL следующий проход эффекта «сброс при смене фильтров» не должен чистить результаты (иначе съедается авто-поиск). */
@@ -752,6 +795,35 @@ export default function MapPage(): JSX.Element {
       ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       : '&copy; OpenStreetMap &copy; CARTO';
   const mapPushedLeft = isLgUp && menuVisible;
+  const routeEndpoints = useMemo(() => {
+    const seen = new Set<string>();
+    const base: RouteEndpoint[] = mapPoints.map((point) => {
+      const stableId = point.pointId != null ? `site:${point.pointId}` : `key:${point.key}`;
+      return {
+        id: stableId,
+        label: `${point.companyName} - ${point.address}`,
+        coords: [point.lat, point.lng],
+      };
+    }).filter((it) => {
+      const key = `${it.coords[0].toFixed(6)}:${it.coords[1].toFixed(6)}:${it.label}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (routeGeoPointA) {
+      return [routeGeoPointA, ...base];
+    }
+    return base;
+  }, [mapPoints, routeGeoPointA]);
+  const routeEndpointById = useMemo(() => {
+    const map = new Map<string, RouteEndpoint>();
+    for (const endpoint of routeEndpoints) {
+      map.set(endpoint.id, endpoint);
+    }
+    return map;
+  }, [routeEndpoints]);
+  const routePointA = routeEndpointById.get(routePointAId) ?? null;
+  const routePointB = routeEndpointById.get(routePointBId) ?? null;
   const homePath = useMemo(() => {
     const params = buildSearchParamsFromFilters({
       region: filterRegion,
@@ -762,6 +834,84 @@ export default function MapPage(): JSX.Element {
     const qs = params.toString();
     return qs ? `/?${qs}` : '/';
   }, [filterRegion, filterFkko, filterVid, hasSearched]);
+  const handleUseGeoForRouteA = useCallback(() => {
+    if (!navigator.geolocation) {
+      setRouteError('Геолокация недоступна в этом браузере.');
+      return;
+    }
+    setRouteBusy(true);
+    setRouteError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+        const endpoint: RouteEndpoint = {
+          id: 'geo:current',
+          label: 'Моё местоположение',
+          coords,
+        };
+        setRouteGeoPointA(endpoint);
+        setRoutePointAId(endpoint.id);
+        setFocusCenter(coords);
+        setRouteBusy(false);
+      },
+      () => {
+        setRouteError('Не удалось получить геолокацию. Разрешите доступ к местоположению.');
+        setRouteBusy(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+  const handleBuildRoute = useCallback(async () => {
+    const pointA = routeEndpointById.get(routePointAId);
+    const pointB = routeEndpointById.get(routePointBId);
+    if (!pointA || !pointB) {
+      setRouteError('Выберите обе точки маршрута.');
+      return;
+    }
+    if (pointA.id === pointB.id) {
+      setRouteError('Точки A и B должны быть разными.');
+      return;
+    }
+    setRouteBusy(true);
+    setRouteError('');
+    try {
+      const [aLat, aLng] = pointA.coords;
+      const [bLat, bLng] = pointB.coords;
+      const url =
+        `https://router.project-osrm.org/route/v1/driving/` +
+        `${encodeURIComponent(String(aLng))},${encodeURIComponent(String(aLat))};` +
+        `${encodeURIComponent(String(bLng))},${encodeURIComponent(String(bLat))}` +
+        `?overview=full&alternatives=false&steps=false&geometries=geojson`;
+      const response = await fetch(url);
+      const payload = await response.json();
+      if (!response.ok || !Array.isArray(payload?.routes) || payload.routes.length === 0) {
+        throw new Error('Маршрут не найден для выбранных точек.');
+      }
+      const best = payload.routes[0] as { distance?: number; duration?: number; geometry?: { coordinates?: [number, number][] } };
+      const coordinates = Array.isArray(best.geometry?.coordinates) ? best.geometry.coordinates : [];
+      const path = coordinates
+        .filter((pair) => Array.isArray(pair) && pair.length >= 2)
+        .map((pair) => [pair[1], pair[0]] as [number, number]);
+      if (path.length < 2) throw new Error('Не удалось построить линию маршрута.');
+      setRouteResult({
+        path,
+        distanceMeters: Number(best.distance ?? 0),
+        durationSeconds: Number(best.duration ?? 0),
+      });
+    } catch (error) {
+      setRouteResult(null);
+      setRouteError(error instanceof Error ? error.message : 'Ошибка построения маршрута.');
+    } finally {
+      setRouteBusy(false);
+    }
+  }, [routeEndpointById, routePointAId, routePointBId]);
+  const handleResetRoute = useCallback(() => {
+    setRoutePointAId('');
+    setRoutePointBId('');
+    setRouteGeoPointA(null);
+    setRouteResult(null);
+    setRouteError('');
+  }, []);
 
   const asideOpenLayout = useMemo((): CSSProperties => {
     if (!isLgUp) {
@@ -1196,35 +1346,67 @@ export default function MapPage(): JSX.Element {
             Маршрут
           </h3>
           <div className="w-full space-y-3">
+            {!!routeError && (
+              <div className="text-xs text-amber-900 bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2.5 shadow-sm">
+                {routeError}
+              </div>
+            )}
+            <button
+              type="button"
+              disabled={routeBusy}
+              onClick={handleUseGeoForRouteA}
+              className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#ffffffa8] border border-black/[0.06] text-sm font-semibold text-[#2b3335] transition-colors hover:bg-white disabled:opacity-60"
+            >
+              Использовать мою геолокацию для точки A
+            </button>
             <div>
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка А</p>
-              <button
-                type="button"
-                className={vidTriggerClass(false)}
+              <select
+                className="w-full rounded-[10px] border border-black/[0.06] bg-white px-[15px] py-3 font-nunito font-semibold text-[#2b3335] text-base focus:outline-none focus:ring-2 focus:ring-[#9cc978]"
+                value={routePointAId}
+                onChange={(e) => setRoutePointAId(e.target.value)}
               >
-                <span className={vidLabelClass({ isOpen: false, hasSelection: false })}>Выберите объект</span>
-                <img className="h-2.5 w-3 shrink-0" alt="" src={ROUTE_POLY_A} />
-              </button>
+                <option value="">Выберите точку A</option>
+                {routeEndpoints.map((endpoint) => (
+                  <option key={endpoint.id} value={endpoint.id}>
+                    {endpoint.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <p className="text-sm font-semibold text-[#747b7d] mb-1.5">Точка В</p>
-              <button
-                type="button"
-                className={vidTriggerClass(false)}
+              <select
+                className="w-full rounded-[10px] border border-black/[0.06] bg-white px-[15px] py-3 font-nunito font-semibold text-[#2b3335] text-base focus:outline-none focus:ring-2 focus:ring-[#9cc978]"
+                value={routePointBId}
+                onChange={(e) => setRoutePointBId(e.target.value)}
               >
-                <span className={vidLabelClass({ isOpen: false, hasSelection: false })}>Выберите объект</span>
-                <img className="h-2.5 w-3 shrink-0" alt="" src={ROUTE_POLY_B} />
-              </button>
+                <option value="">Выберите точку B</option>
+                {routeEndpoints.map((endpoint) => (
+                  <option key={endpoint.id} value={endpoint.id}>
+                    {endpoint.label}
+                  </option>
+                ))}
+              </select>
             </div>
+            {routeResult && (
+              <div className="rounded-xl border border-white bg-[#ffffffa8] px-3 py-2 text-sm font-semibold text-[#2b3335]">
+                В пути: {formatRouteDuration(routeResult.durationSeconds)} | Расстояние: {formatRouteDistance(routeResult.distanceMeters)} | Режим: авто
+              </div>
+            )}
           </div>
           <div className="mt-6 flex w-full flex-col gap-3 sm:h-[60px] sm:flex-row sm:items-stretch">
             <button
               type="button"
+              onClick={() => {
+                void handleBuildRoute();
+              }}
+              disabled={routeBusy}
               className="group relative home-find-button flex h-[52px] min-h-[52px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] px-6 sm:h-[60px] sm:min-h-[60px] sm:min-w-[200px] lg:min-w-[220px] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]"
             >
               <span className="relative z-[2] inline-flex items-center gap-2.5">
                 <span className={`font-nunito font-semibold text-[#2b3335] text-xl ${filterCtaLabelShiftClass}`}>
-                  Построить
+                  {routeBusy ? 'Строим...' : 'Построить'}
                 </span>
                 <span
                   className={`relative flex h-[21px] w-[21px] shrink-0 items-center justify-center transition-[transform,opacity] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-hover:pointer-events-none group-hover:translate-x-8 group-hover:opacity-0`}
@@ -1236,7 +1418,7 @@ export default function MapPage(): JSX.Element {
             <button
               type="button"
               className={`group relative z-[2] flex h-[52px] min-h-[52px] w-full shrink-0 items-center justify-center overflow-hidden rounded-[20px] border-[none] cursor-pointer bg-[#ffffff73] py-2 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] transition-[background-color,box-shadow] ${filterCtaDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:mt-0 sm:h-[52px] sm:flex-1 sm:min-h-0 sm:min-w-0 sm:py-0 hover:shadow-[inset_0px_0px_32.4px_#ffffffd6] active:bg-[#ffffffa6] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]`}
-              onClick={handleResetFilters}
+              onClick={handleResetRoute}
             >
               <span className="relative z-[2] inline-flex max-w-full items-center justify-center gap-2 px-1 sm:gap-2.5">
                 <span className={`relative mt-[-1px] text-center font-nunito text-sm font-semibold leading-snug tracking-[0] text-[#2b3335] sm:text-base ${filterCtaLabelShiftClass}`}>
@@ -1276,6 +1458,27 @@ export default function MapPage(): JSX.Element {
         >
           <TileLayer attribution={tileAttribution} url={tileUrl} />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
+          <MapRouteFitController path={routeResult?.path ?? null} />
+          {routeResult && (
+            <Polyline
+              positions={routeResult.path}
+              pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.85 }}
+            />
+          )}
+          {routePointA && (
+            <CircleMarker
+              center={routePointA.coords}
+              radius={7}
+              pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }}
+            />
+          )}
+          {routePointB && (
+            <CircleMarker
+              center={routePointB.coords}
+              radius={7}
+              pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
+            />
+          )}
           {mapPoints.map((point) => {
             const pointId = point.pointId;
             const isSelected = selectedId != null && pointId != null && selectedId === pointId;
