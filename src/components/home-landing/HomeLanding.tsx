@@ -409,7 +409,8 @@ export function HomeLanding(): JSX.Element {
           backgroundImage: `url(${heroBackground})`,
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'center center',
-          backgroundSize: 'auto',
+          backgroundSize: 'cover',
+          backgroundAttachment: 'fixed',
         }}
       />
       <div
