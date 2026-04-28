@@ -10,6 +10,7 @@ export type MapPointLicense = {
   companyName: string;
   address: string;
   inn: string;
+  siteLabel: string;
   source: LicenseData;
 };
 
@@ -35,6 +36,7 @@ export function mapPointsFromLicenseItems(items: LicenseData[]): MapPointLicense
         companyName: item.companyName || 'Организация',
         address: item.address || 'Адрес не указан',
         inn: item.inn || 'не указан',
+        siteLabel: String(item.siteLabel ?? '').trim() || 'Основная площадка',
         source: item,
       });
     }
@@ -58,6 +60,7 @@ export function mapPointsFromLicenseItems(items: LicenseData[]): MapPointLicense
         companyName: item.companyName || 'Организация',
         address: site.address || item.address || 'Адрес не указан',
         inn: item.inn || 'не указан',
+        siteLabel: String(site.siteLabel ?? '').trim() || `Площадка ${idx + 1}`,
         source: item,
       });
     });

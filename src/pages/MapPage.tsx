@@ -1383,8 +1383,9 @@ export default function MapPage(): JSX.Element {
           zoom={hasMapFocus ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM}
           className="absolute inset-0 z-0 h-full w-full min-h-0"
           zoomControl
+          attributionControl={false}
         >
-          <TileLayer attribution={tileAttribution} url={tileUrl} />
+          <TileLayer url={tileUrl} />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           <MapRouteFitController path={routeResult?.path ?? null} />
           {routeResult && (

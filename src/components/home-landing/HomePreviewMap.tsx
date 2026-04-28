@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import type { MapPointLicense } from '@/utils/mapPointsFromLicenses';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
@@ -12,6 +12,21 @@ import {
 
 const DEFAULT_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_ZOOM = 5;
+const FOCUSED_ZOOM = 14;
+
+type SiteCandidate = {
+  pointId: number | null;
+  lat: number;
+  lng: number;
+  label: string;
+};
+
+function buildEnterpriseKey(point: MapPointLicense): string {
+  const inn = String(point.inn || '').trim();
+  if (inn && inn !== 'не указан') return `inn:${inn}`;
+  const name = String(point.companyName || '').trim().toLowerCase();
+  return `name:${name}`;
+}
 
 function MapFitBounds({ points }: { points: MapPointLicense[] }): null {
   const map = useMap();
@@ -23,13 +38,32 @@ function MapFitBounds({ points }: { points: MapPointLicense[] }): null {
   return null;
 }
 
+function MapFocusController({
+  center,
+  zoom,
+}: {
+  center: [number, number] | null;
+  zoom?: number;
+}): null {
+  const map = useMap();
+  useEffect(() => {
+    if (!center) return;
+    map.flyTo(center, zoom ?? map.getZoom(), { duration: 0.7 });
+  }, [center, zoom, map]);
+  return null;
+}
+
 function PreviewMarker({
   point,
+  siteCandidates,
   onBuildRoute,
+  onSwitchSite,
   routeBusy,
 }: {
   point: MapPointLicense;
+  siteCandidates: SiteCandidate[];
   onBuildRoute: (lat: number, lng: number, label: string) => void;
+  onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }) => void;
   routeBusy: boolean;
 }): JSX.Element {
   const popupModel = useMemo(
@@ -41,8 +75,9 @@ function PreviewMarker({
         pointId: point.pointId,
         pointLat: point.lat,
         pointLng: point.lng,
+        siteCandidates,
       }),
-    [point],
+    [point, siteCandidates],
   );
 
   return (
@@ -61,6 +96,7 @@ function PreviewMarker({
           model={popupModel}
           routeDisabled={routeBusy}
           onBuildRoute={() => onBuildRoute(point.lat, point.lng, point.address)}
+          onSwitchSite={onSwitchSite}
         />
       </Popup>
     </CircleMarker>
@@ -82,8 +118,7 @@ export function HomePreviewMap({
   mapClassName = '',
 }: HomePreviewMapProps): JSX.Element {
   const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-  const attribution =
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
 
   const {
     routeBusy,
@@ -102,6 +137,42 @@ export function HomePreviewMap({
     [buildRoute],
   );
 
+  const handleSwitchSite = useCallback(
+    (site: { pointId: number | null; lat: number; lng: number }) => {
+      setFocusCenter([site.lat, site.lng]);
+    },
+    [],
+  );
+
+  const siteCandidatesByEnterprise = useMemo(() => {
+    const byEnterprise = new Map<string, SiteCandidate[]>();
+    const seenByEnterprise = new Map<string, Set<string>>();
+
+    points.forEach((point) => {
+      const key = buildEnterpriseKey(point);
+      const seen = seenByEnterprise.get(key) ?? new Set<string>();
+      const list = byEnterprise.get(key) ?? [];
+      const dedupeKey =
+        point.pointId != null
+          ? `id:${point.pointId}`
+          : `coord:${point.lat.toFixed(6)}:${point.lng.toFixed(6)}`;
+      if (!seen.has(dedupeKey)) {
+        seen.add(dedupeKey);
+        seenByEnterprise.set(key, seen);
+        const fallbackLabel = list.length === 0 ? 'Основная площадка' : `Площадка ${list.length + 1}`;
+        list.push({
+          pointId: point.pointId,
+          lat: point.lat,
+          lng: point.lng,
+          label: point.siteLabel || fallbackLabel,
+        });
+        byEnterprise.set(key, list);
+      }
+    });
+
+    return byEnterprise;
+  }, [points]);
+
   return (
     <div
       className={`relative overflow-hidden rounded-[32.5px] border border-white bg-[#ffffff80] shadow-[inset_0px_0px_70.1px_#ffffffb2] ${className}`}
@@ -114,9 +185,11 @@ export function HomePreviewMap({
           zoom={DEFAULT_ZOOM}
           className="absolute inset-0 z-0 h-full w-full"
           zoomControl
+          attributionControl={false}
         >
-          <TileLayer attribution={attribution} url={tileUrl} />
+          <TileLayer url={tileUrl} />
           {points.length > 0 ? <MapFitBounds points={points} /> : null}
+          <MapFocusController center={focusCenter} zoom={FOCUSED_ZOOM} />
           {routeResult && (
             <Polyline
               positions={routeResult.path}
@@ -137,14 +210,20 @@ export function HomePreviewMap({
               pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
             />
           )}
-          {points.map((point) => (
-            <PreviewMarker
-              key={point.key}
-              point={point}
-              onBuildRoute={handleBuildRoute}
-              routeBusy={routeBusy}
-            />
-          ))}
+          {points.map((point) => {
+            const enterpriseKey = buildEnterpriseKey(point);
+            const siteCandidates = siteCandidatesByEnterprise.get(enterpriseKey) ?? [];
+            return (
+              <PreviewMarker
+                key={point.key}
+                point={point}
+                siteCandidates={siteCandidates}
+                onBuildRoute={handleBuildRoute}
+                onSwitchSite={handleSwitchSite}
+                routeBusy={routeBusy}
+              />
+            );
+          })}
         </MapContainer>
 
         {(routeError || routeResult) && (
