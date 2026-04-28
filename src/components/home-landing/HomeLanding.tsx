@@ -402,15 +402,11 @@ export function HomeLanding(): JSX.Element {
 
   return (
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 bg-[#f9fbfe]"
-        style={{
-          backgroundImage: `url(${heroBackground})`,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center center',
-          backgroundSize: 'cover',
-        }}
+      <img
+        className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-80"
+        alt=""
+        aria-hidden="true"
+        src={heroBackground}
       />
       <div
         aria-hidden
