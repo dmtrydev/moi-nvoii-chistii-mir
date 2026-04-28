@@ -410,7 +410,6 @@ export function HomeLanding(): JSX.Element {
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'center center',
           backgroundSize: 'cover',
-          backgroundAttachment: 'fixed',
         }}
       />
       <div
