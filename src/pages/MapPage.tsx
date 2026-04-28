@@ -1194,13 +1194,13 @@ export default function MapPage(): JSX.Element {
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+                          <div className="flex flex-col gap-4">
                             <EnterpriseActivityStrip activityTypes={it.activityTypes} variant="light" size="md" />
-                            <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
-                              <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3 lg:ml-0 lg:max-w-none lg:flex-row lg:items-center lg:gap-5">
+                            <div className="flex w-full items-center">
+                              <div className="flex w-full flex-col items-stretch gap-3">
                                 <Link
                                   to={`/map?${mapParams.toString()}`}
-                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:min-w-[200px]"
+                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[200px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
                                     <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-base text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:text-lg lg:text-xl group-hover:translate-x-[calc((27px+0.625rem)/2)]">
@@ -1217,7 +1217,7 @@ export default function MapPage(): JSX.Element {
                                 </Link>
                                 <Link
                                   to={id != null ? `/enterprise/${id}` : '/map'}
-                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:min-w-[200px]"
+                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[200px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
                                     <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-base text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:text-lg lg:text-xl group-hover:translate-x-[calc((27px+0.625rem)/2)]">

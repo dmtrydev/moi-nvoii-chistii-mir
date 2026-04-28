@@ -48,20 +48,20 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
         </h3>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
         {model.siteSwitches.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mb-4 mt-3 flex flex-wrap gap-2">
             {model.siteSwitches.map((site) => (
               <button
                 key={site.key}
                 type="button"
                 disabled={!onSwitchSite}
                 onClick={() => onSwitchSite?.({ pointId: site.pointId, lat: site.lat, lng: site.lng })}
-                className={`rounded-full border px-3 py-1 font-nunito text-xs font-semibold transition-colors disabled:cursor-default disabled:opacity-70 ${
+                className={`relative overflow-hidden rounded-[999px] border-[none] px-3 py-1.5 font-nunito text-xs font-semibold transition-[background-color,box-shadow,color] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[999px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] disabled:cursor-default disabled:opacity-70 ${
                   site.isActive
-                    ? 'border-[#bcdc57] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] text-[#2b3335]'
-                    : 'border-white/80 bg-white/70 text-[#5e6567] hover:bg-white/90'
+                    ? 'bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] text-[#2b3335] shadow-[0px_10px_24px_#c1df6466,inset_0px_0px_16px_#ffffffbd] before:[background:linear-gradient(132deg,rgba(188,220,87,0.75)_0%,rgba(219,236,168,0.5)_100%)]'
+                    : 'bg-[#ffffff73] text-[#5e6567] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] hover:bg-[#ffffffa6] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]'
                 }`}
               >
-                {site.label}
+                <span className="relative z-[2]">{site.label}</span>
               </button>
             ))}
           </div>
