@@ -24,7 +24,9 @@ import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-ent
 import { useRotatingSearchMessage } from '@/hooks/useRotatingSearchMessage';
 import { FilterPanelSection } from '@/components/home-landing/FilterPanelSection';
 import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
+import { HomePreviewMap } from '@/components/home-landing/HomePreviewMap';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
+import { mapPointsFromLicenseItems } from '@/utils/mapPointsFromLicenses';
 
 /** Вводная анимация: очень плавное замедление в конце */
 const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
@@ -78,7 +80,51 @@ export function HomeLanding(): JSX.Element {
   const [searchError, setSearchError] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [resultsReveal, setResultsReveal] = useState(false);
+  /** Данные для карты внизу главной: обновляются при смене фильтров без нажатия «Найти». */
+  const [mapPreviewItems, setMapPreviewItems] = useState<LicenseData[]>([]);
+  const [mapPreviewLoading, setMapPreviewLoading] = useState(false);
+  const mapPreviewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapPreviewAbortRef = useRef<AbortController | null>(null);
   const searchPhaseLabel = useRotatingSearchMessage(isSearching);
+
+  const homeMapPoints = useMemo(() => mapPointsFromLicenseItems(mapPreviewItems), [mapPreviewItems]);
+
+  useEffect(() => {
+    if (mapPreviewDebounceRef.current) clearTimeout(mapPreviewDebounceRef.current);
+    mapPreviewDebounceRef.current = window.setTimeout(() => {
+      mapPreviewAbortRef.current?.abort();
+      const ac = new AbortController();
+      mapPreviewAbortRef.current = ac;
+      setMapPreviewLoading(true);
+      const params = buildSearchParamsFromFilters({
+        region: filterRegion.trim(),
+        fkko: filterFkko,
+        vid: filterVid,
+        searched: false,
+      });
+      params.delete('searched');
+      void fetch(getApiUrl(`/api/license-sites?${params.toString()}`), { signal: ac.signal })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((data: { items?: LicenseData[] }) => {
+          const arr = Array.isArray(data.items) ? data.items : [];
+          setMapPreviewItems(arr);
+        })
+        .catch((err: unknown) => {
+          const aborted =
+            (err instanceof Error && err.name === 'AbortError') ||
+            (typeof DOMException !== 'undefined' && err instanceof DOMException && err.name === 'AbortError');
+          if (aborted) return;
+          setMapPreviewItems([]);
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setMapPreviewLoading(false);
+        });
+    }, 420);
+    return () => {
+      if (mapPreviewDebounceRef.current) clearTimeout(mapPreviewDebounceRef.current);
+      mapPreviewAbortRef.current?.abort();
+    };
+  }, [filterFkko, filterRegion, filterVid]);
 
   const prefersReducedMotion = useMemo(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -626,6 +672,13 @@ export function HomeLanding(): JSX.Element {
               </section>
               </div>
             )}
+          </div>
+
+          <div className="relative z-10 mx-auto mt-10 w-full max-w-[1920px] px-4 pb-16 sm:mt-12 sm:pb-20">
+            <h3 className="typo-h3 mb-4 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]">
+              Карта объектов
+            </h3>
+            <HomePreviewMap points={homeMapPoints} loading={mapPreviewLoading} />
           </div>
       </SiteFrameWithTopNav>
       {introStage < 2 && (

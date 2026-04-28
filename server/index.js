@@ -1289,18 +1289,18 @@ app.get('/api/license-sites', async (req, res) => {
     const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
     const vids = vidRaw ? vidRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
 
-    if (vids.length === 0) {
-      return res.status(400).json({ message: 'Укажите вид обращения.' });
-    }
-
     const params = [region];
     let fkkoClause = '';
     if (fkkoList.length > 0) {
       params.push(fkkoList);
       fkkoClause = `AND sfa.fkko_code = ANY($${params.length}::text[])`;
     }
-    params.push(vids);
-    const vidClause = `AND sfa.activity_type = ANY($${params.length}::text[])`;
+    /** Пустой vid — все виды обращения (превью карты на главной). Иначе фильтр по видам. */
+    let vidClause = '';
+    if (vids.length > 0) {
+      params.push(vids);
+      vidClause = `AND sfa.activity_type = ANY($${params.length}::text[])`;
+    }
 
     // EXISTS вместо JOIN + DISTINCT: одна строка на площадку, без тяжёлого HashAggregate
     const sql = `
