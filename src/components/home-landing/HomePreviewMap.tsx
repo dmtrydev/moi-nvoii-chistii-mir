@@ -67,7 +67,7 @@ export function HomePreviewMap({ points, loading = false, className = '' }: Home
 
   return (
     <div className={`relative overflow-hidden rounded-[32.5px] border border-white bg-[#ffffff80] shadow-[inset_0px_0px_70.1px_#ffffffb2] ${className}`}>
-      <div className="relative h-[min(420px,55vh)] w-full min-h-[280px] sm:h-[min(480px,50vh)] sm:min-h-[320px]">
+      <div className="relative h-[min(560px,70vh)] w-full min-h-[380px] sm:h-[min(640px,68vh)] sm:min-h-[440px] lg:h-[min(720px,65vh)] lg:min-h-[480px]">
         <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} className="absolute inset-0 z-0 h-full w-full" zoomControl>
           <TileLayer attribution={attribution} url={tileUrl} />
           {points.length > 0 ? <MapFitBounds points={points} /> : null}
