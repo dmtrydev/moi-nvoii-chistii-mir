@@ -70,5 +70,33 @@ describe('MultiSelectDropdown input mode', () => {
     await user.click(screen.getByRole('textbox'));
     expect(screen.getByText('Совпадений не найдено')).toBeInTheDocument();
   });
+
+  it('keeps selected options visible while search text does not match them', async () => {
+    const user = userEvent.setup();
+    function HarnessWithSelection(): JSX.Element {
+      const [value, setValue] = useState('шлам');
+      const [selected, setSelected] = useState<string[]>(['36122203393']);
+      return (
+        <MultiSelectDropdown
+          options={['47110101521', '36122203393']}
+          selected={selected}
+          onChange={setSelected}
+          inputValue={value}
+          onInputValueChange={setValue}
+          filterOption={({ option, query, label }) => fkkoFilter(option, query, label)}
+          formatOptionLabel={(code) =>
+            code === '47110101521'
+              ? '4 71 101 01 52 1 — лампы ртутные'
+              : '3 61 222 03 39 3 — шлам шлифовальный'
+          }
+        />
+      );
+    }
+    render(<HarnessWithSelection />);
+
+    await user.click(screen.getByRole('textbox'));
+    expect(screen.getByRole('option', { name: /3 61 222 03 39 3/i })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /4 71 101 01 52 1/i })).not.toBeInTheDocument();
+  });
 });
 

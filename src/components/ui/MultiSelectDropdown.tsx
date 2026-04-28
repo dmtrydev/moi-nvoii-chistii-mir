@@ -184,12 +184,29 @@ export function MultiSelectDropdown({
       const labelLower = label.toLowerCase();
       return opt.toLowerCase().includes(q) || labelLower.includes(q);
     });
-    return filtered.slice(0, maxRenderedOptions);
+    /** Всегда показываем уже выбранные строки, даже если текущий запрос их отфильтровал бы (не нужно стирать поиск). */
+    const optionSet = new Set(normalizedOptions);
+    const merged: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of selected) {
+      const opt = normalize(raw);
+      if (!opt || seen.has(opt) || !optionSet.has(opt)) continue;
+      merged.push(opt);
+      seen.add(opt);
+    }
+    for (const opt of filtered) {
+      if (!seen.has(opt)) {
+        merged.push(opt);
+        seen.add(opt);
+      }
+    }
+    return merged.slice(0, maxRenderedOptions);
   }, [
     hasInputMode,
     lazyOptionsUntilInput,
     deferredInput,
     normalizedOptions,
+    selected,
     selectedSet,
     optionLabelByCode,
     filterOption,
@@ -271,7 +288,7 @@ export function MultiSelectDropdown({
                 onInputEnter?.();
               }
             }}
-            placeholder={selectedLabel ? `Выбрано: ${selectedLabel}` : placeholder}
+            placeholder={selectedLabel || placeholder}
             className={inputClassName ?? 'min-w-0 flex-1 bg-transparent outline-none'}
           />
           {chevronNode}
