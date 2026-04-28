@@ -134,6 +134,13 @@ type MapPoint = {
   source: LicenseData;
 };
 
+type PopupSiteCandidate = {
+  pointId: number | null;
+  lat: number;
+  lng: number;
+  label: string;
+};
+
 type RouteEndpoint = {
   id: string;
   label: string;
@@ -198,8 +205,17 @@ function formatRouteDistance(totalMeters: number): string {
   return `${(totalMeters / 1000).toFixed(1)} км`;
 }
 
+function buildEnterpriseKey(point: MapPoint): string {
+  const sourceId = toPositiveInt(point.source.id);
+  if (sourceId != null) return `source:${sourceId}`;
+  const inn = String(point.inn || '').trim();
+  const name = String(point.companyName || '').trim().toLowerCase();
+  return `inn:${inn}|name:${name}`;
+}
+
 function MapPointMarker({
   point,
+  siteCandidates,
   isSelected,
   onSelect,
   onBuildRoute,
@@ -207,6 +223,7 @@ function MapPointMarker({
   routeBusy,
 }: {
   point: MapPoint;
+  siteCandidates: PopupSiteCandidate[];
   isSelected: boolean;
   onSelect: () => void;
   onBuildRoute: (point: MapPoint) => void;
@@ -224,8 +241,9 @@ function MapPointMarker({
         pointId: point.pointId,
         pointLat: point.lat,
         pointLng: point.lng,
+        siteCandidates,
       }),
-    [point],
+    [point, siteCandidates],
   );
 
   useEffect(() => {
@@ -801,6 +819,34 @@ export default function MapPage(): JSX.Element {
     },
     [searchItems, focusedItem],
   );
+  const mapPointCandidatesByEnterprise = useMemo(() => {
+    const byEnterprise = new Map<string, PopupSiteCandidate[]>();
+    const seenByEnterprise = new Map<string, Set<string>>();
+
+    mapPoints.forEach((point) => {
+      const enterpriseKey = buildEnterpriseKey(point);
+      const seen = seenByEnterprise.get(enterpriseKey) ?? new Set<string>();
+      const list = byEnterprise.get(enterpriseKey) ?? [];
+      const dedupeKey =
+        point.pointId != null
+          ? `id:${point.pointId}`
+          : `coord:${point.lat.toFixed(6)}:${point.lng.toFixed(6)}`;
+      if (!seen.has(dedupeKey)) {
+        seen.add(dedupeKey);
+        seenByEnterprise.set(enterpriseKey, seen);
+        const fallbackLabel = list.length === 0 ? 'Основная площадка' : `Площадка ${list.length + 1}`;
+        list.push({
+          pointId: point.pointId,
+          lat: point.lat,
+          lng: point.lng,
+          label: String(point.source.siteLabel ?? '').trim() || fallbackLabel,
+        });
+        byEnterprise.set(enterpriseKey, list);
+      }
+    });
+
+    return byEnterprise;
+  }, [mapPoints]);
   const tileUrl =
     baseMapStyle === 'osm'
       ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -1359,10 +1405,13 @@ export default function MapPage(): JSX.Element {
           {mapPoints.map((point) => {
             const pointId = point.pointId;
             const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+            const enterpriseKey = buildEnterpriseKey(point);
+            const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
             return (
               <MapPointMarker
                 key={point.key}
                 point={point}
+                siteCandidates={siteCandidates}
                 isSelected={isSelected}
                 routeBusy={routeBusy}
                 onBuildRoute={(target) => {

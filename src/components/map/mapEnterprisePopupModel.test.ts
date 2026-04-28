@@ -65,4 +65,32 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.infoRows.find((x) => x.key === 'inn')?.value).toBe('не указан');
     expect(model.siteSwitches).toHaveLength(0);
   });
+
+  it('builds site switches from explicit map candidates', () => {
+    const source = baseSource();
+    source.sites = [];
+
+    const model = buildMapEnterprisePopupViewModel({
+      pointAddress: 'Курганская область, г. Курган, ул. Омская, 48 а',
+      pointInn: '4501217153',
+      source,
+      pointId: 202,
+      pointLat: 55.2,
+      pointLng: 65.4,
+      siteCandidates: [
+        { pointId: 101, lat: 55.1, lng: 65.3, label: 'Основная площадка' },
+        { pointId: 202, lat: 55.2, lng: 65.4, label: 'Площадка 2' },
+        { pointId: 303, lat: 55.3, lng: 65.5, label: 'Площадка 3' },
+      ],
+    });
+
+    expect(model.siteSwitches).toHaveLength(3);
+    expect(model.siteSwitches.map((x) => x.label)).toEqual([
+      'Основная площадка',
+      'Площадка 2',
+      'Площадка 3',
+    ]);
+    expect(model.siteSwitches.find((x) => x.pointId === 202)?.isActive).toBe(true);
+    expect(model.siteSwitches.find((x) => x.pointId === 101)?.isActive).toBe(false);
+  });
 });

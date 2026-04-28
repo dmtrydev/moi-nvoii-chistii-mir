@@ -29,6 +29,12 @@ type BuildPopupViewModelInput = {
   pointId?: number | null;
   pointLat?: number;
   pointLng?: number;
+  siteCandidates?: Array<{
+    pointId: number | null;
+    lat: number;
+    lng: number;
+    label?: string | null;
+  }>;
 };
 
 function normalizeText(value: unknown): string | null {
@@ -76,6 +82,12 @@ function buildSiteSwitches(
   pointId?: number | null,
   pointLat?: number,
   pointLng?: number,
+  siteCandidates?: Array<{
+    pointId: number | null;
+    lat: number;
+    lng: number;
+    label?: string | null;
+  }>,
 ): PopupSiteSwitch[] {
   const switches: PopupSiteSwitch[] = [];
   const seen = new Set<string>();
@@ -111,13 +123,26 @@ function buildSiteSwitches(
     });
   };
 
-  pushSwitch(
-    typeof source.siteId === 'number' ? source.siteId : null,
-    source.lat,
-    source.lng,
-    source.siteLabel,
-    'Основная площадка',
-  );
+  const normalizedCandidates = Array.isArray(siteCandidates) ? siteCandidates : [];
+  normalizedCandidates.forEach((candidate, index) => {
+    pushSwitch(
+      typeof candidate.pointId === 'number' ? candidate.pointId : null,
+      candidate.lat,
+      candidate.lng,
+      candidate.label,
+      index === 0 ? 'Основная площадка' : `Площадка ${index + 1}`,
+    );
+  });
+
+  if (normalizedCandidates.length === 0) {
+    pushSwitch(
+      typeof source.siteId === 'number' ? source.siteId : null,
+      source.lat,
+      source.lng,
+      source.siteLabel,
+      'Основная площадка',
+    );
+  }
 
   const sites = Array.isArray(source.sites) ? source.sites : [];
   sites.forEach((site, index) => {
@@ -146,6 +171,7 @@ export function buildMapEnterprisePopupViewModel(
     input.pointId,
     input.pointLat,
     input.pointLng,
+    input.siteCandidates,
   );
   const fallbackSwitchLabel = resolveSiteLabel(input.source, matchedSite);
   if (siteSwitches.length === 0 && typeof input.pointLat === 'number' && typeof input.pointLng === 'number') {
