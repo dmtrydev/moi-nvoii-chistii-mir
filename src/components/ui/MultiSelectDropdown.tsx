@@ -7,7 +7,7 @@ function normalize(v: string): string {
 type LabelState = { isOpen: boolean; hasSelection: boolean };
 
 const unifiedPanelClass =
-  "absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5";
+  "absolute z-[100] top-full left-0 w-full mt-1 bg-[#fffffff2] rounded-[0px_0px_10px_10px] backdrop-blur-[40px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(40px)_brightness(100%)] overflow-hidden shadow-none pb-2.5";
 const unifiedListClass = 'no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0';
 const unifiedOptionClass = ({
   checked,
@@ -19,8 +19,8 @@ const unifiedOptionClass = ({
   isLast: boolean;
 }): string =>
   [
-    'block w-full min-h-[60px] text-left font-nunito font-semibold text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]',
-    checked ? 'bg-[#ffffff73]' : 'hover:bg-[#ffffff59]',
+    'block w-full min-h-[60px] text-left font-nunito font-semibold text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 backdrop-blur-[32px] [-webkit-backdrop-filter:blur(32px)_brightness(100%)]',
+    checked ? 'bg-[#ffffffe8]' : 'hover:bg-[#ffffffd0]',
     isLast ? 'rounded-b-[10px]' : '',
   ].join(' ');
 
@@ -43,7 +43,7 @@ function UnifiedCheckbox({ checked }: { checked: boolean }): JSX.Element {
   }
   return (
     <span className="relative block w-[35px] h-[35px]">
-      <span className="absolute inset-0 bg-[#ffffff73] rounded-[9px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[''] before:absolute before:inset-0 before:p-px before:rounded-[9px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none" />
+      <span className="absolute inset-0 bg-[#ffffffeb] rounded-[9px] backdrop-blur-[28px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(28px)_brightness(100%)] before:content-[''] before:absolute before:inset-0 before:p-px before:rounded-[9px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none" />
     </span>
   );
 }

@@ -80,7 +80,7 @@ const filterCtaLabelShiftClass = [
   'group-hover:translate-x-[calc((21px+0.625rem)/2)]',
 ].join(' ');
 const glassDropdownPanelDown =
-  'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+  'absolute z-[100] top-full left-0 w-full mt-1 bg-[#fffffff2] rounded-[0px_0px_10px_10px] backdrop-blur-[40px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(40px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
 const vidTriggerBase =
   'relative z-[2] flex h-[60px] w-full max-lg:min-h-[48px] max-lg:py-2 max-lg:text-[15px] items-center justify-between px-[15px] text-left transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';
 function vidTriggerClass(isOpen: boolean): string {

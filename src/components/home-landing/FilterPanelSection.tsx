@@ -40,7 +40,7 @@ const filterResetButtonBase = [
 
 /** Выпадающие списки фильтра: вниз от поля (ФККО, вид обращения, регион). */
 const glassDropdownPanelDown =
-  'absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+  'absolute z-[100] top-full left-0 w-full mt-1 bg-[#fffffff2] rounded-[0px_0px_10px_10px] backdrop-blur-[40px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(40px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
 
 const vidTriggerBase =
   'relative z-[2] w-full h-[60px] px-[15px] text-left flex items-center justify-between transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';

@@ -108,7 +108,7 @@ export function AutocompleteInput({
 
   const panelClass =
     dropdownClassName ??
-    "absolute z-[100] top-full left-0 w-full mt-1 bg-[#ffffff73] rounded-[0px_0px_10px_10px] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] overflow-hidden shadow-none pb-2.5";
+    "absolute z-[100] top-full left-0 w-full mt-1 bg-[#fffffff2] rounded-[0px_0px_10px_10px] backdrop-blur-[40px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(40px)_brightness(100%)] overflow-hidden shadow-none pb-2.5";
   const ulClass = listClassName ?? 'no-scrollbar max-h-[min(320px,50vh)] overflow-y-auto py-0';
 
   const resolvedInputClass = typeof inputClassName === 'function' ? inputClassName(isOpen) : inputClassName;
@@ -165,8 +165,8 @@ export function AutocompleteInput({
             const highlighted = idx === highlightedIndex;
             const optCls =
               optionClassName?.({ index: idx, highlighted }) ??
-              `block w-full min-h-[60px] px-[15px] py-3 text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] ${
-                highlighted ? 'bg-[#ffffff73]' : 'hover:bg-[#ffffff59]'
+              `block w-full min-h-[60px] px-[15px] py-3 text-left font-nunito font-semibold text-[#828583] text-lg border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1] transition-colors duration-150 backdrop-blur-[32px] [-webkit-backdrop-filter:blur(32px)_brightness(100%)] ${
+                highlighted ? 'bg-[#ffffffe8]' : 'hover:bg-[#ffffffd0]'
               }`;
             return (
               <li key={`${option.value}-${idx}`}>
