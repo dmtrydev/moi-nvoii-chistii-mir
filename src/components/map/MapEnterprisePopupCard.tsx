@@ -21,12 +21,14 @@ const routeCtaLabelShiftClass = [
 type Props = {
   model: MapEnterprisePopupViewModel;
   onBuildRoute?: () => void;
+  onSwitchSite?: (site: { pointId: number | null; lat: number; lng: number }) => void;
   routeDisabled?: boolean;
 };
 
 export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
   model,
   onBuildRoute,
+  onSwitchSite,
   routeDisabled = false,
 }: Props): JSX.Element {
   const statusIcons = [
@@ -45,6 +47,25 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
           {model.title}
         </h3>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
+        {model.siteSwitches.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {model.siteSwitches.map((site) => (
+              <button
+                key={site.key}
+                type="button"
+                disabled={!onSwitchSite}
+                onClick={() => onSwitchSite?.({ pointId: site.pointId, lat: site.lat, lng: site.lng })}
+                className={`rounded-full border px-3 py-1 font-nunito text-xs font-semibold transition-colors disabled:cursor-default disabled:opacity-70 ${
+                  site.isActive
+                    ? 'border-[#bcdc57] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] text-[#2b3335]'
+                    : 'border-white/80 bg-white/70 text-[#5e6567] hover:bg-white/90'
+                }`}
+              >
+                {site.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="moinoviichistiimir-popup-enterprise__headDivider" aria-hidden />
         <div className="moinoviichistiimir-popup-enterprise__icons" aria-label="Статусы предприятия">
           {statusIcons.map(({ id, iconSrc, active, label }) => (

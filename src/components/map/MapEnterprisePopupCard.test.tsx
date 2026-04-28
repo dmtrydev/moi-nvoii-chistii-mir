@@ -11,8 +11,16 @@ describe('MapEnterprisePopupCard', () => {
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
         { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
-        { key: 'address', label: 'Адрес:', value: 'Курганская область, г. Курган, ул. Омская, 48 а' },
-        { key: 'siteLabel', label: 'Площадка:', value: 'Основная площадка' },
+      ],
+      siteSwitches: [
+        {
+          key: 'id:101',
+          label: 'Основная площадка',
+          pointId: 101,
+          lat: 55.1,
+          lng: 65.3,
+          isActive: true,
+        },
       ],
     };
 
@@ -35,9 +43,8 @@ describe('MapEnterprisePopupCard', () => {
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
         { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
-        { key: 'address', label: 'Адрес:', value: longAddress },
-        { key: 'siteLabel', label: 'Площадка:', value: 'Основная площадка' },
       ],
+      siteSwitches: [],
     };
 
     render(<MapEnterprisePopupCard model={model} />);

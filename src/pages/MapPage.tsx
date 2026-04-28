@@ -203,12 +203,14 @@ function MapPointMarker({
   isSelected,
   onSelect,
   onBuildRoute,
+  onSwitchSite,
   routeBusy,
 }: {
   point: MapPoint;
   isSelected: boolean;
   onSelect: () => void;
   onBuildRoute: (point: MapPoint) => void;
+  onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }, point: MapPoint) => void;
   routeBusy: boolean;
 }): JSX.Element {
   const map = useMap();
@@ -219,6 +221,7 @@ function MapPointMarker({
         pointAddress: point.address,
         pointInn: point.inn,
         source: point.source,
+        pointId: point.pointId,
         pointLat: point.lat,
         pointLng: point.lng,
       }),
@@ -264,6 +267,7 @@ function MapPointMarker({
           model={popupModel}
           routeDisabled={routeBusy}
           onBuildRoute={() => onBuildRoute(point)}
+          onSwitchSite={(site) => onSwitchSite(site, point)}
         />
       </Popup>
     </CircleMarker>
@@ -1363,6 +1367,11 @@ export default function MapPage(): JSX.Element {
                 routeBusy={routeBusy}
                 onBuildRoute={(target) => {
                   void handleBuildRouteFromClient(target);
+                }}
+                onSwitchSite={(site, selectedPoint) => {
+                  setFocusedItem(selectedPoint.source);
+                  if (site.pointId != null) setSelectedId(site.pointId);
+                  setFocusCenter([site.lat, site.lng]);
                 }}
                 onSelect={() => {
                   setFocusedItem(point.source);

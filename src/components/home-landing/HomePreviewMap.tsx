@@ -29,6 +29,7 @@ function PreviewMarker({
         pointAddress: point.address,
         pointInn: point.inn,
         source: point.source,
+        pointId: point.pointId,
         pointLat: point.lat,
         pointLng: point.lng,
       }),
