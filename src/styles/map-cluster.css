@@ -1,3 +1,44 @@
+/* ─── Single marker icon ──────────────────────────────────────────────────── */
+/* Same visual language as cluster icons — green gradient + glass border.       */
+
+.map-marker-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(
+    128deg,
+    rgba(219, 236, 168, 0.96) 0%,
+    rgba(188, 220, 87, 0.98) 100%
+  );
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 3px 14px rgba(163, 200, 59, 0.55),
+    inset 0 0 8px rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.map-marker-dot:hover {
+  transform: scale(1.2);
+  box-shadow:
+    0 5px 20px rgba(163, 200, 59, 0.7),
+    inset 0 0 12px rgba(255, 255, 255, 0.75);
+}
+
+.map-marker-dot--selected {
+  width: 26px;
+  height: 26px;
+  background: linear-gradient(
+    128deg,
+    rgba(188, 220, 87, 1) 0%,
+    rgba(101, 163, 13, 1) 100%
+  );
+  box-shadow:
+    0 4px 20px rgba(101, 163, 13, 0.7),
+    inset 0 0 12px rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.98);
+}
+
 /* ─── Map cluster icon ─────────────────────────────────────────────────────── */
 /* Matches the project's glassmorphism + green gradient design language.        */
 

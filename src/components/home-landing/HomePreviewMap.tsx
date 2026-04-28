@@ -1,6 +1,6 @@
 import L from 'leaflet';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import type { MapPointLicense } from '@/utils/mapPointsFromLicenses';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
 import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
@@ -15,6 +15,14 @@ import {
 const DEFAULT_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_ZOOM = 5;
 const FOCUSED_ZOOM = 14;
+
+const MARKER_ICON = L.divIcon({
+  html: '<div class="map-marker-dot"></div>',
+  className: '',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -12],
+});
 
 type SiteCandidate = {
   pointId: number | null;
@@ -61,14 +69,12 @@ function PreviewMarker({
   onBuildRoute,
   onSwitchSite,
   routeBusy,
-  renderer,
 }: {
   point: MapPointLicense;
   siteCandidates: SiteCandidate[];
   onBuildRoute: (lat: number, lng: number, label: string) => void;
   onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }) => void;
   routeBusy: boolean;
-  renderer: L.Canvas;
 }): JSX.Element {
   const popupModel = useMemo(
     () =>
@@ -85,16 +91,9 @@ function PreviewMarker({
   );
 
   return (
-    <CircleMarker
-      center={[point.lat, point.lng]}
-      radius={8}
-      renderer={renderer}
-      pathOptions={{
-        color: '#1f7a35',
-        fillColor: '#16a34a',
-        fillOpacity: 0.9,
-        weight: 2,
-      }}
+    <Marker
+      position={[point.lat, point.lng]}
+      icon={MARKER_ICON}
     >
       <Popup
         className="moinoviichistiimir-popup"
@@ -107,7 +106,7 @@ function PreviewMarker({
           onSwitchSite={onSwitchSite}
         />
       </Popup>
-    </CircleMarker>
+    </Marker>
   );
 }
 
@@ -128,8 +127,6 @@ export function HomePreviewMap({
   const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
 
-  // Shared canvas renderer — dramatically reduces DOM nodes compared to SVG
-  const canvasRenderer = useRef<L.Canvas>(L.canvas());
 
   const {
     routeBusy,
@@ -235,7 +232,6 @@ export function HomePreviewMap({
                   onBuildRoute={handleBuildRoute}
                   onSwitchSite={handleSwitchSite}
                   routeBusy={routeBusy}
-                  renderer={canvasRenderer.current}
                 />
               );
             })}

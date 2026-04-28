@@ -2,8 +2,9 @@ import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type L from 'leaflet';
-import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
+import '@/styles/map-cluster.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
@@ -155,6 +156,22 @@ type RouteBuildResult = {
   durationSeconds: number;
 };
 
+const MARKER_ICON_NORMAL = L.divIcon({
+  html: '<div class="map-marker-dot"></div>',
+  className: '',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -12],
+});
+
+const MARKER_ICON_SELECTED = L.divIcon({
+  html: '<div class="map-marker-dot map-marker-dot--selected"></div>',
+  className: '',
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+  popupAnchor: [0, -15],
+});
+
 function getCurrentPosition(options?: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -234,7 +251,7 @@ function MapPointMarker({
   routeBusy: boolean;
 }): JSX.Element {
   const map = useMap();
-  const markerRef = useRef<L.CircleMarker | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
   const popupModel = useMemo(
     () =>
       buildMapEnterprisePopupViewModel({
@@ -270,17 +287,11 @@ function MapPointMarker({
   }, [isSelected, map, point.key]);
 
   return (
-    <CircleMarker
+    <Marker
       ref={markerRef}
       key={point.key}
-      center={[point.lat, point.lng]}
-      radius={isSelected ? 11 : 8}
-      pathOptions={{
-        color: isSelected ? '#14532d' : '#1f7a35',
-        fillColor: isSelected ? '#22c55e' : '#16a34a',
-        fillOpacity: 0.9,
-        weight: isSelected ? 3 : 2,
-      }}
+      position={[point.lat, point.lng]}
+      icon={isSelected ? MARKER_ICON_SELECTED : MARKER_ICON_NORMAL}
       eventHandlers={{ click: onSelect }}
     >
       <Popup
@@ -294,7 +305,7 @@ function MapPointMarker({
           onSwitchSite={(site) => onSwitchSite(site, point)}
         />
       </Popup>
-    </CircleMarker>
+    </Marker>
   );
 }
 
