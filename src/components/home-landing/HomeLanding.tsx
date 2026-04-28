@@ -404,10 +404,16 @@ export function HomeLanding(): JSX.Element {
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center bg-[#f9fbfe]"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#f9fbfe]"
       >
         <img
-          className="h-full w-full object-contain opacity-80"
+          className="absolute inset-0 h-full w-full object-cover opacity-40 blur-[2px]"
+          alt=""
+          aria-hidden="true"
+          src={heroBackground}
+        />
+        <img
+          className="relative h-full w-full object-contain opacity-85"
           alt=""
           aria-hidden="true"
           src={heroBackground}
