@@ -675,11 +675,16 @@ export function HomeLanding(): JSX.Element {
             )}
           </div>
 
-          <div className="relative z-10 mx-auto mt-10 w-full max-w-[1920px] px-4 pb-16 sm:mt-12 sm:pb-20">
+          <div className="relative z-10 mx-auto mt-10 flex min-h-[100dvh] w-full max-w-[1920px] flex-col px-4 pb-16 sm:mt-12 sm:pb-20">
             <h3 className="typo-h3 mb-4 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]">
               Карта объектов
             </h3>
-            <HomePreviewMap points={homeMapPoints} loading={mapPreviewLoading} />
+            <HomePreviewMap
+              className="flex-1"
+              mapClassName="!h-full !min-h-[calc(100dvh-220px)]"
+              points={homeMapPoints}
+              loading={mapPreviewLoading}
+            />
           </div>
       </SiteFrameWithTopNav>
       {introStage < 2 && (
