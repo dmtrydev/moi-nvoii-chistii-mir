@@ -118,7 +118,7 @@ export default function UploadPage(): JSX.Element {
         aria-hidden="true"
         src={uploadBackground}
       />
-      <SiteFrameWithTopNav>
+      <SiteFrameWithTopNav frameLayout="header">
         <div className="relative mx-4 mb-3 mt-3 h-[calc(100dvh-132px)] text-ink overflow-hidden">
           <div className="flex h-full items-center justify-center rounded-[24px] border border-white/55 bg-white/28 p-6 backdrop-blur-[14px]">
             <UploadDropzone />
