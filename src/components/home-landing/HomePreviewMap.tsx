@@ -4,6 +4,7 @@ import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from '
 import type { MapPointLicense } from '@/utils/mapPointsFromLicenses';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
 import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
 import {
   formatRouteDistance,
   formatRouteDuration,
@@ -91,7 +92,11 @@ function PreviewMarker({
         weight: 2,
       }}
     >
-      <Popup className="moinoviichistiimir-popup">
+      <Popup
+        className="moinoviichistiimir-popup"
+        closeOnClick={false}
+        autoClose={false}
+      >
         <MapEnterprisePopupCard
           model={popupModel}
           routeDisabled={routeBusy}
@@ -186,8 +191,10 @@ export function HomePreviewMap({
           className="absolute inset-0 z-0 h-full w-full"
           zoomControl
           attributionControl={false}
+          closePopupOnClick={false}
         >
           <TileLayer url={tileUrl} />
+          <MapDragThroughPopup />
           {points.length > 0 ? <MapFitBounds points={points} /> : null}
           <MapFocusController center={focusCenter} zoom={FOCUSED_ZOOM} />
           {routeResult && (

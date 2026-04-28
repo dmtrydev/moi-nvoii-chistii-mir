@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type L from 'leaflet';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
@@ -282,7 +283,11 @@ function MapPointMarker({
       }}
       eventHandlers={{ click: onSelect }}
     >
-      <Popup className="moinoviichistiimir-popup">
+      <Popup
+        className="moinoviichistiimir-popup"
+        closeOnClick={false}
+        autoClose={false}
+      >
         <MapEnterprisePopupCard
           model={popupModel}
           routeDisabled={routeBusy}
@@ -1384,8 +1389,10 @@ export default function MapPage(): JSX.Element {
           className="absolute inset-0 z-0 h-full w-full min-h-0"
           zoomControl
           attributionControl={false}
+          closePopupOnClick={false}
         >
           <TileLayer url={tileUrl} />
+          <MapDragThroughPopup />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           <MapRouteFitController path={routeResult?.path ?? null} />
           {routeResult && (

@@ -27,6 +27,7 @@ import { HeroCopySection } from '@/components/home-landing/HeroCopySection';
 import { HomePreviewMap } from '@/components/home-landing/HomePreviewMap';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { mapPointsFromLicenseItems } from '@/utils/mapPointsFromLicenses';
+import { RevealOnScroll } from '@/components/ui/RevealOnScroll';
 
 /** Вводная анимация: очень плавное замедление в конце */
 const HOME_INTRO_EASE = 'cubic-bezier(0.14, 0.9, 0.22, 1)';
@@ -675,17 +676,23 @@ export function HomeLanding(): JSX.Element {
             )}
           </div>
 
-          <div className="relative z-10 mx-auto mt-10 flex min-h-[100dvh] w-full max-w-[1920px] flex-col px-4 pb-16 sm:mt-12 sm:pb-20">
-            <h3 className="typo-h3 mb-4 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]">
-              Карта объектов
-            </h3>
-            <HomePreviewMap
-              className="h-[calc(100dvh-220px)]"
-              mapClassName="!h-full !min-h-0"
-              points={homeMapPoints}
-              loading={mapPreviewLoading}
-            />
-          </div>
+          <RevealOnScroll
+            variant="reveal-scale"
+            className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-16 sm:pb-20"
+          >
+            <section className="relative z-0 mt-6 overflow-hidden rounded-[32.5px] bg-[#ffffff4c] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
+              <div className="relative z-[2] px-6 pt-7 pb-5 sm:px-8 lg:px-9">
+                <h3 className="typo-h3 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]">
+                  Карта объектов
+                </h3>
+              </div>
+              <HomePreviewMap
+                className="!rounded-none !border-0 !bg-transparent !shadow-none"
+                points={homeMapPoints}
+                loading={mapPreviewLoading}
+              />
+            </section>
+          </RevealOnScroll>
       </SiteFrameWithTopNav>
       {introStage < 2 && (
         <div
