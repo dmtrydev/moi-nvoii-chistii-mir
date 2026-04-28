@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { MapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 import sborActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-active.svg';
 import transportActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-transport-active.svg';
@@ -54,10 +54,24 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
 
   const { siteSwitches } = model;
   const total = siteSwitches.length;
-  const activeIdx = siteSwitches.findIndex((s) => s.isActive);
-  const effectiveIdx = activeIdx >= 0 ? activeIdx : 0;
+
+  // Local index — tracks which site is currently shown inside THIS popup.
+  // Initialised from the model's active site; resets whenever the popup
+  // reopens for a different enterprise (model reference changes).
+  const initialIdx = siteSwitches.findIndex((s) => s.isActive);
+  const [localIdx, setLocalIdx] = useState(() => (initialIdx >= 0 ? initialIdx : 0));
+
+  // Sync when the enterprise changes (different popup opened)
+  useEffect(() => {
+    const idx = siteSwitches.findIndex((s) => s.isActive);
+    setLocalIdx(idx >= 0 ? idx : 0);
+  }, [siteSwitches]);
+
+  const effectiveIdx = Math.min(localIdx, Math.max(0, total - 1));
 
   function navTo(idx: number) {
+    if (idx < 0 || idx >= total) return;
+    setLocalIdx(idx);
     const site = siteSwitches[idx];
     if (site) onSwitchSite?.({ pointId: site.pointId, lat: site.lat, lng: site.lng });
   }
@@ -78,10 +92,7 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
               onClick={() => navTo(effectiveIdx - 1)}
               aria-label="Предыдущая площадка"
             >
-              <span className="relative z-[2] flex items-center gap-1">
-                <span>←</span>
-                <span>Предыдущая</span>
-              </span>
+              <span className="relative z-[2]">Предыдущая</span>
             </button>
             <span className="shrink-0 font-nunito text-xs font-semibold text-[#5e6567]">
               Площадка {effectiveIdx + 1} из {total}
@@ -93,10 +104,7 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
               onClick={() => navTo(effectiveIdx + 1)}
               aria-label="Следующая площадка"
             >
-              <span className="relative z-[2] flex items-center gap-1">
-                <span>Следующая</span>
-                <span>→</span>
-              </span>
+              <span className="relative z-[2]">Следующая</span>
             </button>
           </div>
         ) : null}

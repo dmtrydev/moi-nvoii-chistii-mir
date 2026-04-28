@@ -1440,9 +1440,9 @@ export default function MapPage(): JSX.Element {
                 onBuildRoute={(target) => {
                   void handleBuildRouteFromClient(target);
                 }}
-                onSwitchSite={(site, selectedPoint) => {
-                  setFocusedItem(selectedPoint.source);
-                  if (site.pointId != null) setSelectedId(site.pointId);
+                onSwitchSite={(site) => {
+                  // Only pan the map — don't change selectedId to avoid
+                  // closing the current popup and reopening a different one.
                   setFocusCenter([site.lat, site.lng]);
                 }}
                 onSelect={() => {
