@@ -680,8 +680,8 @@ export function HomeLanding(): JSX.Element {
               Карта объектов
             </h3>
             <HomePreviewMap
-              className="flex-1"
-              mapClassName="!h-full !min-h-[calc(100dvh-220px)]"
+              className="h-[calc(100dvh-220px)]"
+              mapClassName="!h-full !min-h-0"
               points={homeMapPoints}
               loading={mapPreviewLoading}
             />
