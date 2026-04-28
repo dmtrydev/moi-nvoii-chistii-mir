@@ -1288,6 +1288,13 @@ app.get('/api/license-sites', async (req, res) => {
     const fkkoList = [...new Set(parseFkkoInput(fkkoRaw).filter((c) => /^\d{11}$/.test(c)))];
     const vidRaw = String(req.query.vid ?? req.query.activityType ?? '').trim();
     const vids = vidRaw ? vidRaw.split(/[,;]+/).map((x) => x.trim()).filter(Boolean) : [];
+    const rawLimit = Number(req.query.limit);
+    const SAFE_DEFAULT_LIMIT = 5000;
+    const SAFE_MAX_LIMIT = 5000;
+    const resultLimit =
+      Number.isFinite(rawLimit) && rawLimit > 0
+        ? Math.min(Math.floor(rawLimit), SAFE_MAX_LIMIT)
+        : SAFE_DEFAULT_LIMIT;
 
     const params = [region];
     let fkkoClause = '';
@@ -1330,7 +1337,7 @@ app.get('/api/license-sites', async (req, res) => {
             ${vidClause}
         )
       ORDER BY s.id DESC
-      LIMIT 200
+      LIMIT ${resultLimit}
     `;
 
     const rows = await query(sql, params);
