@@ -404,21 +404,15 @@ export function HomeLanding(): JSX.Element {
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#f9fbfe]"
-      >
-        <img
-          className="absolute inset-0 h-full w-full object-cover opacity-40 blur-[2px]"
-          alt=""
-          aria-hidden="true"
-          src={heroBackground}
-        />
-        <img
-          className="relative h-full w-full object-contain opacity-85"
-          alt=""
-          aria-hidden="true"
-          src={heroBackground}
-        />
-      </div>
+        className="pointer-events-none fixed inset-0 z-0 bg-[#f9fbfe]"
+        style={{
+          backgroundImage: `url(${heroBackground})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center center',
+          backgroundSize: 'cover',
+          backgroundAttachment: 'fixed',
+        }}
+      />
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-[1] bg-white/30 backdrop-blur-[14px] [-webkit-backdrop-filter:blur(14px)]"
