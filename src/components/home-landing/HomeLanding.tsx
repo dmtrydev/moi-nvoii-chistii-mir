@@ -402,12 +402,17 @@ export function HomeLanding(): JSX.Element {
 
   return (
     <section className="relative flex min-h-screen w-full max-w-full min-w-0 flex-col self-stretch">
-      <img
-        className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-80"
-        alt=""
-        aria-hidden="true"
-        src={heroBackground}
-      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center bg-[#f9fbfe]"
+      >
+        <img
+          className="h-full w-full object-contain opacity-80"
+          alt=""
+          aria-hidden="true"
+          src={heroBackground}
+        />
+      </div>
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-[1] bg-white/30 backdrop-blur-[14px] [-webkit-backdrop-filter:blur(14px)]"
