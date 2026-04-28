@@ -25,6 +25,18 @@ type Props = {
   routeDisabled?: boolean;
 };
 
+const navBtnBase = [
+  'relative flex items-center gap-1 overflow-hidden rounded-[999px] border-[none] px-3 py-1.5',
+  'font-nunito text-xs font-semibold',
+  'bg-[#ffffff73] text-[#5e6567] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]',
+  'transition-[background-color,box-shadow,color] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+  "before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[999px] before:p-px before:content-['']",
+  'before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]',
+  'before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]',
+  'hover:enabled:bg-[#ffffffa6]',
+  'disabled:cursor-default disabled:opacity-40',
+].join(' ');
+
 export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
   model,
   onBuildRoute,
@@ -40,6 +52,16 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
     { id: 'utilization', iconSrc: utilizationInactiveIcon, active: false, label: 'Утилизация' },
   ] as const;
 
+  const { siteSwitches } = model;
+  const total = siteSwitches.length;
+  const activeIdx = siteSwitches.findIndex((s) => s.isActive);
+  const effectiveIdx = activeIdx >= 0 ? activeIdx : 0;
+
+  function navTo(idx: number) {
+    const site = siteSwitches[idx];
+    if (site) onSwitchSite?.({ pointId: site.pointId, lat: site.lat, lng: site.lng });
+  }
+
   return (
     <article className="moinoviichistiimir-popup-enterprise">
       <header className="moinoviichistiimir-popup-enterprise__head">
@@ -47,23 +69,35 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
           {model.title}
         </h3>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
-        {model.siteSwitches.length > 0 ? (
-          <div className="mb-4 mt-3 flex flex-wrap gap-2">
-            {model.siteSwitches.map((site) => (
-              <button
-                key={site.key}
-                type="button"
-                disabled={!onSwitchSite}
-                onClick={() => onSwitchSite?.({ pointId: site.pointId, lat: site.lat, lng: site.lng })}
-                className={`relative overflow-hidden rounded-[999px] border-[none] px-3 py-1.5 font-nunito text-xs font-semibold transition-[background-color,box-shadow,color] duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[999px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] disabled:cursor-default disabled:opacity-70 ${
-                  site.isActive
-                    ? 'bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] text-[#2b3335] shadow-[0px_10px_24px_#c1df6466,inset_0px_0px_16px_#ffffffbd] before:[background:linear-gradient(132deg,rgba(188,220,87,0.75)_0%,rgba(219,236,168,0.5)_100%)]'
-                    : 'bg-[#ffffff73] text-[#5e6567] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] hover:bg-[#ffffffa6] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]'
-                }`}
-              >
-                <span className="relative z-[2]">{site.label}</span>
-              </button>
-            ))}
+        {total > 1 ? (
+          <div className="mb-4 mt-3 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              className={navBtnBase}
+              disabled={effectiveIdx === 0 || !onSwitchSite}
+              onClick={() => navTo(effectiveIdx - 1)}
+              aria-label="Предыдущая площадка"
+            >
+              <span className="relative z-[2] flex items-center gap-1">
+                <span>←</span>
+                <span>Предыдущая</span>
+              </span>
+            </button>
+            <span className="shrink-0 font-nunito text-xs font-semibold text-[#5e6567]">
+              Площадка {effectiveIdx + 1} из {total}
+            </span>
+            <button
+              type="button"
+              className={navBtnBase}
+              disabled={effectiveIdx === total - 1 || !onSwitchSite}
+              onClick={() => navTo(effectiveIdx + 1)}
+              aria-label="Следующая площадка"
+            >
+              <span className="relative z-[2] flex items-center gap-1">
+                <span>Следующая</span>
+                <span>→</span>
+              </span>
+            </button>
           </div>
         ) : null}
         <div className="moinoviichistiimir-popup-enterprise__headDivider" aria-hidden />

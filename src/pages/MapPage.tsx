@@ -286,7 +286,6 @@ function MapPointMarker({
       <Popup
         className="moinoviichistiimir-popup"
         closeOnClick={false}
-        autoClose={false}
       >
         <MapEnterprisePopupCard
           model={popupModel}

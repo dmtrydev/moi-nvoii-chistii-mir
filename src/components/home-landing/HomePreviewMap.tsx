@@ -1,10 +1,11 @@
 import L from 'leaflet';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import type { MapPointLicense } from '@/utils/mapPointsFromLicenses';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
 import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
+import { MarkerClusterGroup } from '@/components/map/MarkerClusterGroup';
 import {
   formatRouteDistance,
   formatRouteDuration,
@@ -60,12 +61,14 @@ function PreviewMarker({
   onBuildRoute,
   onSwitchSite,
   routeBusy,
+  renderer,
 }: {
   point: MapPointLicense;
   siteCandidates: SiteCandidate[];
   onBuildRoute: (lat: number, lng: number, label: string) => void;
   onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }) => void;
   routeBusy: boolean;
+  renderer: L.Canvas;
 }): JSX.Element {
   const popupModel = useMemo(
     () =>
@@ -85,6 +88,7 @@ function PreviewMarker({
     <CircleMarker
       center={[point.lat, point.lng]}
       radius={8}
+      renderer={renderer}
       pathOptions={{
         color: '#1f7a35',
         fillColor: '#16a34a',
@@ -95,7 +99,6 @@ function PreviewMarker({
       <Popup
         className="moinoviichistiimir-popup"
         closeOnClick={false}
-        autoClose={false}
       >
         <MapEnterprisePopupCard
           model={popupModel}
@@ -124,6 +127,9 @@ export function HomePreviewMap({
 }: HomePreviewMapProps): JSX.Element {
   const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
+
+  // Shared canvas renderer — dramatically reduces DOM nodes compared to SVG
+  const canvasRenderer = useRef<L.Canvas>(L.canvas());
 
   const {
     routeBusy,
@@ -217,20 +223,23 @@ export function HomePreviewMap({
               pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
             />
           )}
-          {points.map((point) => {
-            const enterpriseKey = buildEnterpriseKey(point);
-            const siteCandidates = siteCandidatesByEnterprise.get(enterpriseKey) ?? [];
-            return (
-              <PreviewMarker
-                key={point.key}
-                point={point}
-                siteCandidates={siteCandidates}
-                onBuildRoute={handleBuildRoute}
-                onSwitchSite={handleSwitchSite}
-                routeBusy={routeBusy}
-              />
-            );
-          })}
+          <MarkerClusterGroup maxClusterRadius={60} disableClusteringAtZoom={14}>
+            {points.map((point) => {
+              const enterpriseKey = buildEnterpriseKey(point);
+              const siteCandidates = siteCandidatesByEnterprise.get(enterpriseKey) ?? [];
+              return (
+                <PreviewMarker
+                  key={point.key}
+                  point={point}
+                  siteCandidates={siteCandidates}
+                  onBuildRoute={handleBuildRoute}
+                  onSwitchSite={handleSwitchSite}
+                  routeBusy={routeBusy}
+                  renderer={canvasRenderer.current}
+                />
+              );
+            })}
+          </MarkerClusterGroup>
         </MapContainer>
 
         {(routeError || routeResult) && (
