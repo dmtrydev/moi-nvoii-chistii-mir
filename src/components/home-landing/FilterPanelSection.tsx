@@ -231,6 +231,12 @@ export function FilterPanelSection({
     setFkkoInput(String(next).slice(0, 120));
   };
 
+  /** После отметки в списке убираем текст поиска — в поле остаётся счётчик выбранных (formatFkkoSelectionSummary). */
+  const handleFkkoSelectionChange = (next: string[]): void => {
+    setFkkoInput('');
+    onFilterFkkoChange(next);
+  };
+
   const filterFkkoOption = ({
     option,
     query,
@@ -299,7 +305,7 @@ export function FilterPanelSection({
           <MultiSelectDropdown
             options={fkkoOptions}
             selected={filterFkko}
-            onChange={onFilterFkkoChange}
+            onChange={handleFkkoSelectionChange}
             placeholder="Выберите коды ФККО"
             buttonClassName={vidTriggerClass}
             labelClassName={vidLabelClass}
