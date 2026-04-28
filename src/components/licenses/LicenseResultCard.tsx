@@ -19,7 +19,6 @@ export function LicenseResultCard({
   variant = 'light',
 }: LicenseResultCardProps): JSX.Element {
   const sitesCount = Array.isArray(item.sites) ? item.sites.length : 0;
-  const hasAddress = Boolean(item.address?.trim()) || sitesCount > 0;
 
   const isLight = variant === 'light';
 
@@ -73,46 +72,36 @@ export function LicenseResultCard({
               ) : null}
             </div>
 
+          </div>
+
+          <div
+            className={
+              compact
+                ? 'mt-2.5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4'
+                : 'mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4'
+            }
+          >
             <div className={compact ? 'shrink-0 pt-0.5' : ''}>
               <EnterpriseActivityStrip activityTypes={item.activityTypes} variant={variant} size={compact ? 'sm' : 'md'} />
             </div>
-          </div>
-
-          {hasAddress ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
+            <div className={`flex flex-col gap-2 md:flex-row ${compact ? '' : 'lg:justify-end'}`}>
+              <Link
+                to={mapPath}
                 className={
                   isLight
-                    ? 'inline-flex items-center gap-1 rounded-full bg-app-bg px-2.5 py-1 text-[11px] font-medium text-ink-muted'
-                    : 'inline-flex items-center gap-1 rounded-full bg-[#4caf50]/15 px-2.5 py-1 text-[11px] font-medium text-[#b8f5bb] ring-1 ring-inset ring-[#4caf50]/25'
+                    ? 'inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-10 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white hover:shadow-sm transition-all'
+                    : 'inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-9 rounded-xl border border-white/20 px-4 text-xs font-medium text-white/90 hover:bg-white/10 transition-colors'
                 }
               >
-                <svg className="h-3.5 w-3.5 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                  <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="12" cy="10" r="2.5" />
-                </svg>
-                {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
-              </span>
+                На карте
+              </Link>
+              <Link
+                to={detailsPath}
+                className="inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-10 rounded-xl px-4 text-xs font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
+              >
+                Карточка предприятия
+              </Link>
             </div>
-          ) : null}
-
-          <div className={`mt-4 flex flex-col gap-2 md:flex-row`}>
-            <Link
-              to={mapPath}
-              className={
-                isLight
-                  ? 'inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-10 rounded-xl border border-black/[0.08] bg-app-bg px-4 text-xs font-semibold text-ink hover:bg-white hover:shadow-sm transition-all'
-                  : 'inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-9 rounded-xl border border-white/20 px-4 text-xs font-medium text-white/90 hover:bg-white/10 transition-colors'
-              }
-            >
-              На карте
-            </Link>
-            <Link
-              to={detailsPath}
-              className="inline-flex w-full md:w-auto md:flex-1 items-center justify-center h-10 rounded-xl px-4 text-xs font-semibold text-[#1a2e12] bg-gradient-to-br from-accent-from to-accent-to hover:shadow-eco-card transition-shadow shadow-sm"
-            >
-              Карточка предприятия
-            </Link>
           </div>
         </div>
       </div>

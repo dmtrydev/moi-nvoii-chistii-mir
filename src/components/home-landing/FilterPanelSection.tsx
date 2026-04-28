@@ -257,15 +257,15 @@ export function FilterPanelSection({
         {/* Заголовок + сброс */}
         <div className="relative z-[2] mb-6 flex min-w-0 flex-col gap-4 lg:mb-8 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
           <div className="min-w-0 flex-1">
-            <div className="inline-flex max-w-full flex-wrap items-center gap-3 sm:gap-[15px]">
-              <div className="relative h-8 w-8 shrink-0 sm:h-[35px] sm:w-[35px]">
+            <div className="flex max-w-full items-start gap-3 sm:items-center sm:gap-[15px]">
+              <div className="relative mt-0.5 h-8 w-8 shrink-0 sm:mt-0 sm:h-[35px] sm:w-[35px]">
                 <img
                   className="absolute left-[16.66%] top-[12.50%] h-[87.50%] w-[83.34%]"
                   alt=""
                   src={filterSectionTitleIcon}
                 />
               </div>
-              <h2 className="typo-h4 relative mt-[-1px] max-w-full bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] sm:whitespace-nowrap">
+              <h2 className="typo-h4 relative mt-[-1px] min-w-0 flex-1 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight sm:whitespace-nowrap">
                 Экологический фильтр объектов
               </h2>
             </div>

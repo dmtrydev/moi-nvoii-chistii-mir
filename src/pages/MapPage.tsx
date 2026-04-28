@@ -1169,8 +1169,6 @@ export default function MapPage(): JSX.Element {
                   });
                   const focusSid = toPositiveInt(it.siteId);
                   if (focusSid != null) mapParams.set('focusSite', String(focusSid));
-                  const sitesCount = Array.isArray(it.sites) ? it.sites.length : 0;
-                  const hasAddress = Boolean(it.address?.trim()) || sitesCount > 0;
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>
                       <article className="rounded-[32.5px] border border-solid border-white bg-[#ffffff80] p-6 shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-7 lg:p-8">
@@ -1192,20 +1190,13 @@ export default function MapPage(): JSX.Element {
                               )}
                             </div>
                           </div>
-                          <EnterpriseActivityStrip activityTypes={it.activityTypes} variant="light" size="md" />
-                          <div className="space-y-2.5">
-                            {hasAddress ? (
-                              <div className="flex flex-wrap items-center gap-3">
-                                <span className="inline-flex items-center justify-center rounded-[15px] border border-solid border-[#ffffff96] bg-[#ffffff4c] px-[15px] py-2.5 font-nunito font-bold text-[#5e6567] text-base sm:text-lg">
-                                  {sitesCount > 1 ? `Адресов: ${sitesCount}` : 'Адрес указан'}
-                                </span>
-                              </div>
-                            ) : null}
-                            <div className="flex flex-wrap items-center gap-2.5">
-                              <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+                            <EnterpriseActivityStrip activityTypes={it.activityTypes} variant="light" size="md" />
+                            <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
+                              <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3 lg:ml-0 lg:max-w-none lg:flex-row lg:items-center lg:gap-5">
                                 <Link
                                   to={`/map?${mapParams.toString()}`}
-                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[435px]"
+                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:min-w-[200px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
                                     <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-base text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:text-lg lg:text-xl group-hover:translate-x-[calc((27px+0.625rem)/2)]">
@@ -1222,7 +1213,7 @@ export default function MapPage(): JSX.Element {
                                 </Link>
                                 <Link
                                   to={id != null ? `/enterprise/${id}` : '/map'}
-                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[435px]"
+                                  className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:min-w-[200px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
                                     <span className="relative mt-[-1px] whitespace-nowrap font-nunito font-bold text-[#2b3335] text-base text-center transition-transform duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none sm:text-lg lg:text-xl group-hover:translate-x-[calc((27px+0.625rem)/2)]">
