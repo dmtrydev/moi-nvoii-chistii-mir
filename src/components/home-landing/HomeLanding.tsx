@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { fkkoCodesToQueryParam, normalizeFkkoCodeList } from '@/utils/fkko';
+import { ACTIVITY_TYPE_FILTER_ORDER, normalizeActivityTypesForFilter } from '@/utils/activityTypesFilter';
 import {
   SEARCH_RESULTS_PAGE_SIZE,
   SearchResultsPagination,
@@ -160,15 +161,7 @@ export function HomeLanding(): JSX.Element {
   }, [fkkoCatalogCodes]);
 
   useEffect(() => {
-    const defaults = [
-      'Сбор',
-      'Транспортирование',
-      'Обезвреживание',
-      'Утилизация',
-      'Размещение',
-      'Обработка',
-      'Захоронение',
-    ];
+    const defaults = [...ACTIVITY_TYPE_FILTER_ORDER];
     const fkkoParam = fkkoCodesToQueryParam(filterFkko);
     const url = fkkoParam
       ? getApiUrl(`/api/filters/activity-types?fkko=${encodeURIComponent(fkkoParam)}`)
@@ -180,18 +173,14 @@ export function HomeLanding(): JSX.Element {
         if (!alive) return;
         const fromApi = Array.isArray(data.activityTypes) ? data.activityTypes : [];
         const list = fkkoParam ? fromApi : [...new Set([...defaults, ...fromApi])];
-        setActivityTypeOptions(
-          list
-            .map((x: string) => String(x).trim())
-            .filter((x: string) => x && x.toLowerCase() !== 'иное')
-        );
+        setActivityTypeOptions(normalizeActivityTypesForFilter(list));
         if (fkkoParam) {
           setFilterVid((prev) => prev.filter((v) => fromApi.includes(v)));
         }
       })
       .catch(() => {
         if (!alive) return;
-        setActivityTypeOptions(defaults);
+        setActivityTypeOptions(normalizeActivityTypesForFilter(defaults));
       });
     return () => {
       alive = false;

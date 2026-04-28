@@ -17,6 +17,7 @@ import {
   normalizeFkkoDigits,
   normalizeFkkoSearchQuery,
 } from '@/utils/fkko';
+import { ACTIVITY_TYPE_FILTER_ORDER, normalizeActivityTypesForFilter } from '@/utils/activityTypesFilter';
 import { toPositiveInt } from '@/utils/positiveInt';
 import {
   buildCanonicalSearchKey,
@@ -426,7 +427,7 @@ export default function MapPage(): JSX.Element {
   }, [filterFkko, fkkoTitleByCode]);
 
   useEffect(() => {
-    const defaults = ['Сбор', 'Транспортирование', 'Обезвреживание', 'Утилизация', 'Размещение', 'Обработка', 'Захоронение'];
+    const defaults = [...ACTIVITY_TYPE_FILTER_ORDER];
     const fkkoParam = fkkoCodesToQueryParam(filterFkko);
     const url = fkkoParam
       ? getApiUrl(`/api/filters/activity-types?fkko=${encodeURIComponent(fkkoParam)}`)
@@ -440,16 +441,14 @@ export default function MapPage(): JSX.Element {
         const list = fkkoParam
           ? fromApi
           : [...new Set([...defaults, ...fromApi])];
-        setActivityTypeOptions(
-          list.map((x: string) => String(x).trim()).filter((x: string) => x && x.toLowerCase() !== 'иное'),
-        );
+        setActivityTypeOptions(normalizeActivityTypesForFilter(list));
         if (fkkoParam) {
           setFilterVid((prev) => prev.filter((v) => fromApi.includes(v)));
         }
       })
       .catch(() => {
         if (!alive) return;
-        setActivityTypeOptions(defaults);
+        setActivityTypeOptions(normalizeActivityTypesForFilter(defaults));
       });
     return () => { alive = false; };
   }, [filterFkko]);
