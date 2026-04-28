@@ -131,6 +131,7 @@ type MapPoint = {
   companyName: string;
   address: string;
   inn: string;
+  siteLabel: string;
   source: LicenseData;
 };
 
@@ -206,11 +207,12 @@ function formatRouteDistance(totalMeters: number): string {
 }
 
 function buildEnterpriseKey(point: MapPoint): string {
+  const inn = String(point.inn || '').trim();
+  if (inn && inn !== 'не указан') return `inn:${inn}`;
   const sourceId = toPositiveInt(point.source.id);
   if (sourceId != null) return `source:${sourceId}`;
-  const inn = String(point.inn || '').trim();
   const name = String(point.companyName || '').trim().toLowerCase();
-  return `inn:${inn}|name:${name}`;
+  return `name:${name}`;
 }
 
 function MapPointMarker({
@@ -765,6 +767,7 @@ export default function MapPage(): JSX.Element {
             companyName: item.companyName || 'Организация',
             address: item.address || 'Адрес не указан',
             inn: item.inn || 'не указан',
+            siteLabel: String(item.siteLabel ?? '').trim() || 'Основная площадка',
             source: item,
           });
         }
@@ -788,6 +791,7 @@ export default function MapPage(): JSX.Element {
             companyName: item.companyName || 'Организация',
             address: site.address || item.address || 'Адрес не указан',
             inn: item.inn || 'не указан',
+            siteLabel: String(site.siteLabel ?? '').trim() || `Площадка ${idx + 1}`,
             source: item,
           });
         });
@@ -810,6 +814,7 @@ export default function MapPage(): JSX.Element {
             companyName: focusedItem.companyName || 'Организация',
             address: focusedItem.address || 'Адрес не указан',
             inn: focusedItem.inn || 'не указан',
+            siteLabel: String(focusedItem.siteLabel ?? '').trim() || 'Основная площадка',
             source: focusedItem,
           });
         }
@@ -839,7 +844,7 @@ export default function MapPage(): JSX.Element {
           pointId: point.pointId,
           lat: point.lat,
           lng: point.lng,
-          label: String(point.source.siteLabel ?? '').trim() || fallbackLabel,
+          label: point.siteLabel || fallbackLabel,
         });
         byEnterprise.set(enterpriseKey, list);
       }
