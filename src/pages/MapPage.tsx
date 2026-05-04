@@ -92,6 +92,41 @@ const filterCtaLabelShiftClass = [
 ].join(' ');
 const glassDropdownPanelDown =
   'absolute z-[100] top-full left-0 w-full mt-1 bg-[#fffffff2] rounded-[0px_0px_10px_10px] backdrop-blur-[40px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(40px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+
+/** Список слоёв карты открывается вверх — зеркало glassDropdownPanelDown (как выпадашка ФККО). */
+const glassDropdownPanelUp =
+  'absolute z-[100] bottom-full left-0 right-0 w-full mb-0 bg-[#fffffff2] rounded-[10px_10px_0px_0px] backdrop-blur-[40px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(40px)_brightness(100%)] overflow-hidden shadow-none pb-2.5';
+
+function mapLayerTriggerClass(isOpen: boolean): string {
+  if (isOpen) {
+    return [
+      vidTriggerBase,
+      'min-w-[min(100vw-2rem,280px)]',
+      'rounded-[0px_0px_10px_10px] border border-transparent bg-[#ffffffa6] backdrop-blur-[10px] shadow-none [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:content-[\'\'] before:absolute before:inset-0 before:p-px before:rounded-[0px_0px_10px_10px] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:z-[1] before:pointer-events-none',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/20',
+    ].join(' ');
+  }
+  return [
+    vidTriggerBase,
+    'min-w-[min(100vw-2rem,280px)]',
+    'rounded-[10px] border border-black/[0.06] bg-white shadow-sm',
+    'hover:border-transparent hover:bg-[#ffffff73] hover:backdrop-blur-[10px] hover:shadow-none hover:[-webkit-backdrop-filter:blur(10px)_brightness(100%)]',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/20',
+  ].join(' ');
+}
+
+/** Строка списка как в MultiSelectDropdown / поле ФККО на главной. */
+function mapLayerOptionClass(selected: boolean, roundBottom: boolean): string {
+  return [
+    'w-full text-left',
+    'block min-h-[60px] font-nunito font-semibold text-lg',
+    'border border-solid border-transparent [border-image:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)_1]',
+    'transition-colors duration-150 backdrop-blur-[32px] [-webkit-backdrop-filter:blur(32px)_brightness(100%)]',
+    selected ? 'bg-[#ffffffe8]' : 'hover:bg-[#ffffffd0]',
+    roundBottom ? 'rounded-b-[10px]' : '',
+  ].join(' ');
+}
+
 const vidTriggerBase =
   'relative z-[2] flex h-[60px] w-full max-lg:min-h-[48px] max-lg:py-2 max-lg:text-[15px] items-center justify-between px-[15px] text-left transition-[background-color,box-shadow,backdrop-filter,border-color,border-radius] duration-200 ease-out';
 function vidTriggerClass(isOpen: boolean): string {
@@ -1508,7 +1543,7 @@ export default function MapPage(): JSX.Element {
         </MapContainer>
         <div
           ref={layerControlRef}
-          className="pointer-events-auto absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2500] sm:bottom-4 sm:right-4"
+          className="pointer-events-auto absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2500] w-[min(100vw-2rem,280px)] sm:bottom-4 sm:right-4"
           onMouseEnter={() => {
             cancelLayerMenuClose();
             setLayerMenuOpen(true);
@@ -1518,143 +1553,93 @@ export default function MapPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setLayerMenuOpen((o) => !o)}
-            className={[
-              'group relative z-[2] flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-white',
-              'bg-[#ffffffa6] shadow-[inset_0px_0px_52px_#ffffffd6] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)]',
-              'before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[""]',
-              'before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]',
-              'before:[background:linear-gradient(132deg,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.28)_100%)]',
-              'transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-              'hover:shadow-[0_10px_32px_rgba(163,200,59,0.28),inset_0px_0px_52px_#ffffffe4]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a3c948]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
-              layerMenuOpen
-                ? 'shadow-[0_12px_36px_rgba(163,200,59,0.38),inset_0px_0px_56px_#fffffff2] ring-2 ring-[#d4ec8c]/70'
-                : 'active:scale-[0.96]',
-            ].join(' ')}
+            className={mapLayerTriggerClass(layerMenuOpen)}
             aria-expanded={layerMenuOpen}
-            aria-haspopup="true"
+            aria-haspopup="listbox"
             aria-label="Слои карты"
           >
-            <Layers
-              className={[
-                'relative z-[2] h-[22px] w-[22px] transition-colors duration-300',
-                layerMenuOpen ? 'text-[#3d5620]' : 'text-[#5e6567] group-hover:text-[#2b3335]',
-              ].join(' ')}
-              strokeWidth={1.85}
-              aria-hidden
+            <span className="flex min-w-0 flex-1 items-center gap-2.5">
+              <Layers
+                className="pointer-events-none h-[18px] w-[18px] shrink-0 text-[#828583]"
+                strokeWidth={1.75}
+                aria-hidden
+              />
+              <span
+                className={`min-w-0 truncate ${vidLabelClass({ isOpen: layerMenuOpen, hasSelection: true })}`}
+              >
+                {activeRaster.label}
+              </span>
+            </span>
+            <img
+              className={`pointer-events-none h-2.5 w-3 shrink-0 transition-transform duration-200 ${layerMenuOpen ? 'rotate-180' : ''}`}
+              alt=""
+              src={vidChevronClosed}
             />
           </button>
           <div
             className={[
-              'absolute bottom-full right-0 z-[3] min-w-[min(100vw-2rem,280px)] overflow-hidden rounded-[28px] border border-white',
-              'bg-[#ffffff85] backdrop-blur-[14px] [-webkit-backdrop-filter:blur(14px)]',
-              'shadow-[0_20px_48px_rgba(43,51,53,0.14),inset_0px_0px_70.1px_#ffffffd4]',
-              'before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[28px] before:p-px before:content-[""]',
-              'before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]',
-              'before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.22)_100%)]',
-              'transition-[opacity,transform,visibility] duration-200 ease-out max-sm:left-auto max-sm:right-0',
+              glassDropdownPanelUp,
+              'transition-[opacity,transform,visibility] duration-200 ease-out',
               layerMenuOpen
                 ? 'visible translate-y-0 opacity-100'
-                : 'invisible pointer-events-none translate-y-1.5 opacity-0',
+                : 'invisible pointer-events-none translate-y-1 opacity-0',
             ].join(' ')}
             role="menu"
             aria-hidden={!layerMenuOpen}
           >
-            <div className="relative z-[2] px-3 pb-1 pt-3 sm:px-4">
-              <p className="font-nunito text-[10px] font-bold uppercase tracking-[0.16em] text-[#828583] sm:text-[11px]">
-                Подложка
-              </p>
+            <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
+              Подложка
             </div>
-            <ul className="relative z-[2] space-y-1 px-2 pb-2 font-nunito sm:px-3">
-              {RASTER_LAYER_OPTIONS.map((opt) => {
-                const selected = rasterBase === opt.id;
-                return (
-                  <li key={opt.id} role="presentation">
-                    <label
-                      className={[
-                        'flex cursor-pointer items-center gap-3 rounded-[18px] px-3 py-2.5 text-sm font-semibold transition-[background,box-shadow] duration-200',
-                        selected
-                          ? 'bg-[linear-gradient(128deg,rgba(219,236,168,0.72)_0%,rgba(188,220,87,0.58)_100%)] text-[#1e2419] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]'
-                          : 'text-[#2b3335] hover:bg-[#ffffffaa]',
-                      ].join(' ')}
-                    >
-                      <input
-                        type="radio"
-                        name="map-raster-base"
-                        checked={selected}
-                        onChange={() => {
+            <div className="no-scrollbar max-h-[min(280px,45vh)] overflow-y-auto py-0">
+              <ul className="list-none">
+                {RASTER_LAYER_OPTIONS.map((opt) => {
+                  const selected = rasterBase === opt.id;
+                  return (
+                    <li key={opt.id}>
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={selected}
+                        className={mapLayerOptionClass(selected, false)}
+                        onClick={() => {
                           setRasterBase(opt.id);
                           setLayerMenuOpen(false);
                         }}
-                        className="peer sr-only"
-                      />
-                      <span
-                        className={[
-                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-white/95 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] transition-colors',
-                          selected
-                            ? 'border-[#8fb832] bg-[linear-gradient(145deg,rgba(255,255,255,0.95)_0%,rgba(219,236,168,0.95)_100%)] shadow-[0_2px_8px_rgba(163,200,59,0.45)]'
-                            : 'border-white/80 bg-white/45',
-                        ].join(' ')}
-                        aria-hidden
                       >
-                        <span
-                          className={[
-                            'h-2 w-2 rounded-full bg-[#4d6318] shadow-sm transition-opacity',
-                            selected ? 'opacity-100' : 'opacity-0',
-                          ].join(' ')}
-                        />
-                      </span>
-                      <span>{opt.label}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-            <div
-              className="relative z-[2] mx-3 h-px bg-gradient-to-r from-transparent via-black/[0.1] to-transparent sm:mx-4"
-              role="separator"
-            />
-            <div className="relative z-[2] px-2 pb-3 pt-1 sm:px-3 sm:pb-4">
-              <p className="mb-2 px-2 font-nunito text-[10px] font-bold uppercase tracking-[0.16em] text-[#828583] sm:text-[11px]">
-                Наложение
-              </p>
-              <label
-                className={[
-                  'flex cursor-pointer items-center gap-3 rounded-[18px] px-3 py-2.5 font-nunito text-sm font-semibold transition-[background,box-shadow] duration-200',
-                  cadastralOverlay
-                    ? 'bg-[linear-gradient(128deg,rgba(219,236,168,0.55)_0%,rgba(188,220,87,0.42)_100%)] text-[#1e2419] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]'
-                    : 'text-[#2b3335] hover:bg-[#ffffffaa]',
-                ].join(' ')}
-              >
-                <input
-                  type="checkbox"
-                  checked={cadastralOverlay}
-                  onChange={(e) => setCadastralOverlay(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <span
-                  className={[
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-white/95 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] transition-colors',
-                    cadastralOverlay
-                      ? 'border-[#8fb832] bg-[linear-gradient(145deg,rgba(255,255,255,0.95)_0%,rgba(188,220,87,0.9)_100%)] shadow-[0_2px_8px_rgba(163,200,59,0.4)]'
-                      : 'border-white/80 bg-white/45',
-                  ].join(' ')}
-                  aria-hidden
-                >
-                  <svg
-                    className={cadastralOverlay ? 'h-3 w-3 text-[#2b4510]' : 'h-3 w-3 text-transparent'}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                    aria-hidden
-                  >
-                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                <span>Кадастровая подложка</span>
-              </label>
+                        <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
+                          {selected ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+                          <span
+                            className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${selected ? 'text-[#2b3335]' : 'text-[#828583]'}`}
+                          >
+                            {opt.label}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
+            <div className="h-px bg-black/[0.06]" role="separator" />
+            <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
+              Наложение
+            </div>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={cadastralOverlay}
+              className={mapLayerOptionClass(cadastralOverlay, true)}
+              onClick={() => setCadastralOverlay((v) => !v)}
+            >
+              <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
+                {cadastralOverlay ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+                <span
+                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${cadastralOverlay ? 'text-[#2b3335]' : 'text-[#828583]'}`}
+                >
+                  Кадастровая подложка
+                </span>
+              </span>
+            </button>
           </div>
         </div>
         {cadastralOverlay && (
