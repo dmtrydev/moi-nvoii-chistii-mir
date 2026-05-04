@@ -11,6 +11,24 @@ import { LICENSE_INN_NORMALIZED_EXPR, normalizeInn } from './innUtils.js';
 const UPSERT_CHUNK = 500;
 
 /**
+ * В одном INSERT … ON CONFLICT (inn_norm) Postgres не допускает двух строк с одним inn_norm:
+ * «cannot affect row a second time». Реестр может вернуть несколько записей на один ИНН.
+ *
+ * @param {Array<object>} rows
+ * @returns {Array<object>} последняя строка на каждый inn_norm сохраняется
+ */
+export function dedupeSnapshotsByInnNorm(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const key = r.innNorm;
+    if (!key || typeof key !== 'string') continue;
+    map.set(key, r);
+  }
+  return [...map.values()];
+}
+
+/**
  * Bulk upsert снапшотов. Идемпотентен: повторный вызов перезапишет поля и обновит synced_at.
  *
  * @param {import('pg').PoolClient | import('pg').Pool} client
@@ -32,7 +50,7 @@ export async function upsertSnapshotsBatch(client, rows) {
   let inserted = 0;
   let updated = 0;
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
-    const chunk = rows.slice(i, i + UPSERT_CHUNK);
+    const chunk = dedupeSnapshotsByInnNorm(rows.slice(i, i + UPSERT_CHUNK));
     if (chunk.length === 0) continue;
     const valSql = [];
     const params = [];
@@ -80,7 +98,7 @@ export async function upsertSnapshotsBatch(client, rows) {
       else updated += 1;
     }
   }
-  return { inserted, updated, total: rows.length };
+  return { inserted, updated, total: inserted + updated };
 }
 
 /**
