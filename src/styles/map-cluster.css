@@ -25,18 +25,10 @@
     inset 0 0 12px rgba(255, 255, 255, 0.75);
 }
 
-.map-marker-dot--selected {
-  width: 26px;
-  height: 26px;
-  background: linear-gradient(
-    128deg,
-    rgba(188, 220, 87, 1) 0%,
-    rgba(101, 163, 13, 1) 100%
-  );
-  box-shadow:
-    0 4px 20px rgba(101, 163, 13, 0.7),
-    inset 0 0 12px rgba(255, 255, 255, 0.55);
-  border-color: rgba(255, 255, 255, 0.98);
+/* Выбранная метка: без смены цвета, только чуть крупнее */
+.map-marker-dot.map-marker-dot--emphasis {
+  width: 24px;
+  height: 24px;
 }
 
 /* Хранение / захоронение (ГРОРРО) — тёплый янтарь, тот же «стеклянный» язык */
@@ -55,16 +47,6 @@
     0 5px 20px rgba(217, 119, 6, 0.65),
     inset 0 0 12px rgba(255, 255, 255, 0.72);
 }
-.map-marker-dot--variant-storage.map-marker-dot--selected {
-  background: linear-gradient(
-    128deg,
-    rgba(251, 191, 36, 1) 0%,
-    rgba(180, 83, 9, 1) 100%
-  );
-  box-shadow:
-    0 4px 20px rgba(180, 83, 9, 0.65),
-    inset 0 0 12px rgba(255, 255, 255, 0.5);
-}
 
 /* Аренда/продажа технологий (ГЭЭ) — холодный синий */
 .map-marker-dot--variant-tech {
@@ -81,16 +63,6 @@
   box-shadow:
     0 5px 20px rgba(37, 99, 235, 0.58),
     inset 0 0 12px rgba(255, 255, 255, 0.72);
-}
-.map-marker-dot--variant-tech.map-marker-dot--selected {
-  background: linear-gradient(
-    128deg,
-    rgba(96, 165, 250, 1) 0%,
-    rgba(29, 78, 216, 1) 100%
-  );
-  box-shadow:
-    0 4px 20px rgba(29, 78, 216, 0.65),
-    inset 0 0 12px rgba(255, 255, 255, 0.5);
 }
 
 /* Легенда сайдбара — те же градиенты (крупнее точки для читаемости) */

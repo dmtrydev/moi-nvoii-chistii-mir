@@ -12,6 +12,7 @@ import {
   useMap,
 } from 'react-leaflet';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
+import { MarkerClusterGroup } from '@/components/map/MarkerClusterGroup';
 import '@/styles/map-cluster.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
@@ -235,15 +236,15 @@ function buildMapPointDivIcon(variant: MapMarkerVariant, selected: boolean): L.D
   const parts = ['map-marker-dot'];
   if (variant === 'storage') parts.push('map-marker-dot--variant-storage');
   if (variant === 'tech') parts.push('map-marker-dot--variant-tech');
-  if (selected) parts.push('map-marker-dot--selected');
-  const size = selected ? 26 : 20;
-  const anchor = selected ? 13 : 10;
+  if (selected) parts.push('map-marker-dot--emphasis');
+  const size = selected ? 24 : 20;
+  const anchor = selected ? 12 : 10;
   return L.divIcon({
     html: `<div class="${parts.join(' ')}"></div>`,
     className: '',
     iconSize: [size, size],
     iconAnchor: [anchor, anchor],
-    popupAnchor: [0, selected ? -15 : -12],
+    popupAnchor: [0, selected ? -14 : -12],
   });
 }
 
@@ -1512,34 +1513,36 @@ export default function MapPage(): JSX.Element {
               pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
             />
           )}
-          {mapPoints.map((point) => {
-            const pointId = point.pointId;
-            const isSelected = selectedId != null && pointId != null && selectedId === pointId;
-            const enterpriseKey = buildEnterpriseKey(point);
-            const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
-            return (
-              <MapPointMarker
-                key={point.key}
-                point={point}
-                siteCandidates={siteCandidates}
-                isSelected={isSelected}
-                routeBusy={routeBusy}
-                onBuildRoute={(target) => {
-                  void handleBuildRouteFromClient(target);
-                }}
-                onSwitchSite={(site) => {
-                  // Only pan the map — don't change selectedId to avoid
-                  // closing the current popup and reopening a different one.
-                  setFocusCenter([site.lat, site.lng]);
-                }}
-                onSelect={() => {
-                  setFocusedItem(point.source);
-                  if (pointId != null) setSelectedId(pointId);
-                  setFocusCenter([point.lat, point.lng]);
-                }}
-              />
-            );
-          })}
+          <MarkerClusterGroup maxClusterRadius={60}>
+            {mapPoints.map((point) => {
+              const pointId = point.pointId;
+              const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+              const enterpriseKey = buildEnterpriseKey(point);
+              const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
+              return (
+                <MapPointMarker
+                  key={point.key}
+                  point={point}
+                  siteCandidates={siteCandidates}
+                  isSelected={isSelected}
+                  routeBusy={routeBusy}
+                  onBuildRoute={(target) => {
+                    void handleBuildRouteFromClient(target);
+                  }}
+                  onSwitchSite={(site) => {
+                    // Only pan the map — don't change selectedId to avoid
+                    // closing the current popup and reopening a different one.
+                    setFocusCenter([site.lat, site.lng]);
+                  }}
+                  onSelect={() => {
+                    setFocusedItem(point.source);
+                    if (pointId != null) setSelectedId(pointId);
+                    setFocusCenter([point.lat, point.lng]);
+                  }}
+                />
+              );
+            })}
+          </MarkerClusterGroup>
         </MapContainer>
         <div
           ref={layerControlRef}
