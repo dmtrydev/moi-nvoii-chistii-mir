@@ -167,8 +167,6 @@ const MAP_AREA_LEFT_OPEN_PX = 639;
 const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
-// Тайлы кадастра — через серверный прокси (конвертирует z/x/y → bbox → Росреестр export API).
-const CADASTRE_TILE_URL = `${String(API_BASE).replace(/\/$/, '')}/api/cadastre/tiles/{z}/{x}/{y}`;
 
 type RasterBaseId = 'osm' | 'carto' | 'esri';
 
@@ -1480,26 +1478,16 @@ export default function MapPage(): JSX.Element {
         <MapContainer
           center={focusCenter ?? DEFAULT_MAP_CENTER}
           zoom={hasMapFocus ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM}
-          className="absolute inset-0 z-0 h-full w-full min-h-0"
+          className={`absolute inset-0 z-0 h-full w-full min-h-0${cadastralOverlay ? ' [&_.leaflet-container]:cursor-crosshair' : ''}`}
           zoomControl
           attributionControl={false}
           closePopupOnClick={false}
         >
-          {cadastralOverlay ? (
-            <TileLayer
-              key="cadastre"
-              url={CADASTRE_TILE_URL}
-              attribution='&copy; <a href="https://pkk.rosreestr.ru/" target="_blank" rel="noreferrer">Росреестр ПКК</a>'
-              maxZoom={20}
-              tileSize={256}
-            />
-          ) : (
-            <TileLayer
-              key={activeRaster.id}
-              url={activeRaster.tileUrl}
-              attribution={activeRaster.attribution}
-            />
-          )}
+          <TileLayer
+            key={activeRaster.id}
+            url={activeRaster.tileUrl}
+            attribution={activeRaster.attribution}
+          />
           <MapDragThroughPopup />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           <CadastreVectorSystem enabled={cadastralOverlay} apiBase={getApiUrl} />
@@ -1661,8 +1649,8 @@ export default function MapPage(): JSX.Element {
           </div>
         </div>
         {cadastralOverlay && (
-          <div className="pointer-events-none absolute right-4 top-4 z-[5010] rounded-xl border border-white bg-[#ffffffe6] px-3 py-2 text-xs font-semibold text-[#5e6567] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
-            Кадастровая карта · нажмите на участок для информации
+          <div className="pointer-events-none absolute left-1/2 top-4 z-[5010] -translate-x-1/2 rounded-xl border border-[#d20404]/20 bg-[#fff5f5f2] px-4 py-2 text-xs font-semibold text-[#b91c1c] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
+            Режим кадастра · нажмите на любое место карты для получения данных об участке
           </div>
         )}
         {!cadastralOverlay && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
