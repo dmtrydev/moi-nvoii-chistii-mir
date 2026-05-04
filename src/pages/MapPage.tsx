@@ -1479,6 +1479,7 @@ export default function MapPage(): JSX.Element {
         <MapContainer
           center={focusCenter ?? DEFAULT_MAP_CENTER}
           zoom={hasMapFocus ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM}
+          maxZoom={19}
           className="absolute inset-0 z-0 h-full w-full min-h-0"
           zoomControl
           attributionControl={false}
@@ -1493,13 +1494,12 @@ export default function MapPage(): JSX.Element {
             <TileLayer
               key="cadastre"
               url={CADASTRE_TILE_URL}
-              attribution='&copy; <a href="https://roscadastres.com/" target="_blank" rel="noreferrer">Роскадастр</a>'
-              opacity={1}
+              attribution='&copy; <a href="https://pkk.rosreestr.ru/" target="_blank" rel="noreferrer">Росреестр ПКК</a>'
+              opacity={0.9}
               minZoom={10}
-              maxZoom={21}
-              maxNativeZoom={17}
+              maxZoom={19}
+              maxNativeZoom={19}
               tileSize={256}
-              className="cadastre-tile-layer"
             />
           )}
           <MapDragThroughPopup />

@@ -43,12 +43,14 @@ function apiRequest(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
   });
 }
 
-function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS, _redirects = 0 } = {}) {
+function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS, _redirects = 0, referer } = {}) {
   return new Promise((resolve, reject) => {
     const u = new NodeURL(targetUrl);
     const isHttps = u.protocol === 'https:';
     const transport = isHttps ? https : http;
     const defaultPort = isHttps ? 443 : 80;
+    const effectiveReferer = referer ?? 'https://pkk.rosreestr.ru/';
+    const effectiveOrigin = new NodeURL(effectiveReferer).origin;
     const req = transport.request(
       {
         hostname: u.hostname,
@@ -58,8 +60,8 @@ function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS, _redirec
         rejectUnauthorized: false,
         headers: {
           Accept: 'image/png,image/*,*/*',
-          Referer: 'https://ik2map.roscadastres.com/map.html?v=91',
-          Origin: 'https://ik2map.roscadastres.com',
+          Referer: effectiveReferer,
+          Origin: effectiveOrigin,
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         },
@@ -71,7 +73,7 @@ function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS, _redirec
         if ([301, 302, 307, 308].includes(statusCode) && location && _redirects < 5) {
           upstream.resume(); // drain response body
           const nextUrl = location.startsWith('http') ? location : new NodeURL(location, targetUrl).href;
-          resolve(apiRequestBinary(nextUrl, { timeoutMs, _redirects: _redirects + 1 }));
+          resolve(apiRequestBinary(nextUrl, { timeoutMs, _redirects: _redirects + 1, referer }));
           return;
         }
         const chunks = [];
@@ -283,9 +285,12 @@ async function loadGeoByCadNumber(cn) {
   return normalizeGeoJson4326(json);
 }
 
-const TILE_ZOOM_MAX = 20;
-const ROSCADASTRES_TILE_BASE = 'https://api.roscadastres.com/tiles/raster';
-
+const TILE_ZOOM_MAX = 21;
+// PKK Rosreestr ArcGIS tile endpoint — transparent PNG cadastral boundaries.
+// ArcGIS tile URL format: tile/{level}/{row}/{col} where row=y, col=x.
+// SSL cert is expired on pkk.rosreestr.gov.ru — rejectUnauthorized:false handles it.
+const PKK_TILE_BASE =
+  'https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile';
 
 router.get('/tiles/:z/:x/:y', async (req, res) => {
   const z = Number(req.params.z);
@@ -297,9 +302,10 @@ router.get('/tiles/:z/:x/:y', async (req, res) => {
   ) {
     return res.status(400).end();
   }
-  const tileUrl = `${ROSCADASTRES_TILE_BASE}/${z}/${x}/${y}.png`;
+  // ArcGIS: tile/{z}/{row}/{col} → row=y, col=x (swapped from XYZ)
+  const tileUrl = `${PKK_TILE_BASE}/${z}/${y}/${x}`;
   try {
-    const result = await apiRequestBinary(tileUrl);
+    const result = await apiRequestBinary(tileUrl, { referer: 'https://pkk.rosreestr.ru/' });
     if (result.statusCode === 404 || result.statusCode === 204) {
       return res.status(204).end();
     }

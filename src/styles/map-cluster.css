@@ -157,15 +157,6 @@
   font-size: 15px;
 }
 
-/* ─── Cadastre tile overlay ────────────────────────────────────────────────── */
-/* Leaflet adds className to each <img> tile element (not to the container),   */
-/* so both classes are on the same element — use compound selector (no space). */
-/* mix-blend-mode: multiply makes white bg transparent, keeps red outlines.    */
-
-.leaflet-tile.cadastre-tile-layer {
-  mix-blend-mode: multiply;
-}
-
 /* ─── Cadastre popup card ──────────────────────────────────────────────────── */
 
 .moinoviichistiimir-cadastre-popup .leaflet-popup-content-wrapper {
