@@ -53,8 +53,8 @@ function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
         method: 'GET',
         headers: {
           Accept: 'image/png,image/*,*/*',
-          Referer: 'https://pkk.rosreestr.gov.ru/',
-          Origin: 'https://pkk.rosreestr.gov.ru',
+          Referer: 'https://pkk.rosreestr.ru/',
+          Origin: 'https://pkk.rosreestr.ru',
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         },
@@ -270,7 +270,22 @@ async function loadGeoByCadNumber(cn) {
 }
 
 const TILE_ZOOM_MAX = 20;
-const PKK_TILE_BASE = 'https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile';
+const PKK_EXPORT_BASE =
+  'https://pkk.rosreestr.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/export';
+
+/**
+ * Convert Leaflet tile coordinates (z, x, y) to a Web Mercator bounding box
+ * string "xmin,ymin,xmax,ymax" suitable for ArcGIS MapServer export.
+ */
+function tileToBboxString(z, x, y) {
+  const size = 20037508.342789244;
+  const res = (2 * size) / Math.pow(2, z);
+  const xmin = -size + x * res;
+  const xmax = xmin + res;
+  const ymax = size - y * res;
+  const ymin = ymax - res;
+  return `${xmin},${ymin},${xmax},${ymax}`;
+}
 
 router.get('/tiles/:z/:x/:y', async (req, res) => {
   const z = Number(req.params.z);
@@ -282,8 +297,19 @@ router.get('/tiles/:z/:x/:y', async (req, res) => {
   ) {
     return res.status(400).end();
   }
-  // Rosreestr ArcGIS tile order: level/row/col = z/y/x (Leaflet convention)
-  const tileUrl = `${PKK_TILE_BASE}/${z}/${y}/${x}`;
+  const bbox = tileToBboxString(z, x, y);
+  const qs = new URLSearchParams({
+    layers: 'show:21',
+    dpi: '96',
+    format: 'PNG32',
+    bboxSR: '102100',
+    imageSR: '102100',
+    size: '256,256',
+    transparent: 'true',
+    f: 'image',
+    bbox,
+  });
+  const tileUrl = `${PKK_EXPORT_BASE}?${qs.toString()}`;
   try {
     const result = await apiRequestBinary(tileUrl);
     if (result.statusCode === 404 || result.statusCode === 204) {
