@@ -158,10 +158,11 @@
 }
 
 /* ─── Cadastre tile overlay ────────────────────────────────────────────────── */
-/* mix-blend-mode: multiply makes white pixels transparent while keeping       */
-/* the red cadastral outlines visible on top of the base map.                  */
+/* Leaflet adds className to each <img> tile element (not to the container),   */
+/* so both classes are on the same element — use compound selector (no space). */
+/* mix-blend-mode: multiply makes white bg transparent, keeps red outlines.    */
 
-.cadastre-tile-layer .leaflet-tile {
+.leaflet-tile.cadastre-tile-layer {
   mix-blend-mode: multiply;
 }
 
