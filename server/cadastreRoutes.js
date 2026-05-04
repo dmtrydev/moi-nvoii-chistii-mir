@@ -43,7 +43,7 @@ function apiRequest(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
   });
 }
 
-function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
+function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS, _redirects = 0 } = {}) {
   return new Promise((resolve, reject) => {
     const u = new NodeURL(targetUrl);
     const isHttps = u.protocol === 'https:';
@@ -65,11 +65,20 @@ function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
         },
       },
       (upstream) => {
+        const statusCode = upstream.statusCode ?? 502;
+        const location = upstream.headers['location'];
+        // Follow redirects (301/302/307/308) up to 5 hops
+        if ([301, 302, 307, 308].includes(statusCode) && location && _redirects < 5) {
+          upstream.resume(); // drain response body
+          const nextUrl = location.startsWith('http') ? location : new NodeURL(location, targetUrl).href;
+          resolve(apiRequestBinary(nextUrl, { timeoutMs, _redirects: _redirects + 1 }));
+          return;
+        }
         const chunks = [];
         upstream.on('data', (c) => chunks.push(c));
         upstream.on('end', () => {
           resolve({
-            statusCode: upstream.statusCode ?? 502,
+            statusCode,
             contentType: upstream.headers['content-type'] ?? 'image/png',
             body: Buffer.concat(chunks),
           });
