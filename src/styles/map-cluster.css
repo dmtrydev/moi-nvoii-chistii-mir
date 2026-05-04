@@ -157,6 +157,13 @@
   font-size: 15px;
 }
 
+/* ─── Cadastre WMS tile overlay ────────────────────────────────────────────── */
+/* If the WMS returns tiles with white background, multiply blends white out.  */
+
+.leaflet-tile-pane .leaflet-wms-layer {
+  mix-blend-mode: multiply;
+}
+
 /* ─── Cadastre popup card ──────────────────────────────────────────────────── */
 
 .moinoviichistiimir-cadastre-popup .leaflet-popup-content-wrapper {

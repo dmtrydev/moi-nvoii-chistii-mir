@@ -9,6 +9,7 @@ import {
   Polyline,
   Popup,
   TileLayer,
+  WMSTileLayer,
   useMap,
 } from 'react-leaflet';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
@@ -1491,15 +1492,17 @@ export default function MapPage(): JSX.Element {
             attribution={activeRaster.attribution}
           />
           {cadastralOverlay && (
-            <TileLayer
-              key="cadastre"
-              url={CADASTRE_TILE_URL}
-              attribution='&copy; <a href="https://pkk.rosreestr.ru/" target="_blank" rel="noreferrer">Росреестр ПКК</a>'
-              opacity={0.9}
+            <WMSTileLayer
+              key="cadastre-wms"
+              url="https://nspd.gov.ru/map/api/map/wms"
+              layers="zu"
+              format="image/png"
+              transparent={true}
+              version="1.1.1"
+              opacity={0.85}
               minZoom={10}
               maxZoom={19}
-              maxNativeZoom={19}
-              tileSize={256}
+              attribution='&copy; <a href="https://nspd.gov.ru/" target="_blank" rel="noreferrer">НСПД Росреестр</a>'
             />
           )}
           <MapDragThroughPopup />
