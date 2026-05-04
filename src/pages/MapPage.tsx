@@ -1,8 +1,16 @@
-import { PanelLeft } from 'lucide-react';
+import { Layers, PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from 'react-leaflet';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
 import '@/styles/map-cluster.css';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -125,6 +133,37 @@ const FOCUSED_MAP_ZOOM = 14;
 const CADASTRE_IFRAME_URL =
   String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim() ||
   'https://ik10map.roscadastres.com/map.html?v=91';
+
+type RasterBaseId = 'osm' | 'carto' | 'esri';
+
+const RASTER_LAYER_OPTIONS: {
+  id: RasterBaseId;
+  label: string;
+  tileUrl: string;
+  attribution: string;
+}[] = [
+  {
+    id: 'osm',
+    label: 'Карта OSM',
+    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  {
+    id: 'carto',
+    label: 'Карта Carto',
+    tileUrl: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
+  },
+  {
+    id: 'esri',
+    label: 'Космоснимки Esri',
+    tileUrl:
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution:
+      '&copy; Esri — Maxar, Earthstar Geographics, <a href="https://www.esri.com/">Esri</a>',
+  },
+];
 
 type MapPoint = {
   key: string;
@@ -358,7 +397,11 @@ export default function MapPage(): JSX.Element {
   const [introVisible, setIntroVisible] = useState(false);
   const [searchError, setSearchError] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
-  const [baseMapStyle, setBaseMapStyle] = useState<'osm' | 'cadastral'>('osm');
+  const [rasterBase, setRasterBase] = useState<RasterBaseId>('osm');
+  const [cadastralOverlay, setCadastralOverlay] = useState(false);
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const layerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const layerControlRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
   const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
@@ -377,6 +420,33 @@ export default function MapPage(): JSX.Element {
     const t = window.setTimeout(() => setIntroVisible(true), 30);
     return () => window.clearTimeout(t);
   }, []);
+
+  const cancelLayerMenuClose = useCallback(() => {
+    if (layerMenuCloseTimerRef.current != null) {
+      clearTimeout(layerMenuCloseTimerRef.current);
+      layerMenuCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleLayerMenuClose = useCallback(() => {
+    cancelLayerMenuClose();
+    layerMenuCloseTimerRef.current = window.setTimeout(() => {
+      setLayerMenuOpen(false);
+      layerMenuCloseTimerRef.current = null;
+    }, 240);
+  }, [cancelLayerMenuClose]);
+
+  useEffect(() => () => cancelLayerMenuClose(), [cancelLayerMenuClose]);
+
+  useEffect(() => {
+    if (!layerMenuOpen) return;
+    const onDocMouseDown = (e: MouseEvent): void => {
+      const el = layerControlRef.current;
+      if (el && !el.contains(e.target as Node)) setLayerMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, [layerMenuOpen]);
 
   useEffect(() => {
     let alive = true;
@@ -877,14 +947,10 @@ export default function MapPage(): JSX.Element {
 
     return byEnterprise;
   }, [mapPoints]);
-  const tileUrl =
-    baseMapStyle === 'osm'
-      ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  const tileAttribution =
-    baseMapStyle === 'osm'
-      ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      : '&copy; OpenStreetMap &copy; CARTO';
+  const activeRaster = useMemo(() => {
+    const found = RASTER_LAYER_OPTIONS.find((o) => o.id === rasterBase);
+    return found ?? RASTER_LAYER_OPTIONS[0];
+  }, [rasterBase]);
   const mapPushedLeft = isLgUp && menuVisible;
   const routePointA = routeStartPoint;
   const routePointB = routeTargetPoint;
@@ -1383,7 +1449,11 @@ export default function MapPage(): JSX.Element {
           attributionControl={false}
           closePopupOnClick={false}
         >
-          <TileLayer url={tileUrl} />
+          <TileLayer
+            key={activeRaster.id}
+            url={activeRaster.tileUrl}
+            attribution={activeRaster.attribution}
+          />
           <MapDragThroughPopup />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           <MapRouteFitController path={routeResult?.path ?? null} />
@@ -1437,39 +1507,66 @@ export default function MapPage(): JSX.Element {
           })}
         </MapContainer>
         <div
-          className="pointer-events-auto absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2500] flex w-[min(100%,280px)] flex-col gap-1.5 rounded-[20px] border border-white bg-[#ffffffa6] p-1.5 shadow-[inset_0px_0px_48px_#ffffffcc] backdrop-blur-[12px] [-webkit-backdrop-filter:blur(12px)] sm:bottom-4 sm:right-4 sm:w-auto sm:min-w-[220px] sm:p-2"
-          role="group"
-          aria-label="Слой карты"
+          ref={layerControlRef}
+          className="pointer-events-auto absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2500] sm:bottom-4 sm:right-4"
+          onMouseEnter={() => {
+            cancelLayerMenuClose();
+            setLayerMenuOpen(true);
+          }}
+          onMouseLeave={() => scheduleLayerMenuClose()}
         >
-          <span className="px-2 pt-0.5 font-nunito text-[10px] font-bold uppercase tracking-[0.14em] text-[#828583] sm:text-[11px]">
-            Слой
-          </span>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => setBaseMapStyle('osm')}
-              className={`min-h-[40px] flex-1 rounded-[14px] px-3 py-2 font-nunito text-xs font-semibold text-[#2b3335] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:min-h-[44px] sm:px-4 sm:text-sm ${
-                baseMapStyle === 'osm'
-                  ? 'shadow-[0px_10px_28px_#c1df6466,inset_0px_0px_18px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
-                  : 'bg-transparent hover:bg-white/50'
-              }`}
-            >
-              Обычная
-            </button>
-            <button
-              type="button"
-              onClick={() => setBaseMapStyle('cadastral')}
-              className={`min-h-[40px] flex-1 rounded-[14px] px-3 py-2 font-nunito text-xs font-semibold text-[#2b3335] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:min-h-[44px] sm:px-4 sm:text-sm ${
-                baseMapStyle === 'cadastral'
-                  ? 'shadow-[0px_10px_28px_#c1df6466,inset_0px_0px_18px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
-                  : 'bg-transparent hover:bg-white/50'
-              }`}
-            >
-              Кадастровая
-            </button>
+          <button
+            type="button"
+            onClick={() => setLayerMenuOpen((o) => !o)}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/95 bg-white shadow-[0_4px_20px_rgba(43,51,53,0.12),inset_0_0_0_1px_rgba(255,255,255,0.9)] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a3c948]/50"
+            aria-expanded={layerMenuOpen}
+            aria-haspopup="true"
+            aria-label="Слои карты"
+          >
+            <Layers className="h-5 w-5 text-[#5e6567]" strokeWidth={1.75} aria-hidden />
+          </button>
+          <div
+            className={[
+              'absolute bottom-full right-0 min-w-[min(100vw-2rem,264px)] rounded-xl border border-black/[0.08] bg-white py-2 shadow-[0_12px_40px_rgba(43,51,53,0.18)] transition-[opacity,transform,visibility] duration-200 ease-out max-sm:left-auto max-sm:right-0',
+              layerMenuOpen
+                ? 'visible translate-y-0 opacity-100'
+                : 'invisible pointer-events-none translate-y-1 opacity-0',
+            ].join(' ')}
+            role="menu"
+            aria-hidden={!layerMenuOpen}
+          >
+            <ul className="space-y-0.5 px-1 font-nunito">
+              {RASTER_LAYER_OPTIONS.map((opt) => (
+                <li key={opt.id} role="presentation">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[#2b3335] transition-colors hover:bg-black/[0.04]">
+                    <input
+                      type="radio"
+                      name="map-raster-base"
+                      checked={rasterBase === opt.id}
+                      onChange={() => {
+                        setRasterBase(opt.id);
+                        setLayerMenuOpen(false);
+                      }}
+                      className="h-4 w-4 shrink-0 cursor-pointer border-[#c5cbc9] accent-[#7cb518] text-[#84cc16] focus:ring-2 focus:ring-[#a3c948]/45"
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="my-2 h-px bg-black/[0.08]" role="separator" />
+            <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 font-nunito text-sm font-semibold text-[#2b3335] transition-colors hover:bg-black/[0.04]">
+              <input
+                type="checkbox"
+                checked={cadastralOverlay}
+                onChange={(e) => setCadastralOverlay(e.target.checked)}
+                className="h-4 w-4 shrink-0 cursor-pointer rounded border-[#c5cbc9] accent-[#7cb518] focus:ring-2 focus:ring-[#a3c948]/45"
+              />
+              <span>Кадастровая подложка</span>
+            </label>
           </div>
         </div>
-        {baseMapStyle === 'cadastral' && (
+        {cadastralOverlay && (
           <div className="absolute inset-0 z-[2000] overflow-hidden bg-[#edf2f6]">
             <iframe
               src={CADASTRE_IFRAME_URL}
@@ -1483,23 +1580,23 @@ export default function MapPage(): JSX.Element {
             </div>
           </div>
         )}
-        {baseMapStyle !== 'cadastral' && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
+        {!cadastralOverlay && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
           <div
             role="status"
             className="pointer-events-auto absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[5010] rounded-2xl border border-black/[0.06] bg-[#fffffff2] px-4 py-3 shadow-[0_12px_40px_rgba(43,51,53,0.18)] backdrop-blur-md sm:left-auto sm:right-6 sm:max-w-md sm:translate-x-0"
           >
             <p className="font-nunito text-sm font-semibold text-[#2b3335]">
               Для этой площадки не заданы координаты на карте.
-              {String(focusedItem.address ?? '').trim()
+              {String(focusedItem?.address ?? '').trim()
                 ? ' Можно определить их по адресу.'
                 : ' Укажите адрес в данных лицензии или обратитесь к администратору.'}
             </p>
-            {String(focusedItem.address ?? '').trim() ? (
+            {String(focusedItem?.address ?? '').trim() ? (
               <button
                 type="button"
                 disabled={focusGeocodeBusy}
                 onClick={() => {
-                  const sid = toPositiveInt(focusedItem.siteId);
+                  const sid = toPositiveInt(focusedItem?.siteId);
                   if (sid == null) return;
                   setFocusGeocodeBusy(true);
                   void geocodeMissing(sid).finally(() => setFocusGeocodeBusy(false));
