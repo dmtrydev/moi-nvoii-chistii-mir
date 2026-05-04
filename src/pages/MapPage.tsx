@@ -167,7 +167,10 @@ const MAP_AREA_LEFT_OPEN_PX = 639;
 const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
-const CADASTRE_TILE_URL = `${String(API_BASE).replace(/\/$/, '')}/api/cadastre/tiles/{z}/{x}/{y}`;
+// Тайлы ПКК Росреестра грузятся напрямую из браузера — CORS открыт (*).
+// ArcGIS MapServer использует порядок z/row/col = z/{y}/{x} в отличие от OSM z/{x}/{y}.
+const CADASTRE_TILE_URL =
+  'https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile/{z}/{y}/{x}';
 
 type RasterBaseId = 'osm' | 'carto' | 'esri';
 
@@ -1488,9 +1491,10 @@ export default function MapPage(): JSX.Element {
             <TileLayer
               key="cadastre"
               url={CADASTRE_TILE_URL}
-              attribution='&copy; <a href="https://pkk.rosreestr.gov.ru/">Росреестр ПКК</a>'
+              attribution='&copy; <a href="https://pkk.rosreestr.gov.ru/" target="_blank" rel="noreferrer">Росреестр ПКК</a>'
               maxZoom={20}
               tileSize={256}
+              crossOrigin="anonymous"
             />
           ) : (
             <TileLayer
