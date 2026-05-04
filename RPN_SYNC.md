@@ -83,6 +83,7 @@ git clone <ваш-репо> /opt/moinoviichistiimir
 cd /opt/moinoviichistiimir
 npm install --omit=dev
 cd server && npm install --omit=dev && cd ..
+cd parser && npm install --omit=dev && cd ..
 ```
 
 ### 3. Настроить токен

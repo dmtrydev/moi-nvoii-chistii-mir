@@ -1,0 +1,16 @@
+{
+  "name": "moinoviichistiimir-parser",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VDS-side cron orchestrator for the RPN registry sync. Runs python parser, streams licenses.json into /api/rpn-sync/upsert.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "push": "node push_to_api.mjs"
+  },
+  "dependencies": {
+    "JSONStream": "^1.3.5"
+  }
+}
