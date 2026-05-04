@@ -360,6 +360,72 @@ router.get('/tiles/:z/:x/:y', async (req, res) => {
   }
 });
 
+/**
+ * Grid endpoint: sample GRID_SIZE×GRID_SIZE points in the given bbox,
+ * identify each → get GeoJSON boundary → return FeatureCollection.
+ * No PoW needed (coordinates2.php + geo2.php only).
+ */
+router.get('/grid', async (req, res) => {
+  const south = Number(req.query.south);
+  const west  = Number(req.query.west);
+  const north = Number(req.query.north);
+  const east  = Number(req.query.east);
+  if (
+    !Number.isFinite(south) || !Number.isFinite(west) ||
+    !Number.isFinite(north) || !Number.isFinite(east)
+  ) {
+    return res.status(400).json({ message: 'Укажите south, west, north, east' });
+  }
+  const gridSize = Math.max(2, Math.min(7, Number(req.query.grid) || 4));
+
+  // Generate grid sample points
+  const points = [];
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      points.push({
+        lat: south + (north - south) * (i + 0.5) / gridSize,
+        lng: west  + (east  - west)  * (j + 0.5) / gridSize,
+      });
+    }
+  }
+
+  const withTimeout = (p, ms) =>
+    Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+  // All points in parallel
+  const results = await Promise.allSettled(
+    points.map(async (pt) => {
+      const found = await withTimeout(
+        identifyByPoint({ lat: pt.lat, lng: pt.lng, typeId: 1 }),
+        7_000,
+      );
+      if (!found?.cn) return null;
+      const geo = await withTimeout(loadGeoByCadNumber(found.cn), 7_000);
+      if (!geo) return null;
+      // Attach cn to every feature for client-side dedup
+      const featuresWithCn = geo.features.map((f) => ({
+        ...f,
+        properties: { ...(f.properties ?? {}), _cn: found.cn },
+      }));
+      return { cn: found.cn, features: featuresWithCn };
+    }),
+  );
+
+  const seenCn = new Set();
+  const features = [];
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) {
+      const { cn, features: fts } = r.value;
+      if (!seenCn.has(cn)) {
+        seenCn.add(cn);
+        features.push(...fts);
+      }
+    }
+  }
+
+  return res.json({ type: 'FeatureCollection', features });
+});
+
 /** Diagnostic endpoint: test all tile sources for a Moscow tile at z=14. */
 router.get('/test-sources', async (_req, res) => {
   const z = 14; const x = 9900; const y = 5044; // Moscow area z=14

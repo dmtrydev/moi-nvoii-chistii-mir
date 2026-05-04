@@ -9,7 +9,6 @@ import {
   Polyline,
   Popup,
   TileLayer,
-  WMSTileLayer,
   useMap,
 } from 'react-leaflet';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
@@ -168,7 +167,6 @@ const MAP_AREA_LEFT_OPEN_PX = 639;
 const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
-const CADASTRE_TILE_URL = `${String(API_BASE).replace(/\/$/, '')}/api/cadastre/tiles/{z}/{x}/{y}`;
 
 type RasterBaseId = 'osm' | 'carto' | 'esri';
 
@@ -1491,20 +1489,6 @@ export default function MapPage(): JSX.Element {
             url={activeRaster.tileUrl}
             attribution={activeRaster.attribution}
           />
-          {cadastralOverlay && (
-            <WMSTileLayer
-              key="cadastre-wms"
-              url="https://nspd.gov.ru/map/api/map/wms"
-              layers="zu"
-              format="image/png"
-              transparent={true}
-              version="1.1.1"
-              opacity={0.85}
-              minZoom={10}
-              maxZoom={19}
-              attribution='&copy; <a href="https://nspd.gov.ru/" target="_blank" rel="noreferrer">НСПД Росреестр</a>'
-            />
-          )}
           <MapDragThroughPopup />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           <CadastreVectorSystem enabled={cadastralOverlay} apiBase={getApiUrl} />
