@@ -1495,7 +1495,9 @@ export default function MapPage(): JSX.Element {
               url={CADASTRE_TILE_URL}
               attribution='&copy; <a href="https://roscadastres.com/" target="_blank" rel="noreferrer">Роскадастр</a>'
               opacity={1}
-              maxZoom={19}
+              minZoom={10}
+              maxZoom={21}
+              maxNativeZoom={17}
               tileSize={256}
               className="cadastre-tile-layer"
             />
