@@ -53,7 +53,7 @@ node --input-type=module -e "
   import fs from 'node:fs';
   const raw = fs.readFileSync(process.argv[1], 'utf8');
   const data = JSON.parse(raw);
-  const inns = (data?.inns ?? []).filter((v) => /^\d{10}$|^\d{12}$/.test(String(v)));
+  const inns = (data?.inns ?? []).filter((v) => /^\d{10}\$|^\d{12}\$/.test(String(v)));
   fs.writeFileSync(process.argv[2], inns.join('\n') + '\n', 'utf8');
   console.log('counts:', JSON.stringify(data?.counts ?? {}));
 " "${WORK_DIR}/inns.json" "${INNS_FILE}"

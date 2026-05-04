@@ -175,44 +175,6 @@ Python-парсер).
 | Ошибка парсинга записи | `extractSnapshot` вернёт `null`, запись пропускается, остальные продолжают |
 | Время выполнения > 2 часов | Если поставите в crontab `timeout 7200` — kill, остальные ИНН подтянутся в следующий запуск |
 
-## Одна конкретная организация (один ИНН)
-
-В реестре отходов лицензия **не имеет «даты окончания»** в привычном смысле: она
-ведётся бессрочно, а контрольный срок в интерфейсе — это **периодическое
-подтверждение соответствия (ППС)**. Он считается на бэкенде из полей снимка
-(`date_issued`, статус реестра) и сохраняется в колонке **`pps_deadline_at`**
-таблицы **`rpn_registry_snapshot`**. Строка в снимке **одна на нормализованный
-ИНН** (`inn_norm`), не на внутренний `id` из `licenses`.
-
-Чтобы подтянуть с `tor.knd.gov.ru` актуальные данные **по одному ИНН** и записать
-их в БД:
-
-```bash
-cd /opt/moinoviichistiimir/parser
-chmod +x sync_single_inn.sh
-./sync_single_inn.sh 7707083893
-```
-
-Скрипт кладёт ИНН в `parser/work/INNS.txt`, запускает корневой `main.py`, затем
-`push_to_api.mjs` → `POST /api/rpn-sync/upsert`. Если по ИНН в реестре пусто,
-`licenses.json` может не появиться — смотрите `parser/work/run.log`.
-
-Вручную без обёртки: в каталоге с `INNS.txt` (одна строка — ИНН) выполнить
-`python3 main.py`, затем `node parser/push_to_api.mjs licenses.json` с тем же
-`.env`, что у cron.
-
-Проверка в Postgres:
-
-```sql
-SELECT inn_norm, license_number, date_issued, registry_status_ru,
-       pps_deadline_at, synced_at
-FROM rpn_registry_snapshot
-WHERE inn_norm = '7707083893';
-```
-
-Таблица **`licenses`** этим пайплайном **не обновляется** — только снимок для
-JOIN по ИНН.
-
 ## Откат
 
 Если нужно полностью отключить функциональность:
