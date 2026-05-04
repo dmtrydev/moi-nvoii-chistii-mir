@@ -400,12 +400,25 @@ router.get('/grid', async (req, res) => {
         7_000,
       );
       if (!found?.cn) return null;
-      const geo = await withTimeout(loadGeoByCadNumber(found.cn), 7_000);
-      if (!geo) return null;
-      // Attach cn to every feature for client-side dedup
-      const featuresWithCn = geo.features.map((f) => ({
+      // Upstream geo2.php currently returns empty bodies for every cn (and
+      // CDN-caches the empty response for 14 days), so most calls return null.
+      // Fall back to the bbox we already got from coordinates2.php so the
+      // overlay shows *something* — same fallback /identify already uses.
+      const geo = await withTimeout(loadGeoByCadNumber(found.cn), 7_000).catch(
+        () => null,
+      );
+      const fc = geo ?? extentToGeoJson(found.extent);
+      if (!fc || !Array.isArray(fc.features) || fc.features.length === 0) {
+        return null;
+      }
+      const isApprox = !geo;
+      const featuresWithCn = fc.features.map((f) => ({
         ...f,
-        properties: { ...(f.properties ?? {}), _cn: found.cn },
+        properties: {
+          ...(f.properties ?? {}),
+          _cn: found.cn,
+          _approx: isApprox,
+        },
       }));
       return { cn: found.cn, features: featuresWithCn };
     }),
