@@ -167,7 +167,7 @@ const MAP_AREA_LEFT_OPEN_PX = 639;
 const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
-const CADASTRE_TILE_URL = `${String(API_BASE).replace(/\/$/, '')}/api/cadastre/tiles/{z}/{x}/{y}.png`;
+const CADASTRE_TILE_URL = `${String(API_BASE).replace(/\/$/, '')}/api/cadastre/tiles/{z}/{x}/{y}`;
 
 type RasterBaseId = 'osm' | 'carto' | 'esri';
 
