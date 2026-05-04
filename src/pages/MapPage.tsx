@@ -11,6 +11,7 @@ import {
   TileLayer,
   useMap,
 } from 'react-leaflet';
+import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
 import { MarkerClusterGroup } from '@/components/map/MarkerClusterGroup';
 import '@/styles/map-cluster.css';
@@ -166,9 +167,7 @@ const MAP_AREA_LEFT_OPEN_PX = 639;
 const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
-const CADASTRE_IFRAME_URL =
-  String(import.meta.env.VITE_CADASTRE_IFRAME_URL ?? '').trim() ||
-  'https://ik10map.roscadastres.com/map.html?v=91';
+const CADASTRE_TILE_URL = `${String(API_BASE).replace(/\/$/, '')}/api/cadastre/tiles/{z}/{x}/{y}`;
 
 type RasterBaseId = 'osm' | 'carto' | 'esri';
 
@@ -1485,64 +1484,79 @@ export default function MapPage(): JSX.Element {
           attributionControl={false}
           closePopupOnClick={false}
         >
-          <TileLayer
-            key={activeRaster.id}
-            url={activeRaster.tileUrl}
-            attribution={activeRaster.attribution}
-          />
+          {cadastralOverlay ? (
+            <TileLayer
+              key="cadastre"
+              url={CADASTRE_TILE_URL}
+              attribution='&copy; <a href="https://pkk.rosreestr.gov.ru/">Росреестр ПКК</a>'
+              maxZoom={20}
+              tileSize={256}
+            />
+          ) : (
+            <TileLayer
+              key={activeRaster.id}
+              url={activeRaster.tileUrl}
+              attribution={activeRaster.attribution}
+            />
+          )}
           <MapDragThroughPopup />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
-          <MapRouteFitController path={routeResult?.path ?? null} />
-          {routeResult && (
-            <Polyline
-              positions={routeResult.path}
-              pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.85 }}
-            />
-          )}
-          {routePointA && (
-            <CircleMarker
-              center={routePointA.coords}
-              radius={7}
-              pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }}
-            />
-          )}
-          {routePointB && (
-            <CircleMarker
-              center={routePointB.coords}
-              radius={7}
-              pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
-            />
-          )}
-          <MarkerClusterGroup maxClusterRadius={60}>
-            {mapPoints.map((point) => {
-              const pointId = point.pointId;
-              const isSelected = selectedId != null && pointId != null && selectedId === pointId;
-              const enterpriseKey = buildEnterpriseKey(point);
-              const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
-              return (
-                <MapPointMarker
-                  key={point.key}
-                  point={point}
-                  siteCandidates={siteCandidates}
-                  isSelected={isSelected}
-                  routeBusy={routeBusy}
-                  onBuildRoute={(target) => {
-                    void handleBuildRouteFromClient(target);
-                  }}
-                  onSwitchSite={(site) => {
-                    // Only pan the map — don't change selectedId to avoid
-                    // closing the current popup and reopening a different one.
-                    setFocusCenter([site.lat, site.lng]);
-                  }}
-                  onSelect={() => {
-                    setFocusedItem(point.source);
-                    if (pointId != null) setSelectedId(pointId);
-                    setFocusCenter([point.lat, point.lng]);
-                  }}
+          <CadastreVectorSystem enabled={cadastralOverlay} apiBase={getApiUrl} />
+          {!cadastralOverlay && (
+            <>
+              <MapRouteFitController path={routeResult?.path ?? null} />
+              {routeResult && (
+                <Polyline
+                  positions={routeResult.path}
+                  pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.85 }}
                 />
-              );
-            })}
-          </MarkerClusterGroup>
+              )}
+              {routePointA && (
+                <CircleMarker
+                  center={routePointA.coords}
+                  radius={7}
+                  pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }}
+                />
+              )}
+              {routePointB && (
+                <CircleMarker
+                  center={routePointB.coords}
+                  radius={7}
+                  pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
+                />
+              )}
+              <MarkerClusterGroup maxClusterRadius={60}>
+                {mapPoints.map((point) => {
+                  const pointId = point.pointId;
+                  const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+                  const enterpriseKey = buildEnterpriseKey(point);
+                  const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
+                  return (
+                    <MapPointMarker
+                      key={point.key}
+                      point={point}
+                      siteCandidates={siteCandidates}
+                      isSelected={isSelected}
+                      routeBusy={routeBusy}
+                      onBuildRoute={(target) => {
+                        void handleBuildRouteFromClient(target);
+                      }}
+                      onSwitchSite={(site) => {
+                        // Only pan the map — don't change selectedId to avoid
+                        // closing the current popup and reopening a different one.
+                        setFocusCenter([site.lat, site.lng]);
+                      }}
+                      onSelect={() => {
+                        setFocusedItem(point.source);
+                        if (pointId != null) setSelectedId(pointId);
+                        setFocusCenter([point.lat, point.lng]);
+                      }}
+                    />
+                  );
+                })}
+              </MarkerClusterGroup>
+            </>
+          )}
         </MapContainer>
         <div
           ref={layerControlRef}
@@ -1646,17 +1660,8 @@ export default function MapPage(): JSX.Element {
           </div>
         </div>
         {cadastralOverlay && (
-          <div className="absolute inset-0 z-[2000] overflow-hidden bg-[#edf2f6]">
-            <iframe
-              src={CADASTRE_IFRAME_URL}
-              title="Публичная кадастровая карта"
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-            <div className="pointer-events-none absolute right-4 top-4 rounded-xl border border-white bg-[#ffffffe6] px-3 py-2 text-xs font-semibold text-[#5e6567] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
-              Кадастровая подложка: внешний источник
-            </div>
+          <div className="pointer-events-none absolute right-4 top-4 z-[5010] rounded-xl border border-white bg-[#ffffffe6] px-3 py-2 text-xs font-semibold text-[#5e6567] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
+            Кадастровая карта · нажмите на участок для информации
           </div>
         )}
         {!cadastralOverlay && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (

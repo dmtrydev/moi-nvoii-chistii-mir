@@ -42,6 +42,41 @@ function apiRequest(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
   });
 }
 
+function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new NodeURL(targetUrl);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        port: u.port || 443,
+        method: 'GET',
+        headers: {
+          Accept: 'image/png,image/*,*/*',
+          Referer: 'https://pkk.rosreestr.gov.ru/',
+          Origin: 'https://pkk.rosreestr.gov.ru',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
+      },
+      (upstream) => {
+        const chunks = [];
+        upstream.on('data', (c) => chunks.push(c));
+        upstream.on('end', () => {
+          resolve({
+            statusCode: upstream.statusCode ?? 502,
+            contentType: upstream.headers['content-type'] ?? 'image/png',
+            body: Buffer.concat(chunks),
+          });
+        });
+      },
+    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`upstream timeout ${timeoutMs}ms`)));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 function xy3857ToLngLat(x, y) {
   const lng = (x / 20037508.34) * 180;
   const lat = (Math.atan(Math.sinh((y * Math.PI) / 20037508.34)) * 180) / Math.PI;
@@ -233,6 +268,38 @@ async function loadGeoByCadNumber(cn) {
   if (!json || json.type !== 'FeatureCollection' || !Array.isArray(json.features)) return null;
   return normalizeGeoJson4326(json);
 }
+
+const TILE_ZOOM_MAX = 20;
+const PKK_TILE_BASE = 'https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile';
+
+router.get('/tiles/:z/:x/:y', async (req, res) => {
+  const z = Number(req.params.z);
+  const x = Number(req.params.x);
+  const y = Number(req.params.y);
+  if (
+    !Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y) ||
+    z < 0 || z > TILE_ZOOM_MAX || x < 0 || y < 0
+  ) {
+    return res.status(400).end();
+  }
+  // Rosreestr ArcGIS tile order: level/row/col = z/y/x (Leaflet convention)
+  const tileUrl = `${PKK_TILE_BASE}/${z}/${y}/${x}`;
+  try {
+    const result = await apiRequestBinary(tileUrl);
+    if (result.statusCode === 404 || result.statusCode === 204) {
+      return res.status(204).end();
+    }
+    if (result.statusCode >= 400) {
+      return res.status(502).end();
+    }
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.end(result.body);
+  } catch {
+    return res.status(502).end();
+  }
+});
 
 router.get('/identify', async (req, res) => {
   const lat = Number(req.query.lat);

@@ -156,3 +156,65 @@
   height: 50px;
   font-size: 15px;
 }
+
+/* ─── Cadastre popup card ──────────────────────────────────────────────────── */
+
+.moinoviichistiimir-cadastre-popup .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(43, 51, 53, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.moinoviichistiimir-cadastre-popup .leaflet-popup-content {
+  margin: 0;
+  min-width: 240px;
+  max-width: 360px;
+}
+
+.moinoviichistiimir-cadastre-popup .leaflet-popup-tip-container {
+  margin-top: -1px;
+}
+
+.moinoviichistiimir-cadastre-card {
+  font-family: var(--font-heading-nunito, 'Nunito', sans-serif);
+  padding: 14px 16px;
+  background: #ffffff;
+}
+
+.moinoviichistiimir-cadastre-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2b3335;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.moinoviichistiimir-cadastre-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.moinoviichistiimir-cadastre-table tr + tr td,
+.moinoviichistiimir-cadastre-table tr + tr th {
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.moinoviichistiimir-cadastre-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #828583;
+  padding: 5px 8px 5px 0;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.moinoviichistiimir-cadastre-table td {
+  text-align: left;
+  color: #2b3335;
+  padding: 5px 0 5px 8px;
+  word-break: break-word;
+}
