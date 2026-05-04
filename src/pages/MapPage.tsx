@@ -1518,52 +1518,143 @@ export default function MapPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setLayerMenuOpen((o) => !o)}
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/95 bg-white shadow-[0_4px_20px_rgba(43,51,53,0.12),inset_0_0_0_1px_rgba(255,255,255,0.9)] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a3c948]/50"
+            className={[
+              'group relative z-[2] flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[20px] border border-white',
+              'bg-[#ffffffa6] shadow-[inset_0px_0px_52px_#ffffffd6] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)]',
+              'before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[""]',
+              'before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]',
+              'before:[background:linear-gradient(132deg,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.28)_100%)]',
+              'transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+              'hover:shadow-[0_10px_32px_rgba(163,200,59,0.28),inset_0px_0px_52px_#ffffffe4]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a3c948]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+              layerMenuOpen
+                ? 'shadow-[0_12px_36px_rgba(163,200,59,0.38),inset_0px_0px_56px_#fffffff2] ring-2 ring-[#d4ec8c]/70'
+                : 'active:scale-[0.96]',
+            ].join(' ')}
             aria-expanded={layerMenuOpen}
             aria-haspopup="true"
             aria-label="Слои карты"
           >
-            <Layers className="h-5 w-5 text-[#5e6567]" strokeWidth={1.75} aria-hidden />
+            <Layers
+              className={[
+                'relative z-[2] h-[22px] w-[22px] transition-colors duration-300',
+                layerMenuOpen ? 'text-[#3d5620]' : 'text-[#5e6567] group-hover:text-[#2b3335]',
+              ].join(' ')}
+              strokeWidth={1.85}
+              aria-hidden
+            />
           </button>
           <div
             className={[
-              'absolute bottom-full right-0 min-w-[min(100vw-2rem,264px)] rounded-xl border border-black/[0.08] bg-white py-2 shadow-[0_12px_40px_rgba(43,51,53,0.18)] transition-[opacity,transform,visibility] duration-200 ease-out max-sm:left-auto max-sm:right-0',
+              'absolute bottom-full right-0 z-[3] min-w-[min(100vw-2rem,280px)] overflow-hidden rounded-[28px] border border-white',
+              'bg-[#ffffff85] backdrop-blur-[14px] [-webkit-backdrop-filter:blur(14px)]',
+              'shadow-[0_20px_48px_rgba(43,51,53,0.14),inset_0px_0px_70.1px_#ffffffd4]',
+              'before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[28px] before:p-px before:content-[""]',
+              'before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]',
+              'before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.22)_100%)]',
+              'transition-[opacity,transform,visibility] duration-200 ease-out max-sm:left-auto max-sm:right-0',
               layerMenuOpen
                 ? 'visible translate-y-0 opacity-100'
-                : 'invisible pointer-events-none translate-y-1 opacity-0',
+                : 'invisible pointer-events-none translate-y-1.5 opacity-0',
             ].join(' ')}
             role="menu"
             aria-hidden={!layerMenuOpen}
           >
-            <ul className="space-y-0.5 px-1 font-nunito">
-              {RASTER_LAYER_OPTIONS.map((opt) => (
-                <li key={opt.id} role="presentation">
-                  <label className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-[#2b3335] transition-colors hover:bg-black/[0.04]">
-                    <input
-                      type="radio"
-                      name="map-raster-base"
-                      checked={rasterBase === opt.id}
-                      onChange={() => {
-                        setRasterBase(opt.id);
-                        setLayerMenuOpen(false);
-                      }}
-                      className="h-4 w-4 shrink-0 cursor-pointer border-[#c5cbc9] accent-[#7cb518] text-[#84cc16] focus:ring-2 focus:ring-[#a3c948]/45"
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                </li>
-              ))}
+            <div className="relative z-[2] px-3 pb-1 pt-3 sm:px-4">
+              <p className="font-nunito text-[10px] font-bold uppercase tracking-[0.16em] text-[#828583] sm:text-[11px]">
+                Подложка
+              </p>
+            </div>
+            <ul className="relative z-[2] space-y-1 px-2 pb-2 font-nunito sm:px-3">
+              {RASTER_LAYER_OPTIONS.map((opt) => {
+                const selected = rasterBase === opt.id;
+                return (
+                  <li key={opt.id} role="presentation">
+                    <label
+                      className={[
+                        'flex cursor-pointer items-center gap-3 rounded-[18px] px-3 py-2.5 text-sm font-semibold transition-[background,box-shadow] duration-200',
+                        selected
+                          ? 'bg-[linear-gradient(128deg,rgba(219,236,168,0.72)_0%,rgba(188,220,87,0.58)_100%)] text-[#1e2419] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]'
+                          : 'text-[#2b3335] hover:bg-[#ffffffaa]',
+                      ].join(' ')}
+                    >
+                      <input
+                        type="radio"
+                        name="map-raster-base"
+                        checked={selected}
+                        onChange={() => {
+                          setRasterBase(opt.id);
+                          setLayerMenuOpen(false);
+                        }}
+                        className="peer sr-only"
+                      />
+                      <span
+                        className={[
+                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-white/95 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] transition-colors',
+                          selected
+                            ? 'border-[#8fb832] bg-[linear-gradient(145deg,rgba(255,255,255,0.95)_0%,rgba(219,236,168,0.95)_100%)] shadow-[0_2px_8px_rgba(163,200,59,0.45)]'
+                            : 'border-white/80 bg-white/45',
+                        ].join(' ')}
+                        aria-hidden
+                      >
+                        <span
+                          className={[
+                            'h-2 w-2 rounded-full bg-[#4d6318] shadow-sm transition-opacity',
+                            selected ? 'opacity-100' : 'opacity-0',
+                          ].join(' ')}
+                        />
+                      </span>
+                      <span>{opt.label}</span>
+                    </label>
+                  </li>
+                );
+              })}
             </ul>
-            <div className="my-2 h-px bg-black/[0.08]" role="separator" />
-            <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 font-nunito text-sm font-semibold text-[#2b3335] transition-colors hover:bg-black/[0.04]">
-              <input
-                type="checkbox"
-                checked={cadastralOverlay}
-                onChange={(e) => setCadastralOverlay(e.target.checked)}
-                className="h-4 w-4 shrink-0 cursor-pointer rounded border-[#c5cbc9] accent-[#7cb518] focus:ring-2 focus:ring-[#a3c948]/45"
-              />
-              <span>Кадастровая подложка</span>
-            </label>
+            <div
+              className="relative z-[2] mx-3 h-px bg-gradient-to-r from-transparent via-black/[0.1] to-transparent sm:mx-4"
+              role="separator"
+            />
+            <div className="relative z-[2] px-2 pb-3 pt-1 sm:px-3 sm:pb-4">
+              <p className="mb-2 px-2 font-nunito text-[10px] font-bold uppercase tracking-[0.16em] text-[#828583] sm:text-[11px]">
+                Наложение
+              </p>
+              <label
+                className={[
+                  'flex cursor-pointer items-center gap-3 rounded-[18px] px-3 py-2.5 font-nunito text-sm font-semibold transition-[background,box-shadow] duration-200',
+                  cadastralOverlay
+                    ? 'bg-[linear-gradient(128deg,rgba(219,236,168,0.55)_0%,rgba(188,220,87,0.42)_100%)] text-[#1e2419] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]'
+                    : 'text-[#2b3335] hover:bg-[#ffffffaa]',
+                ].join(' ')}
+              >
+                <input
+                  type="checkbox"
+                  checked={cadastralOverlay}
+                  onChange={(e) => setCadastralOverlay(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  className={[
+                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 border-white/95 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] transition-colors',
+                    cadastralOverlay
+                      ? 'border-[#8fb832] bg-[linear-gradient(145deg,rgba(255,255,255,0.95)_0%,rgba(188,220,87,0.9)_100%)] shadow-[0_2px_8px_rgba(163,200,59,0.4)]'
+                      : 'border-white/80 bg-white/45',
+                  ].join(' ')}
+                  aria-hidden
+                >
+                  <svg
+                    className={cadastralOverlay ? 'h-3 w-3 text-[#2b4510]' : 'h-3 w-3 text-transparent'}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                    aria-hidden
+                  >
+                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <span>Кадастровая подложка</span>
+              </label>
+            </div>
           </div>
         </div>
         {cadastralOverlay && (
