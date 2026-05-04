@@ -157,6 +157,14 @@
   font-size: 15px;
 }
 
+/* ─── Cadastre tile overlay ────────────────────────────────────────────────── */
+/* mix-blend-mode: multiply makes white pixels transparent while keeping       */
+/* the red cadastral outlines visible on top of the base map.                  */
+
+.cadastre-tile-layer .leaflet-tile {
+  mix-blend-mode: multiply;
+}
+
 /* ─── Cadastre popup card ──────────────────────────────────────────────────── */
 
 .moinoviichistiimir-cadastre-popup .leaflet-popup-content-wrapper {
