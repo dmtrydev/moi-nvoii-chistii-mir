@@ -286,11 +286,57 @@ async function loadGeoByCadNumber(cn) {
 }
 
 const TILE_ZOOM_MAX = 21;
-// PKK Rosreestr ArcGIS tile endpoint — transparent PNG cadastral boundaries.
-// ArcGIS tile URL format: tile/{level}/{row}/{col} where row=y, col=x.
-// SSL cert is expired on pkk.rosreestr.gov.ru — rejectUnauthorized:false handles it.
-const PKK_TILE_BASE =
-  'https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile';
+
+/** Convert XYZ tile to EPSG:3857 bbox string for WMS requests. */
+function tileToBbox3857(z, x, y) {
+  const n = Math.pow(2, z);
+  const tileSize = (20037508.34 * 2) / n;
+  const xmin = x * tileSize - 20037508.34;
+  const xmax = (x + 1) * tileSize - 20037508.34;
+  const ymax = 20037508.34 - y * tileSize;
+  const ymin = 20037508.34 - (y + 1) * tileSize;
+  return `${xmin},${ymin},${xmax},${ymax}`;
+}
+
+/**
+ * Try tile sources in priority order.
+ * 1. NSPD WMS (nspd.gov.ru) — official Rosreestr portal, WGS84/3857
+ * 2. PKK ArcGIS tile (pkk.rosreestr.gov.ru) — might be blocked from VDS
+ * 3. roscadastres.com raster — works for some areas/zooms
+ * Returns { statusCode, contentType, body } or throws.
+ */
+async function fetchCadastreTile(z, x, y) {
+  const bbox = tileToBbox3857(z, x, y);
+
+  // Source 1: NSPD WMS (nspd.gov.ru)
+  const nspdWmsUrl =
+    `https://nspd.gov.ru/map/api/map/wms` +
+    `?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` +
+    `&LAYERS=zu&FORMAT=image%2Fpng&TRANSPARENT=true` +
+    `&WIDTH=256&HEIGHT=256&SRS=EPSG%3A3857&STYLES=` +
+    `&BBOX=${encodeURIComponent(bbox)}`;
+  try {
+    const r = await apiRequestBinary(nspdWmsUrl, { referer: 'https://nspd.gov.ru/', timeoutMs: 10_000 });
+    if (r.statusCode === 200 && r.body.length > 100) return r;
+  } catch { /* try next */ }
+
+  // Source 2: PKK ArcGIS tile (ArcGIS format: tile/{z}/{row}/{col} = tile/{z}/{y}/{x})
+  const pkkUrl =
+    `https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile/${z}/${y}/${x}`;
+  try {
+    const r = await apiRequestBinary(pkkUrl, { referer: 'https://pkk.rosreestr.ru/', timeoutMs: 8_000 });
+    if (r.statusCode === 200 && r.body.length > 100) return r;
+  } catch { /* try next */ }
+
+  // Source 3: roscadastres.com raster tiles
+  const rosUrl = `https://api.roscadastres.com/tiles/raster/${z}/${x}/${y}.png`;
+  try {
+    const r = await apiRequestBinary(rosUrl, { referer: 'https://ik2map.roscadastres.com/', timeoutMs: 8_000 });
+    if (r.statusCode === 200 && r.body.length > 100) return r;
+  } catch { /* all failed */ }
+
+  return null;
+}
 
 router.get('/tiles/:z/:x/:y', async (req, res) => {
   const z = Number(req.params.z);
@@ -302,16 +348,9 @@ router.get('/tiles/:z/:x/:y', async (req, res) => {
   ) {
     return res.status(400).end();
   }
-  // ArcGIS: tile/{z}/{row}/{col} → row=y, col=x (swapped from XYZ)
-  const tileUrl = `${PKK_TILE_BASE}/${z}/${y}/${x}`;
   try {
-    const result = await apiRequestBinary(tileUrl, { referer: 'https://pkk.rosreestr.ru/' });
-    if (result.statusCode === 404 || result.statusCode === 204) {
-      return res.status(204).end();
-    }
-    if (result.statusCode >= 400) {
-      return res.status(502).end();
-    }
+    const result = await fetchCadastreTile(z, x, y);
+    if (!result) return res.status(204).end();
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -319,6 +358,40 @@ router.get('/tiles/:z/:x/:y', async (req, res) => {
   } catch {
     return res.status(502).end();
   }
+});
+
+/** Diagnostic endpoint: test all tile sources for a Moscow tile at z=14. */
+router.get('/test-sources', async (_req, res) => {
+  const z = 14; const x = 9900; const y = 5044; // Moscow area z=14
+  const bbox = tileToBbox3857(z, x, y);
+  const results = {};
+
+  const test = async (name, url, opts = {}) => {
+    try {
+      const r = await apiRequestBinary(url, { timeoutMs: 10_000, ...opts });
+      results[name] = { status: r.statusCode, size: r.body.length, ct: r.contentType };
+    } catch (e) {
+      results[name] = { error: String(e?.message ?? e) };
+    }
+  };
+
+  await test('nspd_wms',
+    `https://nspd.gov.ru/map/api/map/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=zu&FORMAT=image%2Fpng&TRANSPARENT=true&WIDTH=256&HEIGHT=256&SRS=EPSG%3A3857&STYLES=&BBOX=${encodeURIComponent(bbox)}`,
+    { referer: 'https://nspd.gov.ru/' });
+
+  await test('pkk_tile',
+    `https://pkk.rosreestr.gov.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/tile/${z}/${y}/${x}`,
+    { referer: 'https://pkk.rosreestr.ru/' });
+
+  await test('roscadastres_z14',
+    `https://api.roscadastres.com/tiles/raster/${z}/${x}/${y}.png`,
+    { referer: 'https://ik2map.roscadastres.com/' });
+
+  await test('roscadastres_z12',
+    `https://api.roscadastres.com/tiles/raster/12/2476/1294.png`,
+    { referer: 'https://ik2map.roscadastres.com/' });
+
+  res.json({ tile: { z, x, y }, bbox, results });
 });
 
 router.get('/identify', async (req, res) => {
