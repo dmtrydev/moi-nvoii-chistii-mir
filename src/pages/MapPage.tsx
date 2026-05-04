@@ -1358,36 +1358,6 @@ export default function MapPage(): JSX.Element {
           </div>
         </section>
 
-        <section className="relative z-10 mb-3 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:mb-5 sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
-          <h3 className={`${mapSectionTitleClass} mb-3 max-lg:text-[1.05rem]`}>
-            Подложка карты
-          </h3>
-          <div className="flex flex-col gap-1 rounded-[20px] bg-[#ffffff80] p-1 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => setBaseMapStyle('osm')}
-              className={`typo-h2 flex-1 rounded-[16px] py-3 text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:h-[52px] sm:py-0 ${
-                baseMapStyle === 'osm'
-                  ? 'shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
-                  : 'bg-transparent'
-              }`}
-            >
-              Обычная
-            </button>
-            <button
-              type="button"
-              onClick={() => setBaseMapStyle('cadastral')}
-              className={`typo-h2 flex-1 rounded-[16px] py-3 text-[#2b3335] transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] sm:h-[52px] sm:py-0 ${
-                baseMapStyle === 'cadastral'
-                  ? 'shadow-[0px_13px_31.5px_#c1df6466,inset_0px_0px_20px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
-                  : 'bg-transparent'
-              }`}
-            >
-              Кадастровая
-            </button>
-          </div>
-        </section>
-
                 </aside>
               </div>
             )}
@@ -1466,6 +1436,39 @@ export default function MapPage(): JSX.Element {
             );
           })}
         </MapContainer>
+        <div
+          className="pointer-events-auto absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2500] flex w-[min(100%,280px)] flex-col gap-1.5 rounded-[20px] border border-white bg-[#ffffffa6] p-1.5 shadow-[inset_0px_0px_48px_#ffffffcc] backdrop-blur-[12px] [-webkit-backdrop-filter:blur(12px)] sm:bottom-4 sm:right-4 sm:w-auto sm:min-w-[220px] sm:p-2"
+          role="group"
+          aria-label="Слой карты"
+        >
+          <span className="px-2 pt-0.5 font-nunito text-[10px] font-bold uppercase tracking-[0.14em] text-[#828583] sm:text-[11px]">
+            Слой
+          </span>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setBaseMapStyle('osm')}
+              className={`min-h-[40px] flex-1 rounded-[14px] px-3 py-2 font-nunito text-xs font-semibold text-[#2b3335] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:min-h-[44px] sm:px-4 sm:text-sm ${
+                baseMapStyle === 'osm'
+                  ? 'shadow-[0px_10px_28px_#c1df6466,inset_0px_0px_18px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
+                  : 'bg-transparent hover:bg-white/50'
+              }`}
+            >
+              Обычная
+            </button>
+            <button
+              type="button"
+              onClick={() => setBaseMapStyle('cadastral')}
+              className={`min-h-[40px] flex-1 rounded-[14px] px-3 py-2 font-nunito text-xs font-semibold text-[#2b3335] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:min-h-[44px] sm:px-4 sm:text-sm ${
+                baseMapStyle === 'cadastral'
+                  ? 'shadow-[0px_10px_28px_#c1df6466,inset_0px_0px_18px_#ffffffbd] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)]'
+                  : 'bg-transparent hover:bg-white/50'
+              }`}
+            >
+              Кадастровая
+            </button>
+          </div>
+        </div>
         {baseMapStyle === 'cadastral' && (
           <div className="absolute inset-0 z-[2000] overflow-hidden bg-[#edf2f6]">
             <iframe
