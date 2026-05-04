@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Оркестратор ночной синхронизации с реестром Росприроднадзора.
-# Запускается из crontab на VDS:
-#   0 3 * * *  /opt/moinoviichistiimir/parser/sync_rpn.sh >> /var/log/rpn-sync.log 2>&1
+# Запускается из crontab на VDS (каждый день в 01:00 по времени сервера):
+#   0 1 * * * /opt/moinoviichistiimir/parser/sync_rpn.sh >> /var/log/rpn-sync.log 2>&1
 #
 # Что делает:
 #   1. Запрашивает у нашего API список ИНН для синка (приоритизированный).
@@ -53,7 +53,7 @@ node --input-type=module -e "
   import fs from 'node:fs';
   const raw = fs.readFileSync(process.argv[1], 'utf8');
   const data = JSON.parse(raw);
-  const inns = (data?.inns ?? []).filter((v) => /^\d{10}\$|^\d{12}\$/.test(String(v)));
+  const inns = (data?.inns ?? []).filter((v) => /^\d{10}$|^\d{12}$/.test(String(v)));
   fs.writeFileSync(process.argv[2], inns.join('\n') + '\n', 'utf8');
   console.log('counts:', JSON.stringify(data?.counts ?? {}));
 " "${WORK_DIR}/inns.json" "${INNS_FILE}"

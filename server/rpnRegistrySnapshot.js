@@ -112,8 +112,11 @@ export async function fetchSnapshotByInn(client, innNorm) {
 /**
  * Список ИНН для очередного цикла синхронизации с приоритизацией.
  *
+ * Учитываются только строки licenses со статусом `approved` (одобренные
+ * лицензии в нашей системе).
+ *
  * Приоритеты:
- *   HIGH   — ИНН из licenses, по которому ещё нет ни одного снапшота;
+ *   HIGH   — ИНН из одобренных licenses, по которому ещё нет ни одного снапшота;
  *   MEDIUM — снапшот есть, registry_status = 'active', synced_at старше staleDays;
  *   LOW    — снапшот есть, registry_status != 'active', synced_at старше staleDays * 4
  *            (неактивные обновляем реже).
@@ -139,6 +142,7 @@ export async function selectInnsToSync(client, opts = {}) {
       SELECT DISTINCT ${inn} AS inn_norm
       FROM licenses
       WHERE deleted_at IS NULL
+        AND status = 'approved'
         AND length(${inn}) IN (10, 12)
     )
     SELECT a.inn_norm,
