@@ -1,7 +1,7 @@
 import { PanelLeft } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type L from 'leaflet';
+import L from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
 import '@/styles/map-cluster.css';
@@ -20,6 +20,7 @@ import {
   normalizeFkkoSearchQuery,
 } from '@/utils/fkko';
 import { ACTIVITY_TYPE_FILTER_ORDER, normalizeActivityTypesForFilter } from '@/utils/activityTypesFilter';
+import { getMapMarkerVariant, type MapMarkerVariant } from '@/utils/mapMarkerVariant';
 import { toPositiveInt } from '@/utils/positiveInt';
 import {
   buildCanonicalSearchKey,
@@ -156,21 +157,21 @@ type RouteBuildResult = {
   durationSeconds: number;
 };
 
-const MARKER_ICON_NORMAL = L.divIcon({
-  html: '<div class="map-marker-dot"></div>',
-  className: '',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10],
-  popupAnchor: [0, -12],
-});
-
-const MARKER_ICON_SELECTED = L.divIcon({
-  html: '<div class="map-marker-dot map-marker-dot--selected"></div>',
-  className: '',
-  iconSize: [26, 26],
-  iconAnchor: [13, 13],
-  popupAnchor: [0, -15],
-});
+function buildMapPointDivIcon(variant: MapMarkerVariant, selected: boolean): L.DivIcon {
+  const parts = ['map-marker-dot'];
+  if (variant === 'storage') parts.push('map-marker-dot--variant-storage');
+  if (variant === 'tech') parts.push('map-marker-dot--variant-tech');
+  if (selected) parts.push('map-marker-dot--selected');
+  const size = selected ? 26 : 20;
+  const anchor = selected ? 13 : 10;
+  return L.divIcon({
+    html: `<div class="${parts.join(' ')}"></div>`,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [anchor, anchor],
+    popupAnchor: [0, selected ? -15 : -12],
+  });
+}
 
 function getCurrentPosition(options?: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -266,6 +267,15 @@ function MapPointMarker({
     [point, siteCandidates],
   );
 
+  const markerVariant = useMemo(
+    () => getMapMarkerVariant(point.source.activityTypes),
+    [point.source.activityTypes],
+  );
+  const markerIcon = useMemo(
+    () => buildMapPointDivIcon(markerVariant, isSelected),
+    [markerVariant, isSelected],
+  );
+
   useEffect(() => {
     if (!isSelected) return;
     const open = (): void => {
@@ -291,7 +301,7 @@ function MapPointMarker({
       ref={markerRef}
       key={point.key}
       position={[point.lat, point.lng]}
-      icon={isSelected ? MARKER_ICON_SELECTED : MARKER_ICON_NORMAL}
+      icon={markerIcon}
       eventHandlers={{ click: onSelect }}
     >
       <Popup
@@ -1331,17 +1341,19 @@ export default function MapPage(): JSX.Element {
             Легенда
           </h3>
           <div className="space-y-2 text-xs text-ink-muted">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]" />
-              <span>Хранение</span>
+            <div className="flex items-start gap-2">
+              <span className="map-legend-dot map-legend-dot--eco mt-0.5" aria-hidden />
+              <span>
+                {ACTIVITY_TYPE_FILTER_ORDER.join(', ')} и другие виды обращения
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#eab308]" />
-              <span>Захоронение</span>
+            <div className="flex items-start gap-2">
+              <span className="map-legend-dot map-legend-dot--storage mt-0.5" aria-hidden />
+              <span>Хранение и захоронение (объекты ГРОРРО)</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />
-              <span>Утилизация / обработка</span>
+            <div className="flex items-start gap-2">
+              <span className="map-legend-dot map-legend-dot--tech mt-0.5" aria-hidden />
+              <span>Аренда и продажа технологий, прошедшие ГЭЭ</span>
             </div>
           </div>
         </section>
