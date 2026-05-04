@@ -8,6 +8,7 @@ describe('MapEnterprisePopupCard', () => {
     const model: MapEnterprisePopupViewModel = {
       title: 'ООО Экология-Пром',
       subtitleAddress: 'Курганская область, г. Курган, ул. Омская, 48 а',
+      rpnStrip: null,
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
         { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
@@ -30,7 +31,6 @@ describe('MapEnterprisePopupCard', () => {
     expect(screen.getByText('ИНН:')).toBeInTheDocument();
     expect(screen.getByText('4501217153')).toBeInTheDocument();
     expect(screen.getByText('Скоро по подписке')).toBeInTheDocument();
-    expect(screen.getByText('Основная площадка')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Построить маршрут' })).toBeInTheDocument();
   });
 
@@ -40,6 +40,7 @@ describe('MapEnterprisePopupCard', () => {
     const model: MapEnterprisePopupViewModel = {
       title: 'Общество с ограниченной ответственностью "экология-пром урал с очень длинным названием"',
       subtitleAddress: longAddress,
+      rpnStrip: null,
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
         { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
@@ -51,5 +52,27 @@ describe('MapEnterprisePopupCard', () => {
 
     expect(screen.getByText(/очень длинным названием/i)).toBeInTheDocument();
     expect(screen.getAllByText(longAddress).length).toBeGreaterThan(0);
+  });
+
+  it('renders compact RPN / PPS strip when present', () => {
+    const model: MapEnterprisePopupViewModel = {
+      title: 'ООО Тест',
+      subtitleAddress: 'г. Курган',
+      rpnStrip: {
+        state: 'yellow',
+        badgeLabel: 'Скоро срок ППС',
+        line: 'ППС до 01.07.2026 · осталось 60 дней',
+      },
+      infoRows: [
+        { key: 'inn', label: 'ИНН:', value: '123' },
+        { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
+      ],
+      siteSwitches: [],
+    };
+
+    render(<MapEnterprisePopupCard model={model} />);
+
+    expect(screen.getByText('Скоро срок ППС')).toBeInTheDocument();
+    expect(screen.getByText(/ППС до 01\.07\.2026/)).toBeInTheDocument();
   });
 });

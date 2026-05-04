@@ -43,6 +43,7 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.siteSwitches).toHaveLength(1);
     expect(model.siteSwitches[0]?.label).toBe('Основная площадка');
     expect(model.siteSwitches[0]?.isActive).toBe(true);
+    expect(model.rpnStrip).toBeNull();
   });
 
   it('uses safe fallbacks for empty values', () => {
@@ -64,6 +65,7 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.subtitleAddress).toBe('Адрес не указан');
     expect(model.infoRows.find((x) => x.key === 'inn')?.value).toBe('не указан');
     expect(model.siteSwitches).toHaveLength(0);
+    expect(model.rpnStrip).toBeNull();
   });
 
   it('builds site switches from explicit map candidates', () => {
@@ -92,5 +94,61 @@ describe('buildMapEnterprisePopupViewModel', () => {
     ]);
     expect(model.siteSwitches.find((x) => x.pointId === 202)?.isActive).toBe(true);
     expect(model.siteSwitches.find((x) => x.pointId === 101)?.isActive).toBe(false);
+    expect(model.rpnStrip).toBeNull();
+  });
+
+  it('adds compact rpnStrip when source includes pps from API', () => {
+    const source = baseSource();
+    source.pps = {
+      state: 'green',
+      message: 'Лицензия действует. Ближайшее периодическое подтверждение соответствия до 01.09.2027.',
+      daysLeft: 485,
+      deadlineAt: '2027-09-01T00:00:00.000Z',
+    };
+
+    const model = buildMapEnterprisePopupViewModel({
+      pointAddress: 'Курганская область, г. Курган, ул. Омская, 48 а',
+      pointInn: '4501217153',
+      source,
+      pointLat: 55.1,
+      pointLng: 65.3,
+    });
+
+    expect(model.rpnStrip).not.toBeNull();
+    expect(model.rpnStrip?.state).toBe('green');
+    expect(model.rpnStrip?.badgeLabel).toBe('Лицензия действует');
+    expect(model.rpnStrip?.line).toBe('ППС до 01.09.2027');
+  });
+
+  it('rpnStrip shows registry status when pps is gray', () => {
+    const source = baseSource();
+    source.pps = {
+      state: 'gray',
+      message: 'Аннулирована.',
+      daysLeft: null,
+      deadlineAt: null,
+    };
+    source.rpnSnapshot = {
+      licenseNumber: 'Л020-01',
+      dateIssued: null,
+      registryStatus: 'annulled',
+      registryStatusRu: 'Аннулирована',
+      registryInactive: true,
+      unitShortName: null,
+      registryModifiedAt: null,
+      syncedAt: null,
+      ppsDeadlineAt: null,
+    };
+
+    const model = buildMapEnterprisePopupViewModel({
+      pointAddress: 'Курганская область, г. Курган, ул. Омская, 48 а',
+      pointInn: '4501217153',
+      source,
+      pointLat: 55.1,
+      pointLng: 65.3,
+    });
+
+    expect(model.rpnStrip?.state).toBe('gray');
+    expect(model.rpnStrip?.line).toBe('Аннулирована');
   });
 });

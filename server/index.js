@@ -23,6 +23,11 @@ import { loadFkkoTitlesFromDb, upsertFkkoOfficialTitles } from './fkkoOfficialTi
 import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
 import { fetchLicenseRpnSnapshot } from './licenseExtendedFetch.js';
 import { enrichLicenseWithRpnSnapshot } from './licenseRpnEnrich.js';
+import {
+  enrichLicenseSiteApiRow,
+  LICENSE_SITES_RPN_JOIN_SQL,
+  LICENSE_SITES_RPN_SELECT_COLUMNS,
+} from './licenseSiteRpnAttach.js';
 import authRouter from './authRoutes.js';
 import userRouter from './userRoutes.js';
 import supportRouter from './supportRoutes.js';
@@ -1336,9 +1341,11 @@ app.get('/api/license-sites', async (req, res) => {
         s.lng,
         s.fkko_codes AS "fkkoCodes",
         s.activity_types AS "activityTypes",
-        s.site_label AS "siteLabel"
+        s.site_label AS "siteLabel",
+        ${LICENSE_SITES_RPN_SELECT_COLUMNS}
       FROM license_sites s
       JOIN licenses l ON l.id = s.license_id
+      ${LICENSE_SITES_RPN_JOIN_SQL}
       WHERE l.deleted_at IS NULL
         AND l.status = 'approved'
         AND (l.import_source IS DISTINCT FROM 'rpn_registry' OR NOT l.import_registry_inactive)
@@ -1355,7 +1362,7 @@ app.get('/api/license-sites', async (req, res) => {
     `;
 
     const rows = await query(sql, params);
-    return res.json({ items: rows.rows });
+    return res.json({ items: rows.rows.map((r) => enrichLicenseSiteApiRow(r)) });
   } catch (err) {
     console.error('list license sites error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка получения площадок' });
@@ -1381,16 +1388,18 @@ app.get('/api/license-sites/:id', async (req, res) => {
          s.lng,
          s.fkko_codes AS "fkkoCodes",
          s.activity_types AS "activityTypes",
-         s.site_label AS "siteLabel"
+         s.site_label AS "siteLabel",
+         ${LICENSE_SITES_RPN_SELECT_COLUMNS}
        FROM license_sites s
        JOIN licenses l ON l.id = s.license_id
+       ${LICENSE_SITES_RPN_JOIN_SQL}
        WHERE s.id = $1
        LIMIT 1`,
       [id],
     );
 
     if (!rows.rows.length) return res.status(404).json({ message: 'Площадка не найдена' });
-    return res.json(rows.rows[0]);
+    return res.json(enrichLicenseSiteApiRow(rows.rows[0]));
   } catch (err) {
     console.error('get license site error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка получения площадки' });
@@ -1418,7 +1427,7 @@ app.post('/api/license-sites/:id/geocode', async (req, res) => {
 
     const it = rows.rows[0];
     if (typeof it.lat === 'number' && typeof it.lng === 'number') {
-      return res.json(await query(
+      const full = await query(
         `SELECT
            s.id AS "siteId",
            l.id,
@@ -1430,13 +1439,16 @@ app.post('/api/license-sites/:id/geocode', async (req, res) => {
            s.lng,
            s.fkko_codes AS "fkkoCodes",
            s.activity_types AS "activityTypes",
-           s.site_label AS "siteLabel"
+           s.site_label AS "siteLabel",
+           ${LICENSE_SITES_RPN_SELECT_COLUMNS}
          FROM license_sites s
          JOIN licenses l ON l.id = s.license_id
+         ${LICENSE_SITES_RPN_JOIN_SQL}
          WHERE s.id = $1
          LIMIT 1`,
         [id],
-      ).then((r) => r.rows[0]));
+      );
+      return res.json(enrichLicenseSiteApiRow(full.rows[0]));
     }
 
     const addressStr = String(it.address ?? '').trim();
@@ -1459,14 +1471,16 @@ app.post('/api/license-sites/:id/geocode', async (req, res) => {
          s.lng,
          s.fkko_codes AS "fkkoCodes",
          s.activity_types AS "activityTypes",
-         s.site_label AS "siteLabel"
+         s.site_label AS "siteLabel",
+         ${LICENSE_SITES_RPN_SELECT_COLUMNS}
        FROM license_sites s
        JOIN licenses l ON l.id = s.license_id
+       ${LICENSE_SITES_RPN_JOIN_SQL}
        WHERE s.id = $1
        LIMIT 1`,
       [id],
     );
-    return res.json(updated.rows[0]);
+    return res.json(enrichLicenseSiteApiRow(updated.rows[0]));
   } catch (err) {
     console.error('geocode license site error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка геокодирования' });
@@ -1513,16 +1527,18 @@ app.get('/api/search/enterprises', async (req, res) => {
         s.lng,
         s.fkko_codes     AS "fkkoCodes",
         s.activity_types  AS "activityTypes",
-        s.site_label      AS "siteLabel"
+        s.site_label      AS "siteLabel",
+        ${LICENSE_SITES_RPN_SELECT_COLUMNS}
       FROM licenses l
       JOIN license_sites s ON s.license_id = l.id
+      ${LICENSE_SITES_RPN_JOIN_SQL}
       WHERE ${conditions.join(' AND ')}
       ORDER BY l.company_name ASC, s.id ASC
       LIMIT 200
     `;
 
     const rows = await query(sql, params);
-    return res.json({ items: rows.rows });
+    return res.json({ items: rows.rows.map((r) => enrichLicenseSiteApiRow(r)) });
   } catch (err) {
     console.error('search enterprises error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка поиска предприятий' });

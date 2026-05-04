@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import type { MapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import type { PpsState } from '@/types';
 import sborActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-active.svg';
 import transportActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-transport-active.svg';
 import neutralizationInactiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-neutralization-inactive.svg';
@@ -23,6 +24,30 @@ type Props = {
   onBuildRoute?: () => void;
   onSwitchSite?: (site: { pointId: number | null; lat: number; lng: number }) => void;
   routeDisabled?: boolean;
+};
+
+/** Те же оттенки, что у `RpnLicenseStateCard`, в компактном виде для балуна. */
+const POPUP_RPN_STRIP_STYLES: Record<PpsState, { shell: string; badge: string; dot: string }> = {
+  green: {
+    shell: 'border-emerald-200/80 bg-emerald-50/70',
+    badge: 'border-emerald-300/70 bg-emerald-100 text-emerald-900',
+    dot: 'bg-emerald-500',
+  },
+  yellow: {
+    shell: 'border-amber-200/80 bg-amber-50/70',
+    badge: 'border-amber-300/70 bg-amber-100 text-amber-900',
+    dot: 'bg-amber-500',
+  },
+  red: {
+    shell: 'border-rose-200/80 bg-rose-50/70',
+    badge: 'border-rose-300/70 bg-rose-100 text-rose-900',
+    dot: 'bg-rose-500',
+  },
+  gray: {
+    shell: 'border-slate-200/80 bg-slate-50/70',
+    badge: 'border-slate-300/70 bg-slate-100 text-slate-800',
+    dot: 'bg-slate-400',
+  },
 };
 
 const navBtnBase = [
@@ -83,6 +108,22 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
           {model.title}
         </h3>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
+        {model.rpnStrip ? (
+          <div
+            className={`mt-3 rounded-xl border px-3 py-2 ${POPUP_RPN_STRIP_STYLES[model.rpnStrip.state].shell}`}
+          >
+            <span
+              className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-nunito text-[11px] font-semibold leading-tight ${POPUP_RPN_STRIP_STYLES[model.rpnStrip.state].badge}`}
+            >
+              <span
+                aria-hidden
+                className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${POPUP_RPN_STRIP_STYLES[model.rpnStrip.state].dot}`}
+              />
+              {model.rpnStrip.badgeLabel}
+            </span>
+            <p className="mt-1.5 font-nunito text-xs leading-snug text-[#5a6163]">{model.rpnStrip.line}</p>
+          </div>
+        ) : null}
         {total > 1 ? (
           <div className="mb-4 mt-3 flex items-center justify-between gap-2">
             <button

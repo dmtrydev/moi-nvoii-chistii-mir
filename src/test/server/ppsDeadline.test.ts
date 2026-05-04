@@ -7,6 +7,7 @@ import {
   daysUntilDeadline,
   formatHumanInterval,
   formatPpsMessage,
+  formatPpsShortLabel,
   formatRussianDate,
   pluralRu,
   summarizePps,
@@ -243,6 +244,85 @@ describe('formatPpsMessage', () => {
   it('gray fallback — нет данных', () => {
     const msg = formatPpsMessage('gray', { now: NOW });
     expect(msg).toContain('не определён');
+  });
+});
+
+describe('formatPpsShortLabel (попап карты)', () => {
+  const NOW = '2026-05-04T00:00:00.000Z';
+
+  it('green — короткое сообщение с датой', () => {
+    expect(
+      formatPpsShortLabel('green', {
+        deadlineAt: '2027-09-01T00:00:00.000Z',
+        now: NOW,
+      }),
+    ).toBe('Действует, ППС до 01.09.2027');
+  });
+
+  it('green без даты — fallback', () => {
+    expect(formatPpsShortLabel('green', { now: NOW })).toBe('Действует');
+  });
+
+  it('yellow — N дней', () => {
+    const out = formatPpsShortLabel('yellow', {
+      deadlineAt: '2026-07-04T00:00:00.000Z',
+      now: NOW,
+    });
+    expect(out).toBe('ППС через 61 день');
+  });
+
+  it('yellow — 2 дня (склонение)', () => {
+    const out = formatPpsShortLabel('yellow', {
+      deadlineAt: '2026-05-06T00:00:00.000Z',
+      now: NOW,
+    });
+    expect(out).toBe('ППС через 2 дня');
+  });
+
+  it('red — истекает через N дней', () => {
+    const out = formatPpsShortLabel('red', {
+      deadlineAt: '2026-05-19T00:00:00.000Z',
+      now: NOW,
+    });
+    expect(out).toBe('ППС истекает через 15 дней');
+  });
+
+  it('red — просрочено', () => {
+    const out = formatPpsShortLabel('red', {
+      deadlineAt: '2026-04-29T00:00:00.000Z',
+      now: NOW,
+    });
+    expect(out).toBe('ППС истёк 5 дней назад');
+  });
+
+  it('gray annulled — Аннулирована', () => {
+    const out = formatPpsShortLabel('gray', {
+      registryStatus: 'annulled',
+      registryStatusRu: 'Аннулирована',
+      now: NOW,
+    });
+    expect(out).toBe('Аннулирована');
+  });
+
+  it('gray paused — Приостановлена (fallback из карты)', () => {
+    const out = formatPpsShortLabel('gray', {
+      registryStatus: 'paused',
+      now: NOW,
+    });
+    expect(out).toBe('Приостановлена');
+  });
+
+  it('gray active без deadline — null (нечего показывать)', () => {
+    const out = formatPpsShortLabel('gray', { now: NOW });
+    expect(out).toBeNull();
+  });
+
+  it('gray пустой статус — null', () => {
+    const out = formatPpsShortLabel('gray', {
+      registryStatus: '',
+      now: NOW,
+    });
+    expect(out).toBeNull();
   });
 });
 

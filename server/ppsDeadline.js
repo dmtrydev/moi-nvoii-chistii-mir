@@ -240,6 +240,52 @@ export function formatPpsMessage(state, ctx = {}) {
 }
 
 /**
+ * Короткая подпись для попапа карты — компактнее, чем formatPpsMessage.
+ * Возвращает null, если показывать нечего (gray без статуса реестра).
+ *
+ * @param {'green'|'yellow'|'red'|'gray'} state
+ * @param {object} ctx
+ * @param {string | Date | null | undefined} [ctx.deadlineAt]
+ * @param {string | null | undefined} [ctx.registryStatus]
+ * @param {string | null | undefined} [ctx.registryStatusRu]
+ * @param {string | Date | undefined} [ctx.now]
+ * @returns {string | null}
+ */
+export function formatPpsShortLabel(state, ctx = {}) {
+  const { deadlineAt, registryStatus, registryStatusRu, now } = ctx;
+
+  if (state === 'gray') {
+    const status = String(registryStatus ?? '').trim().toLowerCase();
+    if (status && status !== 'active') {
+      return (
+        registryStatusRu || REGISTRY_STATUS_LABEL_RU[status] || REGISTRY_STATUS_LABEL_RU.unknown
+      );
+    }
+    return null;
+  }
+
+  const days = daysUntilDeadline(deadlineAt, now);
+  const date = formatRussianDate(deadlineAt);
+
+  if (state === 'green') {
+    if (!date) return 'Действует';
+    return `Действует, ППС до ${date}`;
+  }
+
+  if (state === 'yellow') {
+    if (days == null) return 'ППС менее 90 дней';
+    return `ППС через ${days} ${pluralRu(days, ['день', 'дня', 'дней'])}`;
+  }
+
+  if (days == null) return 'ППС истекает';
+  if (days < 0) {
+    const overdue = Math.abs(days);
+    return `ППС истёк ${overdue} ${pluralRu(overdue, ['день', 'дня', 'дней'])} назад`;
+  }
+  return `ППС истекает через ${days} ${pluralRu(days, ['день', 'дня', 'дней'])}`;
+}
+
+/**
  * Полная сводка для API (state + сообщение + диагностика).
  *
  * @param {object} input
