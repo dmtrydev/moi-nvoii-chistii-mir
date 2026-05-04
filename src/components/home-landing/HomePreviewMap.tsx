@@ -220,7 +220,7 @@ export function HomePreviewMap({
               pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
             />
           )}
-          <MarkerClusterGroup maxClusterRadius={60} disableClusteringAtZoom={14}>
+          <MarkerClusterGroup maxClusterRadius={60}>
             {points.map((point) => {
               const enterpriseKey = buildEnterpriseKey(point);
               const siteCandidates = siteCandidatesByEnterprise.get(enterpriseKey) ?? [];
