@@ -6,7 +6,7 @@ export function HeroCopySection(): JSX.Element {
       </h1>
 
       <p className="relative max-w-[min(754px,100%)] font-nunito font-semibold text-[#747b7d] text-[clamp(1rem,2.2vw,1.25rem)] leading-normal tracking-[0]">
-        Фильтруйте по ФККО, виду обращения и региону. Планируйте экологическую инфраструктуру в реальном времени.
+        Планируйте экологическую инфраструктуру в режиме реального времени
       </p>
     </div>
   );
