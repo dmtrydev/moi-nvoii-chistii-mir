@@ -72,9 +72,9 @@ describe('MapEnterprisePopupCard', () => {
 
     render(<MapEnterprisePopupCard model={model} />);
 
-    expect(screen.getByText('Статус в реестре РПН')).toBeInTheDocument();
+    expect(screen.getByText('Реестр РПН')).toBeInTheDocument();
     expect(screen.getByText('Действующая')).toBeInTheDocument();
-    expect(screen.getByText('Периодическое подтверждение (ППС)')).toBeInTheDocument();
+    expect(screen.getByText('ППС')).toBeInTheDocument();
     expect(screen.getByText('До 01.07.2026 (осталось 60 дней)')).toBeInTheDocument();
   });
 });

@@ -93,27 +93,31 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
         </h3>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
         {model.rpnStrip ? (
-          <div className="moinoviichistiimir-popup-enterprise__rpn" aria-label="Реестр РПН и ППС">
-            <div className="moinoviichistiimir-popup-enterprise__rpnRow">
-              <p className="moinoviichistiimir-popup-enterprise__rpnLabel">Статус в реестре РПН</p>
-              <div className="moinoviichistiimir-popup-enterprise__rpnValueRow">
-                <span
-                  aria-hidden
-                  className={`moinoviichistiimir-popup-enterprise__rpnDot ${RPN_STATE_DOT_CLASS[model.rpnStrip.state]}`}
-                />
-                <p className="moinoviichistiimir-popup-enterprise__rpnValue">{model.rpnStrip.registryStatusText}</p>
-              </div>
-            </div>
-            <div className="moinoviichistiimir-popup-enterprise__rpnRow">
-              <p className="moinoviichistiimir-popup-enterprise__rpnLabel">
-                Периодическое подтверждение (ППС)
-              </p>
-              <p className="moinoviichistiimir-popup-enterprise__rpnValue">{model.rpnStrip.ppsCheckText}</p>
-            </div>
+          <div className="moinoviichistiimir-popup-enterprise__rpnMeta" aria-label="Реестр РПН и ППС">
+            <p className="moinoviichistiimir-popup-enterprise__rpnMetaLine">
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaKey">Реестр РПН</span>
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaSep" aria-hidden>
+                ·
+              </span>
+              <span
+                aria-hidden
+                className={`moinoviichistiimir-popup-enterprise__rpnMetaDot ${RPN_STATE_DOT_CLASS[model.rpnStrip.state]}`}
+              />
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaVal">
+                {model.rpnStrip.registryStatusText}
+              </span>
+            </p>
+            <p className="moinoviichistiimir-popup-enterprise__rpnMetaLine">
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaKey">ППС</span>
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaSep" aria-hidden>
+                ·
+              </span>
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaVal">{model.rpnStrip.ppsCheckText}</span>
+            </p>
           </div>
         ) : null}
         {total > 1 ? (
-          <div className="mb-4 mt-3 flex items-center justify-between gap-2">
+          <div className="mb-3 mt-2 flex items-center justify-between gap-2">
             <button
               type="button"
               className={navBtnBase}
@@ -167,7 +171,7 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
           </div>
         ))}
       </div>
-      <div className="mt-4">
+      <div className="mt-3">
         <button
           type="button"
           disabled={routeDisabled}

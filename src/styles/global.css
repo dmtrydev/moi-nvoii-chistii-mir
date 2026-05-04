@@ -577,7 +577,7 @@
   .moinoviichistiimir-popup-enterprise {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     width: min(390px, calc(100vw - 44px));
     color: #2f383c;
     border-radius: 28px;
@@ -589,20 +589,20 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    padding: 14px 16px 12px;
+    padding: 12px 14px 10px;
     padding-right: 40px;
     border-radius: 24px;
     background: rgba(238, 240, 241, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.85);
   }
   .moinoviichistiimir-popup-enterprise__title {
-    margin: 0 0 10px;
+    margin: 0 0 6px;
     font-size: 24px;
     line-height: 1.05;
     word-break: break-word;
   }
   .moinoviichistiimir-popup-enterprise__address {
-    margin: 0 0 12px;
+    margin: 0 0 6px;
     color: #6a7175;
     word-break: break-word;
     font-family: var(--font-heading-nunito);
@@ -610,62 +610,62 @@
     font-size: 13px;
     line-height: normal;
   }
-  /** РПН / ППС: те же оттенки, что у карточки, без отдельных цветных плашек */
-  .moinoviichistiimir-popup-enterprise__rpn {
-    margin: -4px 0 10px;
-    padding: 8px 0 0;
-    border-top: 1px solid rgba(93, 101, 104, 0.14);
+  /** РПН / ППС: компактные строки в тон адресу, без «формы» и верхнего регистра */
+  .moinoviichistiimir-popup-enterprise__rpnMeta {
+    margin: 2px 0 8px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
   }
-  .moinoviichistiimir-popup-enterprise__rpnRow {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  .moinoviichistiimir-popup-enterprise__rpnLabel {
+  .moinoviichistiimir-popup-enterprise__rpnMetaLine {
     margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 2px;
     font-family: var(--font-heading-nunito);
     font-weight: var(--font-weight-heading-semibold);
-    font-size: 11px;
-    line-height: 1.2;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 12px;
+    line-height: 1.28;
+    color: #6d7478;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnMetaKey {
+    flex-shrink: 0;
     color: #8d9497;
-  }
-  .moinoviichistiimir-popup-enterprise__rpnValue {
-    margin: 0;
-    font-family: var(--font-heading-nunito);
     font-weight: var(--font-weight-heading-semibold);
-    font-size: 13px;
-    line-height: 1.35;
-    color: #4f575a;
-    word-break: break-word;
   }
-  .moinoviichistiimir-popup-enterprise__rpnValueRow {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
+  .moinoviichistiimir-popup-enterprise__rpnMetaSep {
+    flex-shrink: 0;
+    color: rgba(93, 101, 104, 0.35);
+    font-weight: 600;
+    user-select: none;
   }
-  .moinoviichistiimir-popup-enterprise__rpnDot {
-    margin-top: 5px;
-    width: 7px;
-    height: 7px;
+  .moinoviichistiimir-popup-enterprise__rpnMetaDot {
+    width: 6px;
+    height: 6px;
     border-radius: 999px;
     flex-shrink: 0;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnMetaVal {
+    min-width: 0;
+    flex: 1 1 12rem;
+    color: #50585c;
+    font-weight: var(--font-weight-heading-semibold);
+    word-break: break-word;
   }
   .moinoviichistiimir-popup-enterprise__headDivider {
     width: 100%;
     height: 1px;
     background: rgba(93, 101, 104, 0.18);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .moinoviichistiimir-popup-enterprise__icons {
     display: flex;
     gap: 6px;
     flex-wrap: nowrap;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .moinoviichistiimir-popup-enterprise__iconsDivider {
     width: 100%;
@@ -682,7 +682,7 @@
     filter: none;
   }
   .moinoviichistiimir-popup-enterprise__rows {
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-radius: 24px;
     background: rgba(238, 240, 241, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.85);
@@ -695,14 +695,14 @@
   .moinoviichistiimir-popup-enterprise__row {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding-bottom: 8px;
+    gap: 4px;
+    padding-bottom: 6px;
   }
   .moinoviichistiimir-popup-enterprise__label {
     color: #3a4346;
     font-family: var(--font-heading-nunito);
     font-weight: var(--font-weight-heading-semibold);
-    font-size: 14px;
+    font-size: 13px;
     line-height: normal;
   }
   .moinoviichistiimir-popup-enterprise__value {
@@ -717,7 +717,7 @@
     width: 100%;
     height: 1px;
     background: rgba(93, 101, 104, 0.2);
-    margin: 0 0 8px;
+    margin: 0 0 6px;
   }
   @media (max-width: 640px) {
     .leaflet-popup.moinoviichistiimir-popup .leaflet-popup-close-button {
@@ -749,14 +749,14 @@
     }
     .moinoviichistiimir-popup-enterprise__title {
       font-size: 20px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .moinoviichistiimir-popup-enterprise__address {
       font-size: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
-    .moinoviichistiimir-popup-enterprise__rpnValue {
-      font-size: 12px;
+    .moinoviichistiimir-popup-enterprise__rpnMetaLine {
+      font-size: 11px;
     }
   }
 
