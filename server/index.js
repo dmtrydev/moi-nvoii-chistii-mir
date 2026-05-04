@@ -21,10 +21,13 @@ import { normalizeFkkoCode, extractFkkoCodesFromText, parseFkkoInput } from './f
 import { fetchFkkoTitlesBatched } from './rpnFkkoClient.js';
 import { loadFkkoTitlesFromDb, upsertFkkoOfficialTitles } from './fkkoOfficialTitles.js';
 import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNormalize.js';
+import { fetchLicenseRpnSnapshot } from './licenseExtendedFetch.js';
+import { enrichLicenseWithRpnSnapshot } from './licenseRpnEnrich.js';
 import authRouter from './authRoutes.js';
 import userRouter from './userRoutes.js';
 import supportRouter from './supportRoutes.js';
 import cadastreRouter from './cadastreRoutes.js';
+import rpnSyncRouter from './rpnSyncRoutes.js';
 import { extractTextFromPdf } from './pdfText.js';
 import { TIMEWEB_BASE, callTimewebAiJson, isTimewebAiConfigured } from './aiClient.js';
 
@@ -75,6 +78,10 @@ async function ensureDatabaseSchema() {
       const fkkoTitlesPath = path.join(__dirname, 'db', 'migrations', 'fkko-official-titles.sql');
       const fkkoTitlesSql = await fsPromises.readFile(fkkoTitlesPath, 'utf8');
       await client.query(fkkoTitlesSql);
+
+      const rpnSnapshotPath = path.join(__dirname, 'db', 'migrations', 'rpn-registry-snapshot.sql');
+      const rpnSnapshotSql = await fsPromises.readFile(rpnSnapshotPath, 'utf8');
+      await client.query(rpnSnapshotSql);
 
       console.log('DB schema initialized/ensured');
     });
@@ -214,6 +221,11 @@ app.get('/api/cadastre-export', async (req, res) => {
     res.status(502).json({ message: 'Кадастровый слой недоступен' });
   }
 });
+
+// Cron-эндпойнты синхронизации с реестром РПН (Bearer-токен RPN_SYNC_TOKEN, не JWT).
+// Подключаем ДО глобального rate-limit, чтобы пакетный sync 200k+ ИНН не упирался в общий лимит.
+// Внутри роутера есть собственный rate-limit (60/мин по IP).
+app.use('/api/rpn-sync', rpnSyncRouter);
 
 app.use('/api/', rateLimit({ name: 'global', windowMs: 60_000, max: 100 }));
 app.use('/api/auth/login', rateLimit({ name: 'auth-login', windowMs: 60_000, max: 10 }));
@@ -1656,7 +1668,9 @@ app.get('/api/licenses/:id', async (req, res) => {
       const entries = Object.values(entriesMap).filter((e) => e.siteId === s.id).map(({ siteId: _s, ...rest }) => rest);
       return { ...s, entries };
     });
-    return res.json({ ...base, sites: sitesWithEntries });
+    const snapshot = await fetchLicenseRpnSnapshot(getPool(), base.inn);
+    const enriched = enrichLicenseWithRpnSnapshot({ ...base, sites: sitesWithEntries }, snapshot);
+    return res.json(enriched);
   } catch (err) {
     console.error('get license error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка получения объекта' });
@@ -1762,7 +1776,9 @@ app.get('/api/licenses/:id/extended', requireAuth, async (req, res) => {
       const entries = Object.values(entriesMap).filter((e) => e.siteId === s.id).map(({ siteId: _s, ...rest }) => rest);
       return { ...s, entries };
     });
-    return res.json({ ...license, sites: sitesWithEntries });
+    const snapshot = await fetchLicenseRpnSnapshot(getPool(), license.inn);
+    const enriched = enrichLicenseWithRpnSnapshot({ ...license, sites: sitesWithEntries }, snapshot);
+    return res.json(enriched);
   } catch (err) {
     console.error('extended license error:', err);
     return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка карточки' });

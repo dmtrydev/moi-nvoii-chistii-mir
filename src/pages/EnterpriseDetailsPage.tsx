@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import type { FkkoEntry, LicenseData, LicenseSiteData } from '@/types';
 import { formatFkkoHuman, normalizeFkkoDigits } from '@/utils/fkko';
 import { EnterpriseActivityStrip } from '@/components/licenses/EnterpriseActivityStrip';
+import { RpnLicenseStateCard } from '@/components/licenses/RpnLicenseStateCard';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 import { useAuth } from '@/contexts/useAuth';
@@ -1077,6 +1078,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                   )}
                 </section>
               )}
+
+              {/* Состояние лицензии в реестре Росприроднадзора (видно всем посетителям). */}
+              <RpnLicenseStateCard pps={item?.pps} rpnSnapshot={item?.rpnSnapshot} />
 
               {(item?.status ||
                 item?.rejectionNote ||

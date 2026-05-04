@@ -1,3 +1,6 @@
+import { normalizeInn } from './innUtils.js';
+import { enrichLicenseWithRpnSnapshot } from './licenseRpnEnrich.js';
+
 /**
  * Сборка JSON карточки лицензии как в GET /api/licenses/:id/extended (для ответа после PATCH).
  * @param {import('pg').PoolClient} client
@@ -86,5 +89,36 @@ export async function fetchLicenseExtendedJson(client, id) {
       .map(({ siteId: _s, ...rest }) => rest);
     return { ...s, entries };
   });
-  return { ...license, sites: sitesWithEntries };
+
+  const snapshot = await fetchLicenseRpnSnapshot(client, license.inn);
+  return enrichLicenseWithRpnSnapshot({ ...license, sites: sitesWithEntries }, snapshot);
+}
+
+/**
+ * Достать snapshot из rpn_registry_snapshot по нормализованному ИНН лицензии.
+ * Возвращает null, если ИНН не валиден или snapshot отсутствует.
+ *
+ * @param {import('pg').PoolClient | import('pg').Pool} client
+ * @param {string | null | undefined} innRaw
+ */
+export async function fetchLicenseRpnSnapshot(client, innRaw) {
+  const innNorm = normalizeInn(innRaw);
+  if (!innNorm) return null;
+  const res = await client.query(
+    `SELECT inn_norm AS "innNorm",
+            license_number AS "licenseNumber",
+            date_issued AS "dateIssued",
+            registry_status AS "registryStatus",
+            registry_status_ru AS "registryStatusRu",
+            registry_inactive AS "registryInactive",
+            unit_short_name AS "unitShortName",
+            registry_modified_at AS "registryModifiedAt",
+            pps_deadline_at AS "ppsDeadlineAt",
+            synced_at AS "syncedAt"
+     FROM rpn_registry_snapshot
+     WHERE inn_norm = $1
+     LIMIT 1`,
+    [innNorm],
+  );
+  return res.rows[0] ?? null;
 }

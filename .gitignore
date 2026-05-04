@@ -45,3 +45,11 @@ server/data/*.json
 
 DEPLOY.md
 DEPLOY_VPS.md
+
+# Cron-синхронизация с РПН: рабочая директория и секреты на VDS
+parser/.env
+parser/work/
+parser/run.log
+parser/INNS.txt
+INNS.txt
+run.log

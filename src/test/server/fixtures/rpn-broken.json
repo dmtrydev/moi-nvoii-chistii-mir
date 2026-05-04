@@ -1,0 +1,37 @@
+{
+  "content": [
+    {
+      "status": "active",
+      "subject": {
+        "data": {
+          "organization": {
+            "ogrn": "1133668024588",
+            "shortName": "ООО без ИНН"
+          }
+        }
+      },
+      "dateIssued": "2024-01-01T00:00:00.000Z"
+    },
+    null,
+    "string-instead-of-object",
+    {
+      "status": "",
+      "subject": {
+        "data": {
+          "organization": { "inn": "  not digits  " }
+        }
+      }
+    },
+    {
+      "status": "unknown_status",
+      "subject": {
+        "data": {
+          "organization": { "inn": "9876543210" }
+        }
+      },
+      "dateIssued": "not-a-date",
+      "number": "Л020-XXX",
+      "_id": "broken-test"
+    }
+  ]
+}

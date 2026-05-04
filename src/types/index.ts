@@ -122,4 +122,40 @@ export interface LicenseData {
   innAlreadyRegistered?: boolean;
   /** Точные цитаты из документа для подсветки при фокусе на поле */
   foundTexts?: LicenseDataFoundTexts;
+
+  /**
+   * Снимок реестра Росприроднадзора по ИНН (если синхронизация уже была).
+   * Заполняется на бэке через JOIN на `rpn_registry_snapshot`.
+   */
+  rpnSnapshot?: RpnSnapshotPublic | null;
+  /**
+   * Сводка по периодическому подтверждению соответствия (ППС).
+   * state управляет цветом бейджа в карточке.
+   */
+  pps?: PpsSummary;
+}
+
+/** Состояние периодического подтверждения соответствия. */
+export type PpsState = 'green' | 'yellow' | 'red' | 'gray';
+
+export interface PpsSummary {
+  state: PpsState;
+  /** Готовое сообщение для UI (без шаблонов на фронте). */
+  message: string;
+  /** Сколько дней осталось до дедлайна (отрицательно — просрочено). */
+  daysLeft: number | null;
+  /** ISO дедлайн ППС, если посчитан. */
+  deadlineAt: string | null;
+}
+
+export interface RpnSnapshotPublic {
+  licenseNumber: string | null;
+  dateIssued: string | null;
+  registryStatus: string;
+  registryStatusRu: string | null;
+  registryInactive: boolean;
+  unitShortName: string | null;
+  registryModifiedAt: string | null;
+  syncedAt: string | null;
+  ppsDeadlineAt: string | null;
 }
