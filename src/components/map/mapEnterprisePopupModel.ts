@@ -15,11 +15,13 @@ export type PopupSiteSwitch = {
   isActive: boolean;
 };
 
-/** Компактная строка РПН / ППС для балуна карты (без полного текста карточки лицензии). */
+/** Компактный блок РПН / ППС: статус реестра и срок периодического подтверждения (ППС). */
 export type MapEnterpriseRpnStrip = {
   state: PpsState;
-  badgeLabel: string;
-  line: string;
+  /** Статус лицензии по данным реестра РПН. */
+  registryStatusText: string;
+  /** Срок проверки (ППС): «до DD.MM.YYYY», «не применяется», «—» и т.п. */
+  ppsCheckText: string;
 };
 
 export type MapEnterprisePopupViewModel = {
@@ -85,13 +87,6 @@ function toValidCoord(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-const RPN_POPUP_BADGE_LABEL: Record<PpsState, string> = {
-  green: 'Лицензия действует',
-  yellow: 'Скоро срок ППС',
-  red: 'Срок ППС критичен',
-  gray: 'Состояние не активно',
-};
-
 function formatDateRu(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -111,37 +106,36 @@ function pluralRu(n: number, forms: [string, string, string]): string {
   return forms[2];
 }
 
-function buildRpnPopupStripLine(
-  pps: PpsSummary | undefined,
-  rpn: RpnSnapshotPublic | null | undefined,
-): string {
-  const state: PpsState = pps?.state ?? 'gray';
+function buildRegistryStatusText(rpn: RpnSnapshotPublic | null | undefined): string {
+  if (!rpn) return 'Данные реестра не загружены';
+  const ru = rpn.registryStatusRu?.trim();
+  if (ru) return ru;
+  return 'Статус в реестре не указан';
+}
+
+function registryEffectivelyInactive(rpn: RpnSnapshotPublic | null | undefined): boolean {
+  if (!rpn) return false;
+  if (rpn.registryInactive) return true;
+  const st = String(rpn.registryStatus ?? '').trim().toLowerCase();
+  return Boolean(st && st !== 'active');
+}
+
+function buildPpsCheckText(pps: PpsSummary | undefined, rpn: RpnSnapshotPublic | null | undefined): string {
+  if (!rpn) return '—';
+  if (registryEffectivelyInactive(rpn)) return 'Не применяется';
   const dlRu = pps?.deadlineAt ? formatDateRu(pps.deadlineAt) : '';
-
-  if (state === 'green') {
-    if (dlRu) return `ППС до ${dlRu}`;
-    const ru = rpn?.registryStatusRu?.trim();
-    return ru || 'В реестре РПН';
-  }
-
-  if (state === 'yellow' || state === 'red') {
+  if (dlRu) {
     if (pps?.daysLeft != null) {
-      const abs = Math.abs(pps.daysLeft);
       const unit = pluralRu(pps.daysLeft, ['день', 'дня', 'дней']);
-      const tail = pps.daysLeft >= 0 ? `осталось ${abs} ${unit}` : `просрочено на ${abs} ${unit}`;
-      return dlRu ? `ППС до ${dlRu} · ${tail}` : tail;
+      if (pps.daysLeft < 0) {
+        const abs = Math.abs(pps.daysLeft);
+        return `До ${dlRu} (просрочено на ${abs} ${unit})`;
+      }
+      return `До ${dlRu} (осталось ${pps.daysLeft} ${unit})`;
     }
-    if (dlRu) return `ППС до ${dlRu}`;
-    return 'Срок ППС уточняется по данным реестра';
+    return `До ${dlRu}`;
   }
-
-  if (state === 'gray') {
-    const ru = rpn?.registryStatusRu?.trim();
-    if (ru) return ru;
-    return 'Данные реестра РПН не загружены';
-  }
-
-  return dlRu ? `ППС до ${dlRu}` : '';
+  return 'Срок по данным реестра не указан';
 }
 
 export function buildMapEnterpriseRpnStrip(source: LicenseData): MapEnterpriseRpnStrip | null {
@@ -150,13 +144,11 @@ export function buildMapEnterpriseRpnStrip(source: LicenseData): MapEnterpriseRp
   if (!pps && !rpn) return null;
 
   const state: PpsState = pps?.state ?? 'gray';
-  const line = buildRpnPopupStripLine(pps, rpn).trim();
-  if (!line) return null;
 
   return {
     state,
-    badgeLabel: RPN_POPUP_BADGE_LABEL[state],
-    line,
+    registryStatusText: buildRegistryStatusText(rpn),
+    ppsCheckText: buildPpsCheckText(pps, rpn),
   };
 }
 

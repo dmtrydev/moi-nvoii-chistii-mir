@@ -26,28 +26,12 @@ type Props = {
   routeDisabled?: boolean;
 };
 
-/** Те же оттенки, что у `RpnLicenseStateCard`, в компактном виде для балуна. */
-const POPUP_RPN_STRIP_STYLES: Record<PpsState, { shell: string; badge: string; dot: string }> = {
-  green: {
-    shell: 'border-emerald-200/80 bg-emerald-50/70',
-    badge: 'border-emerald-300/70 bg-emerald-100 text-emerald-900',
-    dot: 'bg-emerald-500',
-  },
-  yellow: {
-    shell: 'border-amber-200/80 bg-amber-50/70',
-    badge: 'border-amber-300/70 bg-amber-100 text-amber-900',
-    dot: 'bg-amber-500',
-  },
-  red: {
-    shell: 'border-rose-200/80 bg-rose-50/70',
-    badge: 'border-rose-300/70 bg-rose-100 text-rose-900',
-    dot: 'bg-rose-500',
-  },
-  gray: {
-    shell: 'border-slate-200/80 bg-slate-50/70',
-    badge: 'border-slate-300/70 bg-slate-100 text-slate-800',
-    dot: 'bg-slate-400',
-  },
+/** Точка-сигнал по состоянию ППС (остальное — типографика как у карточки попапа). */
+const RPN_STATE_DOT_CLASS: Record<PpsState, string> = {
+  green: 'bg-emerald-500',
+  yellow: 'bg-amber-500',
+  red: 'bg-rose-500',
+  gray: 'bg-[#9ca3a8]',
 };
 
 const navBtnBase = [
@@ -109,19 +93,23 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
         </h3>
         <p className="moinoviichistiimir-popup-enterprise__address">{model.subtitleAddress}</p>
         {model.rpnStrip ? (
-          <div
-            className={`mt-3 rounded-xl border px-3 py-2 ${POPUP_RPN_STRIP_STYLES[model.rpnStrip.state].shell}`}
-          >
-            <span
-              className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-nunito text-[11px] font-semibold leading-tight ${POPUP_RPN_STRIP_STYLES[model.rpnStrip.state].badge}`}
-            >
-              <span
-                aria-hidden
-                className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${POPUP_RPN_STRIP_STYLES[model.rpnStrip.state].dot}`}
-              />
-              {model.rpnStrip.badgeLabel}
-            </span>
-            <p className="mt-1.5 font-nunito text-xs leading-snug text-[#5a6163]">{model.rpnStrip.line}</p>
+          <div className="moinoviichistiimir-popup-enterprise__rpn" aria-label="Реестр РПН и ППС">
+            <div className="moinoviichistiimir-popup-enterprise__rpnRow">
+              <p className="moinoviichistiimir-popup-enterprise__rpnLabel">Статус в реестре РПН</p>
+              <div className="moinoviichistiimir-popup-enterprise__rpnValueRow">
+                <span
+                  aria-hidden
+                  className={`moinoviichistiimir-popup-enterprise__rpnDot ${RPN_STATE_DOT_CLASS[model.rpnStrip.state]}`}
+                />
+                <p className="moinoviichistiimir-popup-enterprise__rpnValue">{model.rpnStrip.registryStatusText}</p>
+              </div>
+            </div>
+            <div className="moinoviichistiimir-popup-enterprise__rpnRow">
+              <p className="moinoviichistiimir-popup-enterprise__rpnLabel">
+                Периодическое подтверждение (ППС)
+              </p>
+              <p className="moinoviichistiimir-popup-enterprise__rpnValue">{model.rpnStrip.ppsCheckText}</p>
+            </div>
           </div>
         ) : null}
         {total > 1 ? (

@@ -18,7 +18,10 @@ import '@/styles/map-cluster.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { LicenseData } from '@/types';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
-import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import {
+  buildMapEnterprisePopupViewModel,
+  buildMapEnterpriseRpnStrip,
+} from '@/components/map/mapEnterprisePopupModel';
 import {
   buildFkkoSearchIndex,
   formatFkkoHuman,
@@ -1341,6 +1344,7 @@ export default function MapPage(): JSX.Element {
                 {pagedSearchItems.map((it) => {
                   const id = typeof it.id === 'number' ? it.id : null;
                   const hasCoords = typeof it.lat === 'number' && typeof it.lng === 'number';
+                  const rpnSidebar = buildMapEnterpriseRpnStrip(it);
                   const mapParams = buildSearchParamsFromFilters({
                     region: filterRegion.trim(),
                     fkko: filterFkko,
@@ -1369,6 +1373,20 @@ export default function MapPage(): JSX.Element {
                                 </>
                               )}
                             </div>
+                            {rpnSidebar ? (
+                              <div className="mt-3 border-t border-black/[0.06] pt-3 font-nunito text-[13px] leading-snug text-[#5e6567]">
+                                <div className="space-y-1.5">
+                                  <p>
+                                    <span className="font-bold text-[#42494c]">Статус в реестре РПН:</span>{' '}
+                                    <span className="font-semibold">{rpnSidebar.registryStatusText}</span>
+                                  </p>
+                                  <p>
+                                    <span className="font-bold text-[#42494c]">ППС (проверка):</span>{' '}
+                                    <span className="font-semibold">{rpnSidebar.ppsCheckText}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
                           <div className="flex flex-col gap-4">
                             <EnterpriseActivityStrip activityTypes={it.activityTypes} variant="light" size="md" />

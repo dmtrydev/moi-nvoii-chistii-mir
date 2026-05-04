@@ -54,14 +54,14 @@ describe('MapEnterprisePopupCard', () => {
     expect(screen.getAllByText(longAddress).length).toBeGreaterThan(0);
   });
 
-  it('renders compact RPN / PPS strip when present', () => {
+  it('renders RPN registry + PPS rows when strip present', () => {
     const model: MapEnterprisePopupViewModel = {
       title: 'ООО Тест',
       subtitleAddress: 'г. Курган',
       rpnStrip: {
         state: 'yellow',
-        badgeLabel: 'Скоро срок ППС',
-        line: 'ППС до 01.07.2026 · осталось 60 дней',
+        registryStatusText: 'Действующая',
+        ppsCheckText: 'До 01.07.2026 (осталось 60 дней)',
       },
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '123' },
@@ -72,7 +72,9 @@ describe('MapEnterprisePopupCard', () => {
 
     render(<MapEnterprisePopupCard model={model} />);
 
-    expect(screen.getByText('Скоро срок ППС')).toBeInTheDocument();
-    expect(screen.getByText(/ППС до 01\.07\.2026/)).toBeInTheDocument();
+    expect(screen.getByText('Статус в реестре РПН')).toBeInTheDocument();
+    expect(screen.getByText('Действующая')).toBeInTheDocument();
+    expect(screen.getByText('Периодическое подтверждение (ППС)')).toBeInTheDocument();
+    expect(screen.getByText('До 01.07.2026 (осталось 60 дней)')).toBeInTheDocument();
   });
 });

@@ -610,6 +610,51 @@
     font-size: 13px;
     line-height: normal;
   }
+  /** РПН / ППС: те же оттенки, что у карточки, без отдельных цветных плашек */
+  .moinoviichistiimir-popup-enterprise__rpn {
+    margin: -4px 0 10px;
+    padding: 8px 0 0;
+    border-top: 1px solid rgba(93, 101, 104, 0.14);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnRow {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnLabel {
+    margin: 0;
+    font-family: var(--font-heading-nunito);
+    font-weight: var(--font-weight-heading-semibold);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #8d9497;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnValue {
+    margin: 0;
+    font-family: var(--font-heading-nunito);
+    font-weight: var(--font-weight-heading-semibold);
+    font-size: 13px;
+    line-height: 1.35;
+    color: #4f575a;
+    word-break: break-word;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnValueRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .moinoviichistiimir-popup-enterprise__rpnDot {
+    margin-top: 5px;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
   .moinoviichistiimir-popup-enterprise__headDivider {
     width: 100%;
     height: 1px;
@@ -709,6 +754,9 @@
     .moinoviichistiimir-popup-enterprise__address {
       font-size: 12px;
       margin-bottom: 10px;
+    }
+    .moinoviichistiimir-popup-enterprise__rpnValue {
+      font-size: 12px;
     }
   }
 

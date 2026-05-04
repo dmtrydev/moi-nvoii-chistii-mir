@@ -97,13 +97,24 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.rpnStrip).toBeNull();
   });
 
-  it('adds compact rpnStrip when source includes pps from API', () => {
+  it('adds rpnStrip with registry line and PPS deadline when API returned snapshot', () => {
     const source = baseSource();
     source.pps = {
       state: 'green',
       message: 'Лицензия действует. Ближайшее периодическое подтверждение соответствия до 01.09.2027.',
       daysLeft: 485,
       deadlineAt: '2027-09-01T00:00:00.000Z',
+    };
+    source.rpnSnapshot = {
+      licenseNumber: 'Л020-01',
+      dateIssued: '2020-01-15T00:00:00.000Z',
+      registryStatus: 'active',
+      registryStatusRu: 'Действующая',
+      registryInactive: false,
+      unitShortName: null,
+      registryModifiedAt: null,
+      syncedAt: '2026-05-01T00:00:00.000Z',
+      ppsDeadlineAt: '2027-09-01T00:00:00.000Z',
     };
 
     const model = buildMapEnterprisePopupViewModel({
@@ -116,8 +127,8 @@ describe('buildMapEnterprisePopupViewModel', () => {
 
     expect(model.rpnStrip).not.toBeNull();
     expect(model.rpnStrip?.state).toBe('green');
-    expect(model.rpnStrip?.badgeLabel).toBe('Лицензия действует');
-    expect(model.rpnStrip?.line).toBe('ППС до 01.09.2027');
+    expect(model.rpnStrip?.registryStatusText).toBe('Действующая');
+    expect(model.rpnStrip?.ppsCheckText).toBe('До 01.09.2027 (осталось 485 дней)');
   });
 
   it('rpnStrip shows registry status when pps is gray', () => {
@@ -149,6 +160,7 @@ describe('buildMapEnterprisePopupViewModel', () => {
     });
 
     expect(model.rpnStrip?.state).toBe('gray');
-    expect(model.rpnStrip?.line).toBe('Аннулирована');
+    expect(model.rpnStrip?.registryStatusText).toBe('Аннулирована');
+    expect(model.rpnStrip?.ppsCheckText).toBe('Не применяется');
   });
 });
