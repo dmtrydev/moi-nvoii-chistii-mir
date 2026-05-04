@@ -149,6 +149,22 @@ export function HomeLanding(): JSX.Element {
     return () => cancelAnimationFrame(id);
   }, [introStage]);
 
+  /** Карта внизу страницы не должна получать reveal раньше окончания вводной анимации фильтра и колонки */
+  const [homeMapRevealAllowed, setHomeMapRevealAllowed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setHomeMapRevealAllowed(true);
+      return;
+    }
+    if (introStage < 2) return;
+    const ms = HOME_INTRO_DELAY_BELOW_MS + HOME_INTRO_MOTION_MS;
+    const id = window.setTimeout(() => setHomeMapRevealAllowed(true), ms);
+    return () => window.clearTimeout(id);
+  }, [introStage, prefersReducedMotion]);
+
   useEffect(() => {
     if (!hasSearched) {
       setResultsReveal(false);
@@ -680,6 +696,7 @@ export function HomeLanding(): JSX.Element {
             variant="reveal-scale"
             className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-16 sm:pb-20"
             delay="0.08s"
+            revealAllowed={homeMapRevealAllowed}
           >
             <section className="relative z-0 mt-3 overflow-hidden rounded-[32.5px] bg-[#ffffff4c] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
               <div className="relative z-[2] px-6 pt-7 pb-5 sm:px-8 lg:px-9">
