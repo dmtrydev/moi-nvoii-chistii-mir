@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import http from 'node:http';
 import https from 'node:https';
 import { URL as NodeURL } from 'node:url';
 import crypto from 'node:crypto';
@@ -45,19 +46,20 @@ function apiRequest(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
 function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     const u = new NodeURL(targetUrl);
-    const req = https.request(
+    const isHttps = u.protocol === 'https:';
+    const transport = isHttps ? https : http;
+    const defaultPort = isHttps ? 443 : 80;
+    const req = transport.request(
       {
         hostname: u.hostname,
         path: u.pathname + u.search,
-        port: u.port || 443,
+        port: u.port || defaultPort,
         method: 'GET',
-        // Росреестр периодически не обновляет SSL-сертификат на pkk.rosreestr.ru —
-        // для публичных тайловых данных это допустимо.
         rejectUnauthorized: false,
         headers: {
           Accept: 'image/png,image/*,*/*',
-          Referer: 'https://pkk.rosreestr.ru/',
-          Origin: 'https://pkk.rosreestr.ru',
+          Referer: 'http://pkk5.rosreestr.ru/',
+          Origin: 'http://pkk5.rosreestr.ru',
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         },
@@ -273,8 +275,9 @@ async function loadGeoByCadNumber(cn) {
 }
 
 const TILE_ZOOM_MAX = 20;
+// PKK5 — HTTP (без SSL), общий слой кадастра для тайловой подложки
 const PKK_EXPORT_BASE =
-  'https://pkk.rosreestr.ru/arcgis/rest/services/PKK6/CadastreObjects/MapServer/export';
+  'http://pkk5.rosreestr.ru/arcgis/rest/services/Cadastre/Cadastre/MapServer/export';
 
 /**
  * Convert Leaflet tile coordinates (z, x, y) to a Web Mercator bounding box
