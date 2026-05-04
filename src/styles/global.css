@@ -616,13 +616,14 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    /* как gap между подписью «ИНН:» и номером в блоке ниже */
+    gap: 4px;
   }
   .moinoviichistiimir-popup-enterprise__rpnMetaLine {
     margin: 0;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     column-gap: 6px;
     row-gap: 2px;
     font-family: var(--font-heading-nunito);
@@ -632,7 +633,8 @@
     color: #6d7478;
   }
   .moinoviichistiimir-popup-enterprise__rpnMetaKey {
-    flex-shrink: 0;
+    min-width: 0;
+    flex: 0 1 auto;
     color: #8d9497;
     font-weight: var(--font-weight-heading-semibold);
   }
@@ -643,6 +645,7 @@
     user-select: none;
   }
   .moinoviichistiimir-popup-enterprise__rpnMetaDot {
+    margin-top: 4px;
     width: 6px;
     height: 6px;
     border-radius: 999px;

@@ -26,6 +26,9 @@ type Props = {
   routeDisabled?: boolean;
 };
 
+/** Подпись в балуне: полная расшифровка ППС (как на странице лицензии). */
+const RPN_META_PPS_LABEL = 'Периодическое подтверждение соответствия (ППС)';
+
 /** Точка-сигнал по состоянию ППС (остальное — типографика как у карточки попапа). */
 const RPN_STATE_DOT_CLASS: Record<PpsState, string> = {
   green: 'bg-emerald-500',
@@ -108,7 +111,7 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
               </span>
             </p>
             <p className="moinoviichistiimir-popup-enterprise__rpnMetaLine">
-              <span className="moinoviichistiimir-popup-enterprise__rpnMetaKey">ППС</span>
+              <span className="moinoviichistiimir-popup-enterprise__rpnMetaKey">{RPN_META_PPS_LABEL}</span>
               <span className="moinoviichistiimir-popup-enterprise__rpnMetaSep" aria-hidden>
                 ·
               </span>

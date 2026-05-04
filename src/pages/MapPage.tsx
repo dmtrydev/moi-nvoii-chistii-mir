@@ -1381,7 +1381,9 @@ export default function MapPage(): JSX.Element {
                                     <span className="font-semibold">{rpnSidebar.registryStatusText}</span>
                                   </p>
                                   <p>
-                                    <span className="font-bold text-[#42494c]">ППС (проверка):</span>{' '}
+                                    <span className="font-bold text-[#42494c]">
+                                      Периодическое подтверждение соответствия (ППС):
+                                    </span>{' '}
                                     <span className="font-semibold">{rpnSidebar.ppsCheckText}</span>
                                   </p>
                                 </div>
