@@ -58,8 +58,8 @@ function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS, _redirec
         rejectUnauthorized: false,
         headers: {
           Accept: 'image/png,image/*,*/*',
-          Referer: 'http://pkk5.rosreestr.ru/',
-          Origin: 'http://pkk5.rosreestr.ru',
+          Referer: 'https://nspd.gov.ru/',
+          Origin: 'https://nspd.gov.ru',
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         },
@@ -284,9 +284,8 @@ async function loadGeoByCadNumber(cn) {
 }
 
 const TILE_ZOOM_MAX = 20;
-// PKK5 — HTTP (без SSL), общий слой кадастра для тайловой подложки
-const PKK_EXPORT_BASE =
-  'http://pkk5.rosreestr.ru/arcgis/rest/services/Cadastre/Cadastre/MapServer/export';
+// НСПД GeoServer — официальный сервис Росреестра (заменил PKK5 с декабря 2024)
+const NSPD_WMS_BASE = 'https://nspd.rosreestr.gov.ru/geoserver/wms';
 
 /**
  * Convert Leaflet tile coordinates (z, x, y) to a Web Mercator bounding box
@@ -314,17 +313,18 @@ router.get('/tiles/:z/:x/:y', async (req, res) => {
   }
   const bbox = tileToBboxString(z, x, y);
   const qs = new URLSearchParams({
-    layers: 'show:21',
-    dpi: '96',
-    format: 'PNG32',
-    bboxSR: '102100',
-    imageSR: '102100',
-    size: '256,256',
-    transparent: 'true',
-    f: 'image',
-    bbox,
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetMap',
+    LAYERS: 'ngrr2:zu',
+    BBOX: bbox,
+    WIDTH: '256',
+    HEIGHT: '256',
+    SRS: 'EPSG:3857',
+    FORMAT: 'image/png',
+    TRANSPARENT: 'true',
   });
-  const tileUrl = `${PKK_EXPORT_BASE}?${qs.toString()}`;
+  const tileUrl = `${NSPD_WMS_BASE}?${qs.toString()}`;
   try {
     const result = await apiRequestBinary(tileUrl);
     if (result.statusCode === 404 || result.statusCode === 204) {
