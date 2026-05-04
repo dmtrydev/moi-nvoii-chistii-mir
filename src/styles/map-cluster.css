@@ -157,6 +157,16 @@
   font-size: 15px;
 }
 
+/* ─── Cadastre tile overlay ────────────────────────────────────────────────── */
+/* Leaflet adds the className from <TileLayer> to each <img> tile element     */
+/* (not to the container), so use a compound selector with no space.          */
+/* mix-blend-mode: multiply hides the white tile background while keeping     */
+/* the red parcel outlines visible on top of the base map.                    */
+
+.leaflet-tile.cadastre-tile-layer {
+  mix-blend-mode: multiply;
+}
+
 /* ─── Cadastre popup card ──────────────────────────────────────────────────── */
 
 .moinoviichistiimir-cadastre-popup .leaflet-popup-content-wrapper {

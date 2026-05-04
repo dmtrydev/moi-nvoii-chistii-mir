@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GeoJSON, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import {
@@ -15,23 +15,29 @@ const PARCEL_STYLE: L.PathOptions = {
   weight: 2,
   opacity: 0.9,
   fillColor: '#D20404',
-  fillOpacity: 0.07,
+  fillOpacity: 0.18,
 };
 
 const MIN_ZOOM_IDENTIFY = 12;
-/** Auto-grid loads parcel boundaries starting at this zoom. */
-const MIN_ZOOM_GRID = 13;
-const GRID_DEBOUNCE_MS = 900;
 
 type Props = {
   enabled: boolean;
   apiBase: (path: string) => string;
 };
 
+/**
+ * Cadastre layer companion: handles click-to-identify on top of the
+ * raster cadastre tile overlay (NSPD WMS via /api/cadastre/tiles).
+ *
+ * The raster tiles render every parcel boundary; this component only
+ * adds an info popup and a red highlight for the clicked parcel
+ * (drawn from the bbox we get from coordinates2.php — geo2.php has
+ * been returning empty bodies for every cn, so we fall back to the
+ * extent rectangle the same way /api/cadastre/identify does).
+ */
 export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element | null {
   const map = useMap();
 
-  /** Popup for identify results. */
   const openPopup = useCallback(
     (latlng: L.LatLng, html: string) => {
       L.popup({
@@ -46,7 +52,10 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
     [map],
   );
 
-  /** Click-to-identify: fetches full parcel data + GeoJSON. */
+  /** Highlights for parcels the user has clicked, keyed by _cn. */
+  const [highlights, setHighlights] = useState<Map<string, GeoJSON.Feature[]>>(new Map());
+
+  /** Click-to-identify: fetches full parcel data + highlight geometry. */
   const runIdentify = useCallback(
     async (latlng: L.LatLng) => {
       const z = map.getZoom();
@@ -75,13 +84,20 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
           return;
         }
         const html = buildCadastrePopupHtmlFromIdentify(data);
-        // Merge the clicked-parcel GeoJSON into accumulated collection
         const geo =
           data?.geojson?.type === 'FeatureCollection' && Array.isArray(data?.geojson?.features)
             ? (data.geojson as ParcelFeatureCollection)
             : null;
         if (geo) {
-          setAccumulated((prev) => mergeFeatures(prev, geo.features));
+          const cn = String(
+            (data?.features?.[0]?.attrs?.cn ?? data?.features?.[0]?.attrs?.cad_num ?? '') as string,
+          );
+          setHighlights((prev) => {
+            const next = new Map(prev);
+            const key = cn || JSON.stringify(geo.features[0]?.geometry).slice(0, 80);
+            next.set(key, geo.features);
+            return next;
+          });
         }
         if (html) {
           openPopup(latlng, html);
@@ -101,100 +117,14 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
     [apiBase, map, openPopup],
   );
 
-  /**
-   * Accumulated parcel features (keyed by _cn to deduplicate).
-   * Parcels from different viewport loads are merged here.
-   */
-  const [accumulated, setAccumulated] = useState<Map<string, GeoJSON.Feature[]>>(new Map());
-  const [gridLoading, setGridLoading] = useState(false);
-  const gridAbortRef = useRef<AbortController | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  /** Merge new features into the accumulated Map (deduplicate by _cn). */
-  function mergeFeatures(
-    prev: Map<string, GeoJSON.Feature[]>,
-    newFeatures: GeoJSON.Feature[],
-  ): Map<string, GeoJSON.Feature[]> {
-    if (newFeatures.length === 0) return prev;
-    const next = new Map(prev);
-    for (const f of newFeatures) {
-      const cn = String((f.properties as Record<string, unknown> | null)?._cn ?? '');
-      if (cn && !next.has(cn)) {
-        next.set(cn, [f]);
-      } else if (!cn) {
-        // No cn key — use stringified geometry as fallback key to avoid duplicates
-        const geoKey = JSON.stringify(f.geometry).slice(0, 80);
-        if (!next.has(geoKey)) next.set(geoKey, [f]);
-      }
-    }
-    return next;
-  }
-
-  /** Load parcel grid for the current viewport. */
-  const loadGrid = useCallback(async () => {
-    const zoom = map.getZoom();
-    if (zoom < MIN_ZOOM_GRID) return;
-
-    // Abort previous in-flight request
-    gridAbortRef.current?.abort();
-    const controller = new AbortController();
-    gridAbortRef.current = controller;
-
-    const bounds = map.getBounds();
-    const gridSize = zoom >= 16 ? 5 : 4;
-    const url = apiBase(
-      `/api/cadastre/grid?south=${bounds.getSouth()}&west=${bounds.getWest()}&north=${bounds.getNorth()}&east=${bounds.getEast()}&grid=${gridSize}`,
-    );
-
-    setGridLoading(true);
-    try {
-      const r = await fetch(url, { signal: controller.signal });
-      if (!r.ok) return;
-      const data = (await r.json()) as { type: string; features: GeoJSON.Feature[] };
-      if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) return;
-      setAccumulated((prev) => mergeFeatures(prev, data.features));
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
-    } finally {
-      setGridLoading(false);
-    }
-  }, [apiBase, map]);
-
-  /** Debounced grid loader — fires after map stops moving. */
-  const scheduleGridLoad = useCallback(() => {
-    if (debounceTimerRef.current != null) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
-      void loadGrid();
-    }, GRID_DEBOUNCE_MS);
-  }, [loadGrid]);
-
-  /** Trigger initial load + clear state when enabled/disabled. */
   useEffect(() => {
     if (!enabled) {
-      setAccumulated(new Map());
-      setGridLoading(false);
-      gridAbortRef.current?.abort();
+      setHighlights(new Map());
       map.closePopup();
-      return;
     }
-    // Load immediately when overlay is first enabled
-    void loadGrid();
-  }, [enabled, loadGrid, map]);
+  }, [enabled, map]);
 
   useMapEvents({
-    moveend() {
-      if (enabled) scheduleGridLoad();
-    },
-    zoomend() {
-      if (enabled) {
-        // Clear accumulation on zoom-out (parcels change scale)
-        if (map.getZoom() < MIN_ZOOM_GRID) {
-          setAccumulated(new Map());
-          return;
-        }
-        scheduleGridLoad();
-      }
-    },
     click(e) {
       if (!enabled) return;
       const t = e.originalEvent.target as HTMLElement | null;
@@ -204,55 +134,19 @@ export function CadastreVectorSystem({ enabled, apiBase }: Props): JSX.Element |
     },
   });
 
-  const onEachFeature = useCallback(
-    (_feature: GeoJSON.Feature, layer: L.Layer) => {
-      layer.on('click', (ev) => {
-        L.DomEvent.stopPropagation(ev);
-        void runIdentify((ev as L.LeafletMouseEvent).latlng);
-      });
-    },
-    [runIdentify],
-  );
-
-  const mergedCollection = useMemo((): ParcelFeatureCollection => {
+  const highlightCollection = useMemo((): ParcelFeatureCollection => {
     const features: GeoJSON.Feature[] = [];
-    accumulated.forEach((fts) => features.push(...fts));
+    highlights.forEach((fts) => features.push(...fts));
     return { type: 'FeatureCollection', features };
-  }, [accumulated]);
+  }, [highlights]);
 
   if (!enabled) return null;
 
-  return (
-    <>
-      {mergedCollection.features.length > 0 && (
-        <GeoJSON
-          key={mergedCollection.features.length}
-          data={mergedCollection}
-          style={() => PARCEL_STYLE}
-          onEachFeature={onEachFeature}
-        />
-      )}
-      {gridLoading && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 60,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 5000,
-            background: 'rgba(255,255,255,0.92)',
-            borderRadius: 12,
-            padding: '6px 14px',
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#b91c1c',
-            pointerEvents: 'none',
-            boxShadow: '0 4px 16px rgba(43,51,53,0.13)',
-          }}
-        >
-          Загрузка участков…
-        </div>
-      )}
-    </>
-  );
+  return highlightCollection.features.length > 0 ? (
+    <GeoJSON
+      key={highlightCollection.features.length}
+      data={highlightCollection}
+      style={() => PARCEL_STYLE}
+    />
+  ) : null;
 }

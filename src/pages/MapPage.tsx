@@ -1489,6 +1489,17 @@ export default function MapPage(): JSX.Element {
             url={activeRaster.tileUrl}
             attribution={activeRaster.attribution}
           />
+          {cadastralOverlay && (
+            <TileLayer
+              key="cadastre-overlay"
+              url={getApiUrl('/api/cadastre/tiles/{z}/{x}/{y}')}
+              className="cadastre-tile-layer"
+              opacity={0.95}
+              maxNativeZoom={17}
+              maxZoom={19}
+              attribution='&copy; <a href="https://nspd.gov.ru/" target="_blank" rel="noreferrer">НСПД Росреестр</a>'
+            />
+          )}
           <MapDragThroughPopup />
           <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
           <CadastreVectorSystem enabled={cadastralOverlay} apiBase={getApiUrl} />
@@ -1647,7 +1658,7 @@ export default function MapPage(): JSX.Element {
         </div>
         {cadastralOverlay && (
           <div className="pointer-events-none absolute left-1/2 top-4 z-[5010] -translate-x-1/2 rounded-xl border border-[#d20404]/20 bg-[#fff5f5f2] px-4 py-2 text-xs font-semibold text-[#b91c1c] shadow-[0_8px_24px_rgba(43,51,53,0.15)]">
-            Кадастровая подложка · приблизьте карту (zoom ≥ 13) и нажмите на участок
+            Кадастровая подложка · нажмите на участок для получения данных
           </div>
         )}
         {!cadastralOverlay && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
