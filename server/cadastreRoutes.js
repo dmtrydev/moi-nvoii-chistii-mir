@@ -51,6 +51,9 @@ function apiRequestBinary(targetUrl, { timeoutMs = UPSTREAM_TIMEOUT_MS } = {}) {
         path: u.pathname + u.search,
         port: u.port || 443,
         method: 'GET',
+        // Росреестр периодически не обновляет SSL-сертификат на pkk.rosreestr.ru —
+        // для публичных тайловых данных это допустимо.
+        rejectUnauthorized: false,
         headers: {
           Accept: 'image/png,image/*,*/*',
           Referer: 'https://pkk.rosreestr.ru/',
