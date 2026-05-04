@@ -24,6 +24,7 @@ import { parseActivityTypesInput, normalizeSitesInput } from './licensePayloadNo
 import authRouter from './authRoutes.js';
 import userRouter from './userRoutes.js';
 import supportRouter from './supportRoutes.js';
+import cadastreRouter from './cadastreRoutes.js';
 import { extractTextFromPdf } from './pdfText.js';
 import { TIMEWEB_BASE, callTimewebAiJson, isTimewebAiConfigured } from './aiClient.js';
 
@@ -222,6 +223,7 @@ app.use('/api/auth/refresh', rateLimit({ name: 'auth-refresh', windowMs: 60_000,
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/support', supportRouter);
+app.use('/api/cadastre', cadastreRouter);
 
 // Геокодирование: используем только Яндекс Геокодер (лучше всего подходит для РФ/юр. адресов).
 const YANDEX_GEOCODER_API_KEY = String(process.env.YANDEX_GEOCODER_API_KEY ?? '').trim();
