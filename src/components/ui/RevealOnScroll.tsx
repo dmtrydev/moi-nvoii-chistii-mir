@@ -10,6 +10,8 @@ interface RevealOnScrollProps {
   className?: string;
   /** Если false — класс is-visible не ставится, пока не станет true (например, после вводной анимации страницы). */
   revealAllowed?: boolean;
+  /** По умолчанию reveal только когда блок в зоне видимости. Если false — достаточно revealAllowed (например главная: после анимации фильтра без долистывания). */
+  requireInView?: boolean;
 }
 
 export function RevealOnScroll({
@@ -18,9 +20,10 @@ export function RevealOnScroll({
   delay,
   className = '',
   revealAllowed = true,
+  requireInView = true,
 }: RevealOnScrollProps): JSX.Element {
   const [ref, isInView] = useInView({ rootMargin: '0px 0px -80px 0px', threshold: 0.08 });
-  const revealed = isInView && revealAllowed;
+  const revealed = revealAllowed && (requireInView ? isInView : true);
 
   return (
     <div
