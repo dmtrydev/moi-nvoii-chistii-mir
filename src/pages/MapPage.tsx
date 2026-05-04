@@ -1337,22 +1337,22 @@ export default function MapPage(): JSX.Element {
         </section>
 
         <section className="relative z-10 mb-3 rounded-xl border border-white bg-[#ffffff80] p-3 shadow-[inset_0px_0px_70.1px_#ffffffb2] sm:mb-5 sm:rounded-2xl sm:p-4 md:p-5 lg:rounded-[32.5px]">
-          <h3 className={`${mapSectionTitleClass} mb-3 max-lg:text-[1.05rem]`}>
+          <h3 className={`${mapSectionTitleClass} mb-4 max-lg:text-[1.05rem]`}>
             Легенда
           </h3>
-          <div className="space-y-2 text-xs text-ink-muted">
-            <div className="flex items-start gap-2">
-              <span className="map-legend-dot map-legend-dot--eco mt-0.5" aria-hidden />
+          <div className="space-y-3.5 font-nunito text-sm font-semibold leading-snug text-[#5e6567] sm:text-base sm:leading-normal">
+            <div className="flex items-start gap-3">
+              <span className="map-legend-dot map-legend-dot--eco mt-1 shrink-0" aria-hidden />
               <span>
                 {ACTIVITY_TYPE_FILTER_ORDER.join(', ')} и другие виды обращения
               </span>
             </div>
-            <div className="flex items-start gap-2">
-              <span className="map-legend-dot map-legend-dot--storage mt-0.5" aria-hidden />
+            <div className="flex items-start gap-3">
+              <span className="map-legend-dot map-legend-dot--storage mt-1 shrink-0" aria-hidden />
               <span>Хранение и захоронение (объекты ГРОРРО)</span>
             </div>
-            <div className="flex items-start gap-2">
-              <span className="map-legend-dot map-legend-dot--tech mt-0.5" aria-hidden />
+            <div className="flex items-start gap-3">
+              <span className="map-legend-dot map-legend-dot--tech mt-1 shrink-0" aria-hidden />
               <span>Аренда и продажа технологий, прошедшие ГЭЭ</span>
             </div>
           </div>
