@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-icon.svg';
 import heroBackground from '@/assets/home-landing/hero-background.png';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
@@ -83,8 +84,15 @@ const rows: FeatureRow[] = [
 const heroHeadingClass =
   'typo-h1 relative mt-[-1px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]';
 
-const headingGradientClass =
-  'bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]';
+/**
+ * Как заголовок блока фильтра (`FilterPanelSection`: «Экологический фильтр объектов»).
+ * Для строк таблицы — без nowrap, чтобы длинные подписи переносились.
+ */
+const filterSectionTitleClass =
+  'typo-h4 relative mt-[-1px] min-w-0 flex-1 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight sm:whitespace-nowrap';
+
+const filterSectionFeatureRowClass =
+  'typo-h4 relative mt-[-1px] min-w-0 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight';
 
 function renderCell(value: string | null): JSX.Element {
   if (value == null) {
@@ -128,16 +136,25 @@ export default function PricePage(): JSX.Element {
               <div className="mt-4 min-w-[1820px]">
                 <div className="grid grid-cols-[437px_433px_430px_433px] gap-4">
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <h2 className={heroHeadingClass}>возможности и модули:</h2>
+                    <div className="flex max-w-full items-start gap-3 sm:items-center sm:gap-[15px]">
+                      <div className="relative mt-0.5 h-8 w-8 shrink-0 sm:mt-0 sm:h-[35px] sm:w-[35px]">
+                        <img
+                          className="absolute left-[16.66%] top-[12.50%] h-[87.50%] w-[83.34%]"
+                          alt=""
+                          src={filterSectionTitleIcon}
+                        />
+                      </div>
+                      <h2 className={filterSectionTitleClass}>возможности и модули:</h2>
+                    </div>
                   </div>
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>starter:</h2>
+                    <h2 className={filterSectionTitleClass}>starter:</h2>
                   </div>
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>professional:</h2>
+                    <h2 className={filterSectionTitleClass}>professional:</h2>
                   </div>
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>enterprise:</h2>
+                    <h2 className={filterSectionTitleClass}>enterprise:</h2>
                   </div>
                 </div>
 
@@ -145,7 +162,7 @@ export default function PricePage(): JSX.Element {
                   <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
                     {rows.map((row) => (
                       <div key={row.label} className="min-h-[74px] border-b border-[#d9ddd8] py-3 last:border-b-0">
-                        <div className={`${headingGradientClass} text-[38px] font-bold leading-[1.05]`}>{row.label}</div>
+                        <div className={filterSectionFeatureRowClass}>{row.label}</div>
                       </div>
                     ))}
                   </div>
