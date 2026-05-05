@@ -115,7 +115,7 @@ const filterSectionTitleClass =
 const filterSectionFeatureRowClass =
   'typo-h4 relative mt-[-1px] min-w-0 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight';
 
-const pricingGridClass = 'grid grid-cols-[437px_repeat(3,minmax(0,1fr))] gap-4';
+const pricingGridClass = 'grid grid-cols-[minmax(280px,1.2fr)_repeat(3,minmax(220px,1fr))] gap-4';
 const glassPanelClass =
   'rounded-[32.5px] bg-[#ffffff4c] px-5 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
 const tariffValueTextClass =
@@ -150,7 +150,7 @@ function renderPlanRows(planKey: PlanKey): JSX.Element[] {
 function DesktopPricingTable(): JSX.Element {
   return (
     <div className="hidden xl:block">
-      <RevealOnScroll variant="reveal-blur" className="mt-4 min-w-[1820px]">
+      <RevealOnScroll variant="reveal-blur" className="mt-4">
         <div className={pricingGridClass}>
           <div className={pricingHeaderCardClass}>
             <h2 className={filterSectionTitleClass}>возможности и модули:</h2>
@@ -255,7 +255,7 @@ export default function PricePage(): JSX.Element {
 
         <SiteFrameWithTopNav frameLayout="header" stacking="landing" />
 
-        <section className="relative z-10 mx-auto mt-8 w-full max-w-[1920px] px-4 pb-8 sm:mt-10 sm:pb-10 md:mt-12 md:pb-12 lg:mt-[clamp(2.5rem,6vw,8rem)]">
+        <section className="relative z-10 mx-auto mt-4 w-full max-w-[1920px] px-4 pb-8 sm:mt-5 sm:pb-10 md:mt-6 md:pb-12 lg:mt-8">
           <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 md:p-7 lg:p-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
             <div className="relative z-[2] overflow-x-auto pb-2">
               <RevealOnScroll variant="reveal-scale" className="max-w-[min(1184px,100%)]">
