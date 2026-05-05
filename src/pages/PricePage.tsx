@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-icon.svg';
 import heroBackground from '@/assets/home-landing/hero-background.png';
+import { VidMenuCheckboxChecked } from '@/components/home-landing/VidMenuCheckbox';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
@@ -89,21 +89,21 @@ const heroHeadingClass =
  * Для строк таблицы — без nowrap, чтобы длинные подписи переносились.
  */
 const filterSectionTitleClass =
-  'typo-h4 relative mt-[-1px] min-w-0 flex-1 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight sm:whitespace-nowrap';
+  'typo-h4 relative mt-[-1px] min-w-0 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight sm:whitespace-nowrap';
 
 const filterSectionFeatureRowClass =
   'typo-h4 relative mt-[-1px] min-w-0 bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-left text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent] tracking-[0] leading-tight';
 
 function renderCell(value: string | null): JSX.Element {
   if (value == null) {
-    return (
-      <span className="inline-flex h-[20px] w-[20px] items-center justify-center rounded-[6px] bg-[#bcdc57] text-[13px] font-bold text-[#2b3335]">
-        ✓
-      </span>
-    );
+    return <VidMenuCheckboxChecked />;
   }
   return <span>{value}</span>;
 }
+
+/** Как кнопка «Найти» (`home-find-button`), без иконки и без hover-сдвига текста. */
+const choosePlanButtonClass =
+  'relative flex h-[60px] w-full min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-[20px] border-[none] home-find-button before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[\'\'] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2';
 
 export default function PricePage(): JSX.Element {
   return (
@@ -126,7 +126,8 @@ export default function PricePage(): JSX.Element {
 
         <SiteFrameWithTopNav frameLayout="header" stacking="landing" />
 
-        <section className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+        {/* Горизонтальные отступы как у `TopNavigationSection`: max-w-[1920px] px-4 */}
+        <section className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-10 pt-6">
           <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-4 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
             <div className="relative z-[2] overflow-x-auto pb-2">
               <h1 className={`${heroHeadingClass} max-w-[min(1184px,100%)]`}>
@@ -136,16 +137,7 @@ export default function PricePage(): JSX.Element {
               <div className="mt-4 min-w-[1820px]">
                 <div className="grid grid-cols-[437px_433px_430px_433px] gap-4">
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <div className="flex max-w-full items-start gap-3 sm:items-center sm:gap-[15px]">
-                      <div className="relative mt-0.5 h-8 w-8 shrink-0 sm:mt-0 sm:h-[35px] sm:w-[35px]">
-                        <img
-                          className="absolute left-[16.66%] top-[12.50%] h-[87.50%] w-[83.34%]"
-                          alt=""
-                          src={filterSectionTitleIcon}
-                        />
-                      </div>
-                      <h2 className={filterSectionTitleClass}>возможности и модули:</h2>
-                    </div>
+                    <h2 className={filterSectionTitleClass}>возможности и модули:</h2>
                   </div>
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
                     <h2 className={filterSectionTitleClass}>starter:</h2>
@@ -174,11 +166,8 @@ export default function PricePage(): JSX.Element {
                         </div>
                       </div>
                     ))}
-                    <Link
-                      to="/upload"
-                      className="mt-6 inline-flex h-[60px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] font-nunito text-[32px] font-bold text-[#2b3335] shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466]"
-                    >
-                      Выбрать
+                    <Link to="/upload" className={`${choosePlanButtonClass} mt-6`}>
+                      <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Выбрать</span>
                     </Link>
                   </div>
                   <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
@@ -189,11 +178,8 @@ export default function PricePage(): JSX.Element {
                         </div>
                       </div>
                     ))}
-                    <Link
-                      to="/upload"
-                      className="mt-6 inline-flex h-[60px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] font-nunito text-[32px] font-bold text-[#2b3335] shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466]"
-                    >
-                      Выбрать
+                    <Link to="/upload" className={`${choosePlanButtonClass} mt-6`}>
+                      <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Выбрать</span>
                     </Link>
                   </div>
                   <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
@@ -204,11 +190,8 @@ export default function PricePage(): JSX.Element {
                         </div>
                       </div>
                     ))}
-                    <Link
-                      to="/upload"
-                      className="mt-6 inline-flex h-[60px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] font-nunito text-[32px] font-bold text-[#2b3335] shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466]"
-                    >
-                      Выбрать
+                    <Link to="/upload" className={`${choosePlanButtonClass} mt-6`}>
+                      <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Выбрать</span>
                     </Link>
                   </div>
                 </div>
