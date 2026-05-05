@@ -18,6 +18,7 @@ import SupportChatPage from '@/pages/SupportChatPage';
 import PersonalDataConsentPage from '@/pages/PersonalDataConsentPage';
 import PrivacyPolicyPage from '@/pages/PrivacyPolicyPage';
 import CookiePolicyPage from '@/pages/CookiePolicyPage';
+import PricePage from '@/pages/PricePage';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RequireRole } from '@/components/auth/RequireRole';
 import { CookieConsentBanner } from '@/components/CookieConsentBanner';
@@ -48,6 +49,7 @@ export default function App(): JSX.Element {
           <Route path="/consent/personal-data" element={<PersonalDataConsentPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+          <Route path="/price" element={<PricePage />} />
           <Route
             path="/upload"
             element={
