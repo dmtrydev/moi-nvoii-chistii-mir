@@ -79,8 +79,12 @@ const rows: FeatureRow[] = [
   },
 ];
 
+/** Как заголовок на главной (`HeroCopySection`: «Планируйте экологическую…»). */
+const heroHeadingClass =
+  'typo-h1 relative mt-[-1px] bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]';
+
 const headingGradientClass =
-  'bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]';
+  'bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent] [text-fill-color:transparent]';
 
 function renderCell(value: string | null): JSX.Element {
   if (value == null) {
@@ -117,14 +121,14 @@ export default function PricePage(): JSX.Element {
         <section className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-10 pt-6 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-4 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
             <div className="relative z-[2] overflow-x-auto pb-2">
-              <h1 className={`${headingGradientClass} typo-h3 text-[48px] leading-[1.1] whitespace-nowrap`}>
+              <h1 className={`${heroHeadingClass} max-w-[min(1184px,100%)]`}>
                 сравнение тарифных планов экосистемы
               </h1>
 
               <div className="mt-4 min-w-[1820px]">
                 <div className="grid grid-cols-[437px_433px_430px_433px] gap-4">
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>возможности и модули:</h2>
+                    <h2 className={heroHeadingClass}>возможности и модули:</h2>
                   </div>
                   <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
                     <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>starter:</h2>
