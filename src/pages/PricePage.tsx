@@ -3,92 +3,95 @@ import heroBackground from '@/assets/home-landing/hero-background.png';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
 
-type PlanKey = 'starter' | 'professional' | 'enterprise';
-
 type FeatureRow = {
   label: string;
-  starter: string;
-  professional: string;
-  enterprise: string;
+  starter: string | null;
+  professional: string | null;
+  enterprise: string | null;
 };
-
-const plans: { key: PlanKey; title: string }[] = [
-  { key: 'starter', title: 'starter' },
-  { key: 'professional', title: 'professional' },
-  { key: 'enterprise', title: 'enterprise' },
-];
 
 const rows: FeatureRow[] = [
   {
-    label: 'Ежемесячная оплата',
+    label: 'ежемесячная оплата:',
     starter: '60 000 ₽',
     professional: '180 000 ₽',
     enterprise: 'от 550 000 ₽',
   },
   {
-    label: 'При оплате за год (15%)',
+    label: 'при оплате за год (15%):',
     starter: '510 000 ₽',
     professional: '1 530 000 ₽',
     enterprise: 'Индивидуально',
   },
   {
-    label: 'База прайс-листов и контактов',
-    starter: 'Да',
-    professional: 'Да',
-    enterprise: 'Да',
+    label: 'база прайс-листов и контактов',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
   {
-    label: 'Карта ж/д тупиков (просмотр)',
-    starter: 'Да',
-    professional: 'Да',
-    enterprise: 'Да',
+    label: 'карта ж/д-тупиков (просмотр)',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
   {
-    label: 'Лимиты на запросы / экспорт',
-    starter: 'до 50 / мес',
+    label: 'лимиты на запросы/экспорт',
+    starter: 'до 50/мес',
     professional: 'Безлимитно (регион)',
     enterprise: 'Полный безлимит',
   },
   {
-    label: 'Технология утилизации с ГЭЭ',
-    starter: 'Нет',
-    professional: 'Да',
-    enterprise: 'Да',
+    label: 'технология утилизации с ГЭЭ',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
   {
-    label: 'Оптимизация ж/д-логистики',
-    starter: 'Нет',
-    professional: 'Да',
-    enterprise: 'Да',
+    label: 'оптимизация ж/д-логистики',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
   {
-    label: 'Консультация экспертов',
+    label: 'консультация экспертов',
     starter: 'E-mail поддержка',
-    professional: '5 часов / мес',
+    professional: '5 часов/vtc',
     enterprise: 'Выделенный менеджер',
   },
   {
-    label: 'API и кастомные интеграции',
-    starter: 'Нет',
-    professional: 'Опция',
-    enterprise: 'Да',
+    label: 'api и кастомные интеграции',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
   {
-    label: 'Внесение в лицензию (1 кейс)',
-    starter: 'Нет',
-    professional: 'Опция',
-    enterprise: 'Да',
+    label: 'внесение в лицензию (1 кейс)',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
   {
-    label: 'SLA и индивидуальная отчетность',
-    starter: 'Нет',
-    professional: 'Опция',
-    enterprise: 'Да',
+    label: 'sla и инд. отчетность',
+    starter: null,
+    professional: null,
+    enterprise: null,
   },
 ];
 
 const headingGradientClass =
   'bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]';
+
+function renderCell(value: string | null): JSX.Element {
+  if (value == null) {
+    return (
+      <span className="inline-flex h-[20px] w-[20px] items-center justify-center rounded-[6px] bg-[#bcdc57] text-[13px] font-bold text-[#2b3335]">
+        ✓
+      </span>
+    );
+  }
+  return <span>{value}</span>;
+}
 
 export default function PricePage(): JSX.Element {
   return (
@@ -112,60 +115,82 @@ export default function PricePage(): JSX.Element {
         <SiteFrameWithTopNav frameLayout="header" stacking="landing" />
 
         <section className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-4 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 lg:p-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
-            <div className="relative z-[2]">
-              <h1
-                className={`${headingGradientClass} typo-h3 text-[clamp(1.8rem,3vw,3rem)] leading-tight`}
-              >
-                Сравнение тарифных планов экосистемы
+          <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-4 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
+            <div className="relative z-[2] overflow-x-auto pb-2">
+              <h1 className={`${headingGradientClass} typo-h3 text-[48px] leading-[1.1] whitespace-nowrap`}>
+                сравнение тарифных планов экосистемы
               </h1>
 
-              <div className="mt-6 overflow-x-auto rounded-[24px] border border-white/80 bg-[#ffffff80]">
-                <table className="min-w-[980px] w-full border-collapse">
-                  <thead>
-                    <tr className="border-b border-black/10">
-                      <th className="px-4 py-4 text-left font-nunito text-lg font-bold text-[#2b3335]">
-                        Возможности и модули
-                      </th>
-                      {plans.map((plan) => (
-                        <th
-                          key={plan.key}
-                          className={`px-4 py-4 text-left text-2xl font-bold uppercase ${headingGradientClass}`}
-                        >
-                          {plan.title}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.label} className="border-b border-black/10 last:border-b-0">
-                        <td className="px-4 py-4 font-nunito text-base font-semibold text-[#2b3335]">
-                          {row.label}
-                        </td>
-                        <td className="px-4 py-4 font-nunito text-base font-semibold text-[#5e6567]">{row.starter}</td>
-                        <td className="px-4 py-4 font-nunito text-base font-semibold text-[#5e6567]">
-                          {row.professional}
-                        </td>
-                        <td className="px-4 py-4 font-nunito text-base font-semibold text-[#5e6567]">{row.enterprise}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <div className="mt-4 min-w-[1820px]">
+                <div className="grid grid-cols-[437px_433px_430px_433px] gap-4">
+                  <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>возможности и модули:</h2>
+                  </div>
+                  <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>starter:</h2>
+                  </div>
+                  <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>professional:</h2>
+                  </div>
+                  <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    <h2 className={`${headingGradientClass} text-[40px] font-bold leading-[1.05]`}>enterprise:</h2>
+                  </div>
+                </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                {plans.map((plan) => (
-                  <Link
-                    key={plan.key}
-                    to="/upload"
-                    className="group relative flex h-[56px] items-center justify-center overflow-hidden rounded-[20px] border-[none] px-4 shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] hover:opacity-95"
-                  >
-                    <span className="relative z-[2] font-nunito text-lg font-bold text-[#2b3335]">
-                      Выбрать {plan.title}
-                    </span>
-                  </Link>
-                ))}
+                <div className="mt-3 grid grid-cols-[437px_433px_430px_433px] gap-4">
+                  <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    {rows.map((row) => (
+                      <div key={row.label} className="min-h-[74px] border-b border-[#d9ddd8] py-3 last:border-b-0">
+                        <div className={`${headingGradientClass} text-[38px] font-bold leading-[1.05]`}>{row.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    {rows.map((row) => (
+                      <div key={row.label} className="flex min-h-[74px] items-center border-b border-[#d9ddd8] py-3 last:border-b-0">
+                        <div className="font-nunito text-[30px] font-semibold leading-[1.1] text-[#5e6567]">
+                          {renderCell(row.starter)}
+                        </div>
+                      </div>
+                    ))}
+                    <Link
+                      to="/upload"
+                      className="mt-6 inline-flex h-[60px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] font-nunito text-[32px] font-bold text-[#2b3335] shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466]"
+                    >
+                      Выбрать
+                    </Link>
+                  </div>
+                  <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    {rows.map((row) => (
+                      <div key={row.label} className="flex min-h-[74px] items-center border-b border-[#d9ddd8] py-3 last:border-b-0">
+                        <div className="font-nunito text-[30px] font-semibold leading-[1.1] text-[#5e6567]">
+                          {renderCell(row.professional)}
+                        </div>
+                      </div>
+                    ))}
+                    <Link
+                      to="/upload"
+                      className="mt-6 inline-flex h-[60px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] font-nunito text-[32px] font-bold text-[#2b3335] shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466]"
+                    >
+                      Выбрать
+                    </Link>
+                  </div>
+                  <div className="rounded-[32.5px] bg-[#ffffff4c] px-4 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
+                    {rows.map((row) => (
+                      <div key={row.label} className="flex min-h-[74px] items-center border-b border-[#d9ddd8] py-3 last:border-b-0">
+                        <div className="font-nunito text-[30px] font-semibold leading-[1.1] text-[#5e6567]">
+                          {renderCell(row.enterprise)}
+                        </div>
+                      </div>
+                    ))}
+                    <Link
+                      to="/upload"
+                      className="mt-6 inline-flex h-[60px] w-full items-center justify-center rounded-[20px] bg-[linear-gradient(128deg,rgba(219,236,168,1)_0%,rgba(188,220,87,1)_100%)] font-nunito text-[32px] font-bold text-[#2b3335] shadow-[inset_0px_0px_20px_#ffffffbd,0px_13px_31.5px_#c1df6466]"
+                    >
+                      Выбрать
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
