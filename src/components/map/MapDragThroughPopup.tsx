@@ -39,8 +39,9 @@ export function MapDragThroughPopup(): null {
 
     function onPopupPointerDown(e: PointerEvent) {
       const target = e.target as HTMLElement;
-      // Let clicks on interactive elements behave normally
-      if (target.closest('button, a, input, select, textarea')) return;
+      // Drag-through is enabled only from explicit handles to avoid
+      // interfering with text selection/copy inside popup content.
+      if (!target.closest('[data-map-drag-handle="true"]')) return;
       isDragging = true;
       lastX = e.clientX;
       lastY = e.clientY;

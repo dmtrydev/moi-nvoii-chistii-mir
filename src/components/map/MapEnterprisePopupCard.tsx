@@ -90,6 +90,12 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
 
   return (
     <article className="moinoviichistiimir-popup-enterprise">
+      <div
+        className="moinoviichistiimir-popup-enterprise__dragHandle"
+        data-map-drag-handle="true"
+        aria-hidden
+        title="Перетащите, чтобы двигать карту"
+      />
       <header className="moinoviichistiimir-popup-enterprise__head">
         <h3 className="typo-h3 moinoviichistiimir-popup-enterprise__title bg-[linear-gradient(136deg,rgba(43,51,53,1)_0%,rgba(97,110,114,1)_47%,rgba(43,51,53,1)_100%)] bg-clip-text text-transparent [-webkit-text-fill-color:transparent]">
           {model.title}
