@@ -117,20 +117,16 @@ const filterSectionFeatureRowClass =
 const pricingGridClass = 'grid grid-cols-[437px_repeat(3,minmax(0,1fr))] gap-4';
 const glassPanelClass =
   'rounded-[32.5px] bg-[#ffffff4c] px-5 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
-const priceValueClass =
-  'font-nunito text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] text-[#5e6567]';
-const bodyValueClass =
-  'text-[22px] font-medium leading-[1.35] tracking-[-0.03em] text-[#5f686b]';
+const tariffValueTextClass =
+  'font-nunito font-semibold text-[#5e6567] text-[clamp(0.9375rem,1.8vw,1.125rem)] leading-normal tracking-[0]';
 
 function renderCell(value: CellValue): JSX.Element {
   if (value.kind === 'check') {
     return <VidMenuCheckboxChecked />;
   }
 
-  const className = value.kind === 'price' ? priceValueClass : bodyValueClass;
-
   return (
-    <span className={className} data-cell-kind={value.kind}>
+    <span className={tariffValueTextClass} data-cell-kind={value.kind}>
       {value.value}
     </span>
   );
