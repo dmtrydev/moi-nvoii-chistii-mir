@@ -3,6 +3,7 @@ import heroBackground from '@/assets/home-landing/hero-background.png';
 import { VidMenuCheckboxChecked } from '@/components/home-landing/VidMenuCheckbox';
 import { SiteFrameWithTopNav } from '@/components/home-landing/SiteFrameWithTopNav';
 import { SitePublicPageShell } from '@/components/home-landing/SitePublicPageShell';
+import { RevealOnScroll } from '@/components/ui/RevealOnScroll';
 
 type FeatureRow = {
   label: string;
@@ -119,6 +120,8 @@ const glassPanelClass =
   'rounded-[32.5px] bg-[#ffffff4c] px-5 pb-6 pt-2 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]';
 const tariffValueTextClass =
   'font-nunito font-semibold text-[#5e6567] text-[clamp(0.9375rem,1.8vw,1.125rem)] leading-normal tracking-[0]';
+const pricingHeaderCardClass =
+  'rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:px-4 sm:py-4';
 
 function renderCell(value: CellValue): JSX.Element {
   if (value.kind === 'check') {
@@ -129,6 +132,101 @@ function renderCell(value: CellValue): JSX.Element {
     <span className={tariffValueTextClass} data-cell-kind={value.kind}>
       {value.value}
     </span>
+  );
+}
+
+function renderPlanRows(planKey: PlanKey): JSX.Element[] {
+  return rows.map((row) => (
+    <div
+      key={`${planKey}-${row.label}`}
+      data-row-label={row.label}
+      className="flex min-h-[92px] items-center justify-center border-b border-[#d9ddd8] py-4 text-center last:border-b-0"
+    >
+      <div className="flex w-full items-center justify-center px-2">{renderCell(row[planKey])}</div>
+    </div>
+  ));
+}
+
+function DesktopPricingTable(): JSX.Element {
+  return (
+    <div className="hidden xl:block">
+      <RevealOnScroll variant="reveal-blur" className="mt-4 min-w-[1820px]">
+        <div className={pricingGridClass}>
+          <div className={pricingHeaderCardClass}>
+            <h2 className={filterSectionTitleClass}>возможности и модули:</h2>
+          </div>
+          {plans.map((plan) => (
+            <div key={plan.key} className={pricingHeaderCardClass}>
+              <h2 className={`${filterSectionTitleClass} text-center`}>{plan.title}</h2>
+            </div>
+          ))}
+        </div>
+
+        <div className={`mt-3 ${pricingGridClass}`}>
+          <div className={glassPanelClass}>
+            {rows.map((row) => (
+              <div
+                key={row.label}
+                data-row-label={row.label}
+                className="flex min-h-[92px] items-center border-b border-[#d9ddd8] py-4 last:border-b-0"
+              >
+                <div className={filterSectionFeatureRowClass}>{row.label}</div>
+              </div>
+            ))}
+          </div>
+          {plans.map((plan) => (
+            <div key={plan.key} className={`${glassPanelClass} flex flex-col`} data-plan-column={plan.key}>
+              {renderPlanRows(plan.key)}
+              <Link to="/upload" className={`${choosePlanButtonClass} mt-6`}>
+                <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Выбрать</span>
+              </Link>
+            </div>
+          ))}
+        </div>
+      </RevealOnScroll>
+    </div>
+  );
+}
+
+function MobilePricingCards(): JSX.Element {
+  return (
+    <div className="mt-4 xl:hidden">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {plans.map((plan, index) => (
+          <RevealOnScroll
+            key={plan.key}
+            variant="reveal-scale"
+            delay={`${index * 0.06}s`}
+            className="rounded-[32.5px] bg-[#ffffff4c] p-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 md:p-7 lg:p-8"
+          >
+            <div data-plan-card={plan.key}>
+              <div className={pricingHeaderCardClass}>
+                <h2 className={`${filterSectionTitleClass} text-center`}>{plan.title}</h2>
+              </div>
+
+              <div className="mt-4 space-y-0 rounded-[25px] bg-[#ffffff33] px-4 py-2 sm:px-5">
+                {rows.map((row) => (
+                  <div
+                    key={`${plan.key}-card-${row.label}`}
+                    data-plan-card-row={row.label}
+                    className="grid grid-cols-1 gap-2 border-b border-[#d9ddd8] py-4 last:border-b-0 sm:gap-3"
+                  >
+                    <div className={filterSectionFeatureRowClass}>{row.label}</div>
+                    <div className="flex min-h-[44px] items-center justify-start text-left sm:min-h-[48px]">
+                      {renderCell(row[plan.key])}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Link to="/upload" className={`${choosePlanButtonClass} mt-5`}>
+                <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Выбрать</span>
+              </Link>
+            </div>
+          </RevealOnScroll>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -157,61 +255,15 @@ export default function PricePage(): JSX.Element {
 
         <SiteFrameWithTopNav frameLayout="header" stacking="landing" />
 
-        {/* Горизонтальные отступы как у `TopNavigationSection`: max-w-[1920px] px-4 */}
-        <section className="relative z-10 mx-auto w-full max-w-[1920px] px-4 pb-10 pt-6">
-          <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-4 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
+        <section className="relative z-10 mx-auto mt-8 w-full max-w-[1920px] px-4 pb-8 sm:mt-10 sm:pb-10 md:mt-12 md:pb-12 lg:mt-[clamp(2.5rem,6vw,8rem)]">
+          <div className="relative overflow-hidden rounded-[32.5px] border-[none] bg-[#ffffff4c] p-5 backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-6 md:p-7 lg:p-8 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[32.5px] before:p-px before:content-[''] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude]">
             <div className="relative z-[2] overflow-x-auto pb-2">
-              <h1 className={`${heroHeadingClass} max-w-[min(1184px,100%)]`}>
-                сравнение тарифных планов экосистемы
-              </h1>
+              <RevealOnScroll variant="reveal-scale" className="max-w-[min(1184px,100%)]">
+                <h1 className={heroHeadingClass}>сравнение тарифных планов экосистемы</h1>
+              </RevealOnScroll>
 
-              <div className="mt-4 min-w-[1820px]">
-                <div className={pricingGridClass}>
-                  <div className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]">
-                    <h2 className={filterSectionTitleClass}>возможности и модули:</h2>
-                  </div>
-                  {plans.map((plan) => (
-                    <div
-                      key={plan.key}
-                      className="rounded-[25px] bg-[#ffffff4c] px-3 py-3 backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)]"
-                    >
-                      <h2 className={`${filterSectionTitleClass} text-center`}>{plan.title}</h2>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={`mt-3 ${pricingGridClass}`}>
-                  <div className={glassPanelClass}>
-                    {rows.map((row) => (
-                      <div
-                        key={row.label}
-                        data-row-label={row.label}
-                        className="flex min-h-[92px] items-center border-b border-[#d9ddd8] py-4 last:border-b-0"
-                      >
-                        <div className={filterSectionFeatureRowClass}>{row.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {plans.map((plan) => (
-                    <div key={plan.key} className={`${glassPanelClass} flex flex-col`} data-plan-column={plan.key}>
-                      {rows.map((row) => (
-                        <div
-                          key={`${plan.key}-${row.label}`}
-                          data-row-label={row.label}
-                          className="flex min-h-[92px] items-center justify-center border-b border-[#d9ddd8] py-4 text-center last:border-b-0"
-                        >
-                          <div className="flex w-full items-center justify-center px-2">
-                            {renderCell(row[plan.key])}
-                          </div>
-                        </div>
-                      ))}
-                      <Link to="/upload" className={`${choosePlanButtonClass} mt-6`}>
-                        <span className="relative z-[2] font-nunito text-xl font-semibold text-[#2b3335]">Выбрать</span>
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <DesktopPricingTable />
+              <MobilePricingCards />
             </div>
           </div>
         </section>
