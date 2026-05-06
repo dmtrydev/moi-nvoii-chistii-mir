@@ -1463,9 +1463,7 @@ export default function MapPage(): JSX.Element {
           <div className="space-y-3.5 font-nunito text-sm font-semibold leading-snug text-[#5e6567] sm:text-base sm:leading-normal">
             <div className="flex items-start gap-3">
               <span className="map-legend-dot map-legend-dot--eco mt-1 shrink-0" aria-hidden />
-              <span>
-                {ACTIVITY_TYPE_FILTER_ORDER.join(', ')} и другие виды обращения
-              </span>
+              <span>{ACTIVITY_TYPE_FILTER_ORDER.join(', ')}</span>
             </div>
             <div className="flex items-start gap-3">
               <span className="map-legend-dot map-legend-dot--storage mt-1 shrink-0" aria-hidden />

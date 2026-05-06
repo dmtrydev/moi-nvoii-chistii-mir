@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { LicenseData } from '@/types';
-import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import {
+  buildMapEnterprisePopupViewModel,
+  POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER,
+} from '@/components/map/mapEnterprisePopupModel';
 
 function baseSource(): LicenseData {
   return {
@@ -40,7 +43,7 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.subtitleAddress).toContain('Курганская область');
     expect(model.infoRows).toHaveLength(2);
     expect(model.infoRows.find((x) => x.key === 'inn')?.value).toBe('4501217153');
-    expect(model.infoRows.find((x) => x.key === 'contacts')?.value).toBe('Скоро по подписке');
+    expect(model.infoRows.find((x) => x.key === 'contacts')?.value).toBe(POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER);
     expect(model.siteSwitches).toHaveLength(1);
     expect(model.siteSwitches[0]?.label).toBe('Основная площадка');
     expect(model.siteSwitches[0]?.isActive).toBe(true);

@@ -1,5 +1,8 @@
 import type { LicenseData, LicenseSiteData, PpsState, PpsSummary, RpnSnapshotPublic } from '@/types';
 
+/** Значение строки контактов в балуне карты до выдачи телефона/e-mail по подписке. */
+export const POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER = 'Скоро по подписке';
+
 export type PopupInfoRow = {
   key: 'inn' | 'contacts';
   label: string;
@@ -276,7 +279,7 @@ export function buildMapEnterprisePopupViewModel(
     rpnStrip: buildMapEnterpriseRpnStrip(input.source),
     infoRows: [
       { key: 'inn', label: 'ИНН:', value: inn },
-      { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
+      { key: 'contacts', label: 'Телефон/E-mail:', value: POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER },
     ],
     siteSwitches,
   };

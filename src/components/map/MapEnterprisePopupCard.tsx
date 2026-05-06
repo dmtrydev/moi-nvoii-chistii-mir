@@ -1,6 +1,9 @@
 import { memo, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { MapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import {
+  POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER,
+  type MapEnterprisePopupViewModel,
+} from '@/components/map/mapEnterprisePopupModel';
 import type { PpsState } from '@/types';
 import sborActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-active.svg';
 import transportActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-transport-active.svg';
@@ -19,6 +22,40 @@ const routeCtaLabelShiftClass = [
   'motion-reduce:group-hover:translate-x-0',
   'group-hover:translate-x-[calc((16px+0.5rem)/2)]',
 ].join(' ');
+
+function PopupContactsSubscriptionTeaser(): JSX.Element {
+  return (
+    <div
+      className="moinoviichistiimir-popup-enterprise__contactsTeaser"
+      aria-label="Контакты организации доступны по подписке"
+    >
+      <div className="moinoviichistiimir-popup-enterprise__contactsTeaserCanvas">
+        <div className="moinoviichistiimir-popup-enterprise__contactsTeaserFake" aria-hidden>
+          <span>+7&nbsp;(9••)&nbsp;•••-••-••</span>
+          <span>director•••@••••••.ru</span>
+        </div>
+        <div className="moinoviichistiimir-popup-enterprise__contactsTeaserBadge" aria-hidden title="По подписке">
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" className="text-[#5e6567]">
+            <path
+              d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      </div>
+      <p className="moinoviichistiimir-popup-enterprise__contactsTeaserHint">Разблокируйте контакты и документы</p>
+      <Link
+        to="/price"
+        className="moinoviichistiimir-popup-enterprise__contactsTeaserCta group relative flex h-[38px] w-full min-w-0 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border-[none] px-3 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[14px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] home-find-button"
+      >
+        <span className="relative z-[2] font-nunito text-[13px] font-bold text-[#2b3335]">Купить подписку</span>
+      </Link>
+    </div>
+  );
+}
 
 type Props = {
   model: MapEnterprisePopupViewModel;
@@ -185,7 +222,11 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
           <div key={item.key} className="moinoviichistiimir-popup-enterprise__rowWrap">
             <div className="moinoviichistiimir-popup-enterprise__row">
               <div className="moinoviichistiimir-popup-enterprise__label">{item.label}</div>
-              <div className="moinoviichistiimir-popup-enterprise__value">{item.value}</div>
+              {item.key === 'contacts' && item.value === POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER ? (
+                <PopupContactsSubscriptionTeaser />
+              ) : (
+                <div className="moinoviichistiimir-popup-enterprise__value">{item.value}</div>
+              )}
             </div>
             {index < model.infoRows.length - 1 && <div className="moinoviichistiimir-popup-enterprise__divider" aria-hidden />}
           </div>

@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
-import type { MapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
+import {
+  POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER,
+  type MapEnterprisePopupViewModel,
+} from '@/components/map/mapEnterprisePopupModel';
 
 function renderPopup(model: MapEnterprisePopupViewModel): ReturnType<typeof render> {
   return render(
@@ -21,7 +24,7 @@ describe('MapEnterprisePopupCard', () => {
       rpnStrip: null,
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
-        { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
+        { key: 'contacts', label: 'Телефон/E-mail:', value: POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER },
       ],
       siteSwitches: [
         {
@@ -40,7 +43,9 @@ describe('MapEnterprisePopupCard', () => {
     expect(screen.getByText('ООО Экология-Пром')).toBeInTheDocument();
     expect(screen.getByText('ИНН:')).toBeInTheDocument();
     expect(screen.getByText('4501217153')).toBeInTheDocument();
-    expect(screen.getByText('Скоро по подписке')).toBeInTheDocument();
+    expect(screen.getByText('Телефон/E-mail:')).toBeInTheDocument();
+    const subLink = screen.getByRole('link', { name: 'Купить подписку' });
+    expect(subLink).toHaveAttribute('href', '/price');
     expect(screen.getByRole('button', { name: 'Построить маршрут' })).toBeInTheDocument();
   });
 
@@ -54,7 +59,7 @@ describe('MapEnterprisePopupCard', () => {
       rpnStrip: null,
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '4501217153' },
-        { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
+        { key: 'contacts', label: 'Телефон/E-mail:', value: POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER },
       ],
       siteSwitches: [],
     };
@@ -77,7 +82,7 @@ describe('MapEnterprisePopupCard', () => {
       },
       infoRows: [
         { key: 'inn', label: 'ИНН:', value: '123' },
-        { key: 'contacts', label: 'Телефон/E-mail:', value: 'Скоро по подписке' },
+        { key: 'contacts', label: 'Телефон/E-mail:', value: POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER },
       ],
       siteSwitches: [],
     };
