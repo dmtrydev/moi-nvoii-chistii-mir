@@ -35,9 +35,19 @@ type PopupSiteCandidate = {
 };
 
 const GLOBE_RADIUS = 1;
-const CLUSTER_RADIUS_PX = 60;
-const SPIDER_RADIUS_WORLD = 0.042;
-const ZOOM_CLUSTER_DIST_FACTOR = 1.22;
+/** Ячеечная кластеризация (без «цепочек», как у текущего BFS — они склеивали тысячи точек по всей стране). */
+const CLUSTER_GRID_CELL_PX = 72;
+const MARKER_SURFACE_RADIUS = GLOBE_RADIUS * 1.022;
+const SPIDER_RADIUS_WORLD = 0.032;
+const ZOOM_CLUSTER_DIST_FACTOR = 1.38;
+/** Drei Html: scale ∝ distanceFactor / dist — большой factor даёт гигантские балуны у поверхности. */
+const HTML_DISTANCE_MARKER = 0.95;
+const HTML_DISTANCE_POPUP = 1.25;
+const MIN_CAMERA_ORBIT_RADIUS = 1.0028;
+const MAX_CAMERA_ORBIT_RADIUS = 10;
+/** Ниже этого расстояния камеры от центра — переходим на плоскую карту (как zoom-in в Google Maps). */
+const SWITCH_TO_FLAT_RADIUS = 1.0055;
+const SWITCH_TO_FLAT_RESET_RADIUS = 1.035;
 
 function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector3 {
   const phi = ((90 - lat) * Math.PI) / 180;
@@ -48,13 +58,25 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
   return new THREE.Vector3(x, y, z);
 }
 
+/** Обратное к latLngToVector3 — точка на сфере единичного радиуса → [lat, lng]. */
+function vectorOnGlobeToLatLng(dir: THREE.Vector3): [number, number] {
+  const n = dir.clone().normalize();
+  const yClamped = THREE.MathUtils.clamp(n.y, -1, 1);
+  const phi = Math.acos(yClamped);
+  const lat = 90 - (phi * 180) / Math.PI;
+  const theta = Math.atan2(n.z, -n.x);
+  let lng = (theta * 180) / Math.PI - 180;
+  lng = ((lng + 540) % 360) - 180;
+  return [lat, lng];
+}
+
 function centroidOnGlobe(members: GlobeMapPoint[]): THREE.Vector3 {
   const v = new THREE.Vector3();
   for (const p of members) {
     v.add(latLngToVector3(p.lat, p.lng, 1));
   }
-  if (v.lengthSq() < 1e-12) return latLngToVector3(members[0]!.lat, members[0]!.lng, GLOBE_RADIUS * 1.018);
-  return v.normalize().multiplyScalar(GLOBE_RADIUS * 1.018);
+  if (v.lengthSq() < 1e-12) return latLngToVector3(members[0]!.lat, members[0]!.lng, MARKER_SURFACE_RADIUS);
+  return v.normalize().multiplyScalar(MARKER_SURFACE_RADIUS);
 }
 
 function stableClusterId(members: GlobeMapPoint[]): string {
@@ -108,7 +130,7 @@ function projectVisiblePoints(
 ): ProjectedPoint[] {
   const out: ProjectedPoint[] = [];
   for (const point of points) {
-    const world = latLngToVector3(point.lat, point.lng, GLOBE_RADIUS * 1.018);
+    const world = latLngToVector3(point.lat, point.lng, MARKER_SURFACE_RADIUS);
     if (!isOnFrontHemisphere(world, camera)) continue;
     const scr = worldToScreenXY(world, camera, width, height);
     if (!scr) continue;
@@ -121,40 +143,22 @@ type ScreenUnion =
   | { kind: 'single'; point: GlobeMapPoint; world: THREE.Vector3 }
   | { kind: 'cluster'; id: string; members: GlobeMapPoint[]; world: THREE.Vector3; count: number };
 
-function clusterScreenPoints(projected: ProjectedPoint[], radiusPx: number): ScreenUnion[] {
-  const R2 = radiusPx * radiusPx;
-  const used = new Set<number>();
+function clusterScreenPointsGrid(projected: ProjectedPoint[], cellPx: number): ScreenUnion[] {
+  const buckets = new Map<string, ProjectedPoint[]>();
+  for (const p of projected) {
+    const cx = Math.floor(p.x / cellPx);
+    const cy = Math.floor(p.y / cellPx);
+    const key = `${cx},${cy}`;
+    const arr = buckets.get(key);
+    if (arr) arr.push(p);
+    else buckets.set(key, [p]);
+  }
   const unions: ScreenUnion[] = [];
-
-  const dist2 = (a: number, b: number): number => {
-    const dx = projected[a]!.x - projected[b]!.x;
-    const dy = projected[a]!.y - projected[b]!.y;
-    return dx * dx + dy * dy;
-  };
-
-  for (let i = 0; i < projected.length; i++) {
-    if (used.has(i)) continue;
-    const groupIdx = new Set<number>([i]);
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (let j = 0; j < projected.length; j++) {
-        if (groupIdx.has(j) || used.has(j)) continue;
-        for (const g of groupIdx) {
-          if (dist2(g, j) <= R2) {
-            groupIdx.add(j);
-            grew = true;
-            break;
-          }
-        }
-      }
-    }
-    groupIdx.forEach((idx) => used.add(idx));
-    const idxList = [...groupIdx];
-    const members = idxList.map((idx) => projected[idx]!.point);
+  for (const group of buckets.values()) {
+    const members = group.map((g) => g.point);
     const world = centroidOnGlobe(members);
     if (members.length === 1) {
-      unions.push({ kind: 'single', point: members[0]!, world: projected[idxList[0]!]!.world });
+      unions.push({ kind: 'single', point: members[0]!, world: group[0]!.world });
     } else {
       unions.push({
         kind: 'cluster',
@@ -178,7 +182,7 @@ function expandSpiderfied(unions: ScreenUnion[], spiderfiedId: string | null): S
       const offs = spiderTangentOffsets(u.members.length, SPIDER_RADIUS_WORLD, n);
       u.members.forEach((pt, idx) => {
         const o = offs[idx] ?? new THREE.Vector3();
-        const pos = base.clone().add(o).normalize().multiplyScalar(GLOBE_RADIUS * 1.018);
+        const pos = base.clone().add(o).normalize().multiplyScalar(MARKER_SURFACE_RADIUS);
         next.push({ kind: 'single', point: pt, world: pos });
       });
     } else {
@@ -228,6 +232,8 @@ type GlobeOverlayProps = {
   onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }, point: GlobeMapPoint) => void;
   routeBusy: boolean;
   onClosePopup: () => void;
+  /** Сильный zoom-in → переключить на плоскую карту в центре текущего обзора. */
+  onApproachFlat?: (lat: number, lng: number) => void;
 };
 
 function GlobeHtmlOverlay({
@@ -240,6 +246,7 @@ function GlobeHtmlOverlay({
   onSwitchSite,
   routeBusy,
   onClosePopup,
+  onApproachFlat,
 }: GlobeOverlayProps): JSX.Element {
   const { camera, size } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
@@ -252,10 +259,13 @@ function GlobeHtmlOverlay({
   const lastFocusKeyRef = useRef<string | null>(null);
   const spiderfiedIdRef = useRef(spiderfiedId);
   spiderfiedIdRef.current = spiderfiedId;
+  const approachFlatFiredRef = useRef(false);
+  const onApproachFlatRef = useRef(onApproachFlat);
+  onApproachFlatRef.current = onApproachFlat;
 
   const recomputeUnions = useCallback(() => {
     const projected = projectVisiblePoints(points, camera, size.width, size.height);
-    const base = clusterScreenPoints(projected, CLUSTER_RADIUS_PX);
+    const base = clusterScreenPointsGrid(projected, CLUSTER_GRID_CELL_PX);
     setUnions(expandSpiderfied(base, spiderfiedIdRef.current));
   }, [points, camera, size.width, size.height]);
 
@@ -293,7 +303,7 @@ function GlobeHtmlOverlay({
       let step = 0;
       const tick = (): void => {
         const ctrl = controlsRef.current;
-        if (!ctrl || step++ > 40) {
+        if (!ctrl || step++ > 56) {
           recomputeUnions();
           return;
         }
@@ -317,6 +327,21 @@ function GlobeHtmlOverlay({
   );
 
   useFrame(() => {
+    const rCam = camera.position.length();
+    const flatCb = onApproachFlatRef.current;
+    if (flatCb) {
+      if (rCam < SWITCH_TO_FLAT_RADIUS) {
+        if (!approachFlatFiredRef.current) {
+          approachFlatFiredRef.current = true;
+          const surfaceDir = camera.position.clone().normalize();
+          const [lat, lng] = vectorOnGlobeToLatLng(surfaceDir);
+          flatCb(lat, lng);
+        }
+      } else if (rCam > SWITCH_TO_FLAT_RESET_RADIUS) {
+        approachFlatFiredRef.current = false;
+      }
+    }
+
     const moved =
       Number.isNaN(camPosPrev.current.x) ||
       camPosPrev.current.distanceToSquared(camera.position) > 1e-7 ||
@@ -371,17 +396,17 @@ function GlobeHtmlOverlay({
   }, [selectedPoint, siteCandidatesForPoint]);
 
   const selectedWorld =
-    selectedPoint != null ? latLngToVector3(selectedPoint.lat, selectedPoint.lng, GLOBE_RADIUS * 1.018) : null;
+    selectedPoint != null ? latLngToVector3(selectedPoint.lat, selectedPoint.lng, MARKER_SURFACE_RADIUS) : null;
 
   return (
     <>
       <OrbitControls
         ref={controlsRef}
         enablePan={false}
-        minDistance={1.55}
-        maxDistance={4.2}
+        minDistance={MIN_CAMERA_ORBIT_RADIUS}
+        maxDistance={MAX_CAMERA_ORBIT_RADIUS}
         rotateSpeed={0.55}
-        zoomSpeed={0.65}
+        zoomSpeed={1.05}
         enableDamping
         dampingFactor={0.08}
       />
@@ -396,7 +421,7 @@ function GlobeHtmlOverlay({
               key={p.key}
               position={u.world}
               center
-              distanceFactor={5.5}
+              distanceFactor={HTML_DISTANCE_MARKER}
               style={{ pointerEvents: 'auto' }}
               zIndexRange={[100, 0]}
             >
@@ -418,7 +443,7 @@ function GlobeHtmlOverlay({
             key={u.id}
             position={u.world}
             center
-            distanceFactor={5.5}
+            distanceFactor={HTML_DISTANCE_MARKER}
             style={{ pointerEvents: 'auto' }}
             zIndexRange={[100, 0]}
           >
@@ -441,7 +466,7 @@ function GlobeHtmlOverlay({
         <Html
           position={selectedWorld.clone().add(selectedWorld.clone().normalize().multiplyScalar(0.06))}
           center
-          distanceFactor={4.2}
+          distanceFactor={HTML_DISTANCE_POPUP}
           style={{ pointerEvents: 'auto', width: 'min(420px, calc(100vw - 48px))', maxWidth: 'min(420px, calc(100vw - 48px))' }}
           zIndexRange={[200, 100]}
         >
@@ -498,6 +523,8 @@ type Props = {
   onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }, point: GlobeMapPoint) => void;
   routeBusy: boolean;
   onClosePopup: () => void;
+  /** При сильном приближении к поверхности переключиться на плоскую подложку (как в Google Maps). */
+  onApproachFlat?: (lat: number, lng: number) => void;
   className?: string;
 };
 
@@ -514,6 +541,7 @@ export function MapGlobeView({
   onSwitchSite,
   routeBusy,
   onClosePopup,
+  onApproachFlat,
   className = '',
 }: Props): JSX.Element {
   return (
@@ -522,9 +550,13 @@ export function MapGlobeView({
         className="h-full w-full touch-none"
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 0.35, 2.45], fov: 45, near: 0.05, far: 1000 }}
-        onCreated={({ gl }) => {
+        camera={{ position: [0, 0.35, 2.45], fov: 42, near: 0.0004, far: 2000 }}
+        onCreated={({ gl, camera }) => {
           gl.setClearColor('#050814', 1);
+          if (camera instanceof THREE.PerspectiveCamera) {
+            camera.near = 0.0004;
+            camera.updateProjectionMatrix();
+          }
         }}
       >
         <GlobeScene
@@ -537,6 +569,7 @@ export function MapGlobeView({
           onSwitchSite={onSwitchSite}
           routeBusy={routeBusy}
           onClosePopup={onClosePopup}
+          onApproachFlat={onApproachFlat}
         />
       </Canvas>
     </div>

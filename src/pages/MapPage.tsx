@@ -1533,6 +1533,10 @@ export default function MapPage(): JSX.Element {
             }}
             routeBusy={routeBusy}
             onClosePopup={() => setSelectedId(null)}
+            onApproachFlat={(lat, lng) => {
+              setRasterBase('osm');
+              setFocusCenter([lat, lng]);
+            }}
           />
         ) : (
           <MapContainer
