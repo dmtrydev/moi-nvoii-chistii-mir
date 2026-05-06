@@ -84,6 +84,8 @@ export interface FilterPanelSectionProps {
   activityTypeOptions: string[];
   filterRegion: string;
   onFilterRegionChange: (v: string) => void;
+  groroOnly: boolean;
+  onGroroOnlyChange: (v: boolean) => void;
   regionOptions: string[];
   onSearch: () => void;
   onReset: () => void;
@@ -108,6 +110,8 @@ export function FilterPanelSection({
   activityTypeOptions,
   filterRegion,
   onFilterRegionChange,
+  groroOnly,
+  onGroroOnlyChange,
   regionOptions,
   onSearch,
   onReset,
@@ -416,6 +420,18 @@ export function FilterPanelSection({
             </span>
           </span>
         </button>
+      </div>
+
+      <div className="relative z-[7] col-span-1 min-h-[60px] w-full md:col-span-2 xl:col-span-4">
+        <label className="relative z-[2] inline-flex min-h-[52px] w-full items-center gap-3 rounded-[20px] bg-[#ffffff73] px-4 py-2 font-nunito text-base font-semibold text-[#2b3335] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
+          <input
+            type="checkbox"
+            className="relative z-[2] h-4 w-4"
+            checked={groroOnly}
+            onChange={(e) => onGroroOnlyChange(e.target.checked)}
+          />
+          <span className="relative z-[2]">Только объекты размещения из ГРОРО</span>
+        </label>
       </div>
 
       {/* Сброс под «Найти» — мобильные и планшеты; на lg+ кнопка в шапке секции */}

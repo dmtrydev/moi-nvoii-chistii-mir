@@ -676,6 +676,7 @@ export default function MapPage(): JSX.Element {
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
+    setGroroOnlyMode((prev) => (prev === Boolean(parsed.groroOnly) ? prev : Boolean(parsed.groroOnly)));
     setHasSearched(parsed.searched);
 
     if (parsed.vid.length > 0 && parsed.searched) {
@@ -751,6 +752,7 @@ export default function MapPage(): JSX.Element {
         region: filterRegion.trim(),
         fkko: filterFkko,
         vid: filterVid,
+        groroOnly: groroOnlyMode,
       });
       if (urlKey === stateKey) return;
     }
@@ -758,7 +760,7 @@ export default function MapPage(): JSX.Element {
     setHasSearched(false);
     setSearchItems([]);
     setSearchError('');
-  }, [filterFkko, filterRegion, filterVid, searchParams]);
+  }, [filterFkko, filterRegion, filterVid, groroOnlyMode, searchParams]);
 
   const runSearch = useCallback(
     async (
@@ -772,7 +774,7 @@ export default function MapPage(): JSX.Element {
         searched: overrides?.searched ?? true,
       };
       const vid = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
-      const cacheKey = `${buildCanonicalSearchKey(nextFilters)}|groroOnly:${groroOnlyMode ? '1' : '0'}`;
+      const cacheKey = buildCanonicalSearchKey({ ...nextFilters, groroOnly: groroOnlyMode });
 
       if (!vid) {
         if (!overrides) setFilterValidationError('Укажите вид обращения.');
@@ -875,6 +877,7 @@ export default function MapPage(): JSX.Element {
       region: filterRegion.trim(),
       fkko: filterFkko,
       vid: filterVid,
+      groroOnly: groroOnlyMode,
       searched: true,
     };
     setSearchParams(buildSearchParamsFromFilters(next));

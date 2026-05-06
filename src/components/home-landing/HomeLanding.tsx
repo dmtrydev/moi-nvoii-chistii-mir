@@ -67,6 +67,7 @@ export function HomeLanding(): JSX.Element {
   const [filterFkko, setFilterFkko] = useState(INITIAL_FKKO);
   const [filterVid, setFilterVid] = useState<string[]>(INITIAL_VID);
   const [filterRegion, setFilterRegion] = useState(INITIAL_REGION);
+  const [groroOnly, setGroroOnly] = useState(false);
   const [fkkoOptions, setFkkoOptions] = useState<string[]>([]);
   const [fkkoTitleByCode, setFkkoTitleByCode] = useState<Record<string, string>>({});
   const mergeFkkoTitles = useCallback((partial: Record<string, string>) => {
@@ -101,14 +102,25 @@ export function HomeLanding(): JSX.Element {
         region: filterRegion.trim(),
         fkko: filterFkko,
         vid: filterVid,
+        groroOnly,
         searched: false,
       });
       params.delete('searched');
-      void fetch(getApiUrl(`/api/license-sites?${params.toString()}`), { signal: ac.signal })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-        .then((data: { items?: LicenseData[] }) => {
-          const arr = Array.isArray(data.items) ? data.items : [];
-          setMapPreviewItems(arr);
+      void Promise.all([
+        groroOnly ? Promise.resolve({ items: [] as LicenseData[] }) : fetch(getApiUrl(`/api/license-sites?${params.toString()}`), { signal: ac.signal }).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
+        fetch(
+          getApiUrl(
+            `/api/groro-objects?region=${encodeURIComponent(filterRegion.trim())}&fkko=${encodeURIComponent(
+              fkkoCodesToQueryParam(filterFkko),
+            )}`,
+          ),
+          { signal: ac.signal },
+        ).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
+      ])
+        .then(([licData, groroData]: [{ items?: LicenseData[] }, { items?: LicenseData[] }]) => {
+          const licArr = Array.isArray(licData.items) ? licData.items : [];
+          const groroArr = Array.isArray(groroData.items) ? groroData.items : [];
+          setMapPreviewItems(groroOnly ? groroArr : [...licArr, ...groroArr]);
         })
         .catch((err: unknown) => {
           const aborted =
@@ -125,7 +137,7 @@ export function HomeLanding(): JSX.Element {
       if (mapPreviewDebounceRef.current) clearTimeout(mapPreviewDebounceRef.current);
       mapPreviewAbortRef.current?.abort();
     };
-  }, [filterFkko, filterRegion, filterVid]);
+  }, [filterFkko, filterRegion, filterVid, groroOnly]);
 
   const prefersReducedMotion = useMemo(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -260,11 +272,13 @@ export function HomeLanding(): JSX.Element {
       region: filterRegion.trim(),
       fkko: filterFkko,
       vid: filterVid,
+      groroOnly,
     });
     clearCachedResults(key);
     setFilterFkko(INITIAL_FKKO);
     setFilterVid(INITIAL_VID);
     setFilterRegion(INITIAL_REGION);
+    setGroroOnly(false);
     setValidationError('');
     setItems([]);
     setResultsListPage(0);
@@ -272,17 +286,18 @@ export function HomeLanding(): JSX.Element {
     setResultsReveal(false);
     setSearchError('');
     setSearchParams(new URLSearchParams());
-  }, [filterRegion, filterFkko, filterVid, setSearchParams]);
+  }, [filterRegion, filterFkko, filterVid, groroOnly, setSearchParams]);
 
   const runSearch = useCallback(
     async (
-      filters?: { region: string; fkko: string[]; vid: string[]; searched: boolean },
+      filters?: { region: string; fkko: string[]; vid: string[]; searched: boolean; groroOnly?: boolean },
       opts?: { cacheFirst?: boolean },
     ): Promise<void> => {
       const nextFilters = filters ?? {
         region: filterRegion.trim(),
         fkko: filterFkko,
         vid: filterVid,
+        groroOnly,
         searched: true,
       };
       const vidQuery = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
@@ -311,12 +326,25 @@ export function HomeLanding(): JSX.Element {
       try {
         const params = buildSearchParamsFromFilters(nextFilters);
         params.delete('searched');
-        const resp = await fetch(getApiUrl(`/api/license-sites?${params.toString()}`));
-        const data = await (resp.ok ? resp.json() : resp.json().catch(() => ({})));
-        if (!resp.ok)
-          throw new Error((data as { message?: string }).message ?? `Ошибка ${resp.status}`);
-        const found = (data as { items?: LicenseData[] }).items;
-        const nextItems = Array.isArray(found) ? found : [];
+        const [licResp, groroResp] = await Promise.all([
+          nextFilters.groroOnly
+            ? Promise.resolve({ ok: true, json: async () => ({ items: [] as LicenseData[] }) })
+            : fetch(getApiUrl(`/api/license-sites?${params.toString()}`)),
+          fetch(
+            getApiUrl(
+              `/api/groro-objects?region=${encodeURIComponent(nextFilters.region)}&fkko=${encodeURIComponent(
+                fkkoCodesToQueryParam(nextFilters.fkko),
+              )}`,
+            ),
+          ),
+        ]);
+        const licData = await (licResp.ok ? licResp.json() : licResp.json().catch(() => ({})));
+        if (!licResp.ok) throw new Error((licData as { message?: string }).message ?? `Ошибка ${licResp.status}`);
+        const groroData = await (groroResp.ok ? groroResp.json() : groroResp.json().catch(() => ({})));
+        if (!groroResp.ok) throw new Error((groroData as { message?: string }).message ?? `Ошибка ${groroResp.status}`);
+        const licItems = Array.isArray((licData as { items?: LicenseData[] }).items) ? (licData as { items: LicenseData[] }).items : [];
+        const groroItems = Array.isArray((groroData as { items?: LicenseData[] }).items) ? (groroData as { items: LicenseData[] }).items : [];
+        const nextItems = nextFilters.groroOnly ? groroItems : [...licItems, ...groroItems];
         setItems(nextItems);
         setResultsListPage(0);
         writeCachedResults(key, nextItems);
@@ -328,7 +356,7 @@ export function HomeLanding(): JSX.Element {
         setIsSearching(false);
       }
     },
-    [filterRegion, filterFkko, filterVid],
+    [filterRegion, filterFkko, filterVid, groroOnly],
   );
   const runSearchRef = useRef(runSearch);
   useEffect(() => {
@@ -343,6 +371,7 @@ export function HomeLanding(): JSX.Element {
         region: filterRegion,
         fkko: filterFkko,
         vid: filterVid,
+        groroOnly,
         searched: hasSearched || (typeof focusSiteId === 'number' && focusSiteId > 0),
       });
       if (typeof focusSiteId === 'number' && focusSiteId > 0) {
@@ -350,7 +379,7 @@ export function HomeLanding(): JSX.Element {
       }
       return `/map?${params.toString()}`;
     },
-    [filterRegion, filterFkko, filterVid, hasSearched],
+    [filterRegion, filterFkko, filterVid, groroOnly, hasSearched],
   );
 
   const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
@@ -377,6 +406,7 @@ export function HomeLanding(): JSX.Element {
     setFilterRegion((prev) => (prev === parsed.region ? prev : parsed.region));
     setFilterFkko((prev) => (areStringArraysEqual(prev, parsed.fkko) ? prev : parsed.fkko));
     setFilterVid((prev) => (areStringArraysEqual(prev, parsed.vid) ? prev : parsed.vid));
+    setGroroOnly((prev) => (prev === Boolean(parsed.groroOnly) ? prev : Boolean(parsed.groroOnly)));
     setHasSearched(parsed.searched);
 
     if (parsed.searched && parsed.vid.length > 0) {
@@ -483,12 +513,15 @@ export function HomeLanding(): JSX.Element {
               activityTypeOptions={activityTypeOptions}
               filterRegion={filterRegion}
               onFilterRegionChange={setFilterRegion}
+              groroOnly={groroOnly}
+              onGroroOnlyChange={setGroroOnly}
               regionOptions={regionOptions}
               onSearch={() => {
                 const next = {
                   region: filterRegion.trim(),
                   fkko: filterFkko,
                   vid: filterVid,
+                  groroOnly,
                   searched: true,
                 };
                 setSearchParams(buildSearchParamsFromFilters(next));
@@ -607,7 +640,11 @@ export function HomeLanding(): JSX.Element {
                       <div className="no-scrollbar flex flex-col gap-2.5 overflow-y-auto pr-1">
                       {pagedHomeItems.map((item) => {
                         const detailsPath =
-                          typeof item.id === 'number' ? `/enterprise/${item.id}` : '/map';
+                          typeof item.id === 'number'
+                            ? item.importSource === 'groro_parser'
+                              ? `/enterprise/groro/${item.id}`
+                              : `/enterprise/${item.id}`
+                            : '/map';
 
                         return (
                           <article

@@ -125,7 +125,7 @@ export async function listGroroObjectsForMap(pool, { region = '', fkko = '' } = 
     ) ls ON TRUE
     LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    GROUP BY o.id
+    GROUP BY o.id, ls.id, ls.address, ls.region, ls.lat, ls.lng, l.address, l.region, l.lat, l.lng
     ORDER BY o.updated_at DESC
     LIMIT 5000
   `;

@@ -5,6 +5,7 @@ export interface SearchFiltersState {
   region: string;
   fkko: string[];
   vid: string[];
+  groroOnly?: boolean;
   searched: boolean;
 }
 
@@ -30,11 +31,13 @@ export function parseFiltersFromSearchParams(searchParams: URLSearchParams): Sea
   const fkkoRaw = String(searchParams.get('fkko') ?? '').trim();
   const vidRaw = String(searchParams.get('vid') ?? '').trim();
   const searchedRaw = String(searchParams.get('searched') ?? '').trim();
+  const groroOnlyRaw = String(searchParams.get('groroOnly') ?? '').trim();
 
   return {
     region,
     fkko: parseFkkoCodesFromQuery(fkkoRaw),
     vid: normalizeList(vidRaw ? vidRaw.split(/[,;]+/) : []),
+    groroOnly: groroOnlyRaw === '1' || groroOnlyRaw.toLowerCase() === 'true',
     searched: searchedRaw === '1' || searchedRaw.toLowerCase() === 'true',
   };
 }
@@ -44,19 +47,24 @@ export function buildSearchParamsFromFilters(filters: SearchFiltersState): URLSe
   const region = String(filters.region ?? '').trim();
   const fkko = fkkoCodesToQueryParam(filters.fkko ?? []);
   const vid = normalizeList(filters.vid ?? []).join(', ');
+  const groroOnly = Boolean(filters.groroOnly);
 
   if (region) params.set('region', region);
   if (fkko) params.set('fkko', fkko);
   if (vid) params.set('vid', vid);
+  if (groroOnly) params.set('groroOnly', '1');
   if (filters.searched) params.set('searched', '1');
   return params;
 }
 
-export function buildCanonicalSearchKey(filters: Pick<SearchFiltersState, 'region' | 'fkko' | 'vid'>): string {
+export function buildCanonicalSearchKey(
+  filters: Pick<SearchFiltersState, 'region' | 'fkko' | 'vid'> & { groroOnly?: boolean },
+): string {
   const region = String(filters.region ?? '').trim().toLowerCase();
   const fkko = fkkoCodesToQueryParam(filters.fkko ?? []);
   const vid = normalizeList(filters.vid ?? []).map((x) => x.toLowerCase()).join(',');
-  return `${region}|${fkko}|${vid}`;
+  const groroOnly = filters.groroOnly ? 'groro-only' : 'all-layers';
+  return `${region}|${fkko}|${vid}|${groroOnly}`;
 }
 
 function cacheStorageKey(key: string): string {

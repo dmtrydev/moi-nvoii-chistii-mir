@@ -1600,7 +1600,7 @@ app.get('/api/groro-objects/:id', async (req, res) => {
        LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
        WHERE o.id = $1
          AND o.deleted_at IS NULL
-       GROUP BY o.id
+       GROUP BY o.id, ls.id, ls.address, ls.region, ls.lat, ls.lng, l.address, l.region, l.lat, l.lng
        LIMIT 1`,
       [id],
     );
