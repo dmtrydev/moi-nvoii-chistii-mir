@@ -377,9 +377,9 @@ export function HomeLanding(): JSX.Element {
   }, [groroOnly]);
   const lastHydratedSearchRef = useRef<string | null>(null);
 
-  /** Переход на карту с теми же фильтрами; `focusSiteId` — открыть маркер обычной площадки. */
+  /** Переход на карту с теми же фильтрами; `focusSiteId` — площадка лицензии, `focusGroroId` — карточка ГРОРО. */
   const buildMapUrl = useCallback(
-    (focusSiteId?: number | null, isGroroItem = false): string => {
+    (focusSiteId?: number | null, isGroroItem = false, focusGroroId?: number | null): string => {
       const params = buildSearchParamsFromFilters({
         region: filterRegion,
         fkko: filterFkko,
@@ -389,6 +389,9 @@ export function HomeLanding(): JSX.Element {
       });
       if (!isGroroItem && typeof focusSiteId === 'number' && focusSiteId > 0) {
         params.set('focusSite', String(focusSiteId));
+      }
+      if (isGroroItem && typeof focusGroroId === 'number' && focusGroroId > 0) {
+        params.set('focusGroro', String(focusGroroId));
       }
       return `/map?${params.toString()}`;
     },
@@ -696,6 +699,7 @@ export function HomeLanding(): JSX.Element {
                                       to={buildMapUrl(
                                         toPositiveInt(item.siteId),
                                         item.importSource === 'groro_parser',
+                                        typeof item.id === 'number' ? item.id : null,
                                       )}
                                       className="group home-find-button relative inline-flex h-[50px] w-full items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:px-8 lg:min-w-[200px]"
                                     >

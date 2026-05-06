@@ -460,6 +460,7 @@ export default function MapPage(): JSX.Element {
   const [routeBusy, setRouteBusy] = useState(false);
   const [routeError, setRouteError] = useState('');
   const [routeResult, setRouteResult] = useState<RouteBuildResult | null>(null);
+  const geocodeCacheRef = useRef<Map<string, { lat: number; lng: number } | null>>(new Map());
   const searchPhaseLabel = useRotatingSearchMessage(hasSearched && isSearching);
   const isApplyingQueryFiltersRef = useRef(false);
   /** После применения фильтров из URL следующий проход эффекта «сброс при смене фильтров» не должен чистить результаты (иначе съедается авто-поиск). */
@@ -712,6 +713,12 @@ export default function MapPage(): JSX.Element {
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [searchParams]);
+  const focusGroroId = useMemo(() => {
+    const raw = searchParams.get('focusGroro');
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [searchParams]);
 
   useEffect(() => {
     // 1) Если есть focus=id — подгрузим объект и откроем его
@@ -735,6 +742,45 @@ export default function MapPage(): JSX.Element {
       alive = false;
     };
   }, [focusSiteId]);
+  useEffect(() => {
+    if (!focusGroroId) return;
+    let alive = true;
+    fetch(getApiUrl(`/api/groro-objects/${focusGroroId}`))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(async (data: LicenseData) => {
+        if (!alive) return;
+        let next = data;
+        if (
+          !(typeof data.lat === 'number' && Number.isFinite(data.lat) && typeof data.lng === 'number' && Number.isFinite(data.lng)) &&
+          String(data.address ?? '').trim()
+        ) {
+          try {
+            const g = await fetch(getApiUrl(`/api/geocode?address=${encodeURIComponent(String(data.address))}`));
+            const geocoded = (await g.json().catch(() => ({}))) as { lat?: number; lng?: number };
+            if (g.ok && typeof geocoded.lat === 'number' && typeof geocoded.lng === 'number') {
+              next = {
+                ...data,
+                lat: geocoded.lat,
+                lng: geocoded.lng,
+              };
+            }
+          } catch {
+            // ignore geocode error for deep-link
+          }
+        }
+        if (!alive) return;
+        setFocusedItem(next);
+        const sid = toPositiveInt(next.siteId) ?? toPositiveInt(next.id);
+        if (sid != null) setSelectedId(sid);
+        if (typeof next.lat === 'number' && typeof next.lng === 'number') {
+          setFocusCenter([next.lat, next.lng]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [focusGroroId]);
 
   // При изменении фильтров сбрасываем результаты (без hasSearched в deps — иначе ломается поиск)
   const filterChangeSearchResetSkip = useRef(true);
@@ -832,6 +878,49 @@ export default function MapPage(): JSX.Element {
               : [];
           })();
       const merged = [...itemsLic, ...itemsGroro];
+      const missingForGeocode = merged.filter(
+        (it) =>
+          it.importSource === 'groro_parser' &&
+          (typeof it.lat !== 'number' || !Number.isFinite(it.lat) || typeof it.lng !== 'number' || !Number.isFinite(it.lng)) &&
+          String(it.address ?? '').trim().length > 0,
+      );
+      if (missingForGeocode.length > 0) {
+        const workers = Array.from({ length: Math.min(6, missingForGeocode.length) }, () => 0).map(
+          async (_, idx) => {
+            for (let i = idx; i < missingForGeocode.length; i += 6) {
+              const item = missingForGeocode[i];
+              const addr = String(item.address ?? '').trim();
+              const cached = geocodeCacheRef.current.get(addr);
+              if (cached) {
+                item.lat = cached.lat;
+                item.lng = cached.lng;
+                if (Array.isArray(item.sites)) {
+                  item.sites = item.sites.map((s) => ({ ...s, lat: s.lat ?? cached.lat, lng: s.lng ?? cached.lng }));
+                }
+                continue;
+              }
+              if (geocodeCacheRef.current.has(addr) && cached == null) continue;
+              try {
+                const r = await fetch(getApiUrl(`/api/geocode?address=${encodeURIComponent(addr)}`));
+                const g = (await r.json().catch(() => ({}))) as { lat?: number; lng?: number };
+                if (r.ok && typeof g.lat === 'number' && typeof g.lng === 'number') {
+                  geocodeCacheRef.current.set(addr, { lat: g.lat, lng: g.lng });
+                  item.lat = g.lat;
+                  item.lng = g.lng;
+                  if (Array.isArray(item.sites)) {
+                    item.sites = item.sites.map((s) => ({ ...s, lat: s.lat ?? g.lat, lng: s.lng ?? g.lng }));
+                  }
+                } else {
+                  geocodeCacheRef.current.set(addr, null);
+                }
+              } catch {
+                geocodeCacheRef.current.set(addr, null);
+              }
+            }
+          },
+        );
+        await Promise.all(workers);
+      }
       const nextItems = merged.filter((it) => {
         if (!Array.isArray(nextFilters.vid) || nextFilters.vid.length === 0) return true;
         const acts = Array.isArray(it.activityTypes) ? it.activityTypes : [];
@@ -1439,6 +1528,8 @@ export default function MapPage(): JSX.Element {
                   const focusSid = toPositiveInt(it.siteId);
                   if (it.importSource !== 'groro_parser' && focusSid != null) {
                     mapParams.set('focusSite', String(focusSid));
+                  } else if (it.importSource === 'groro_parser' && typeof it.id === 'number') {
+                    mapParams.set('focusGroro', String(it.id));
                   }
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>
@@ -1526,7 +1617,7 @@ export default function MapPage(): JSX.Element {
                           </div>
                         </div>
                       </article>
-                      {!hasCoords && toPositiveInt(it.siteId) != null && (
+      {!hasCoords && toPositiveInt(it.siteId) != null && it.importSource !== 'groro_parser' && (
                         <button
                           type="button"
                           onClick={() => {
@@ -1798,7 +1889,10 @@ export default function MapPage(): JSX.Element {
             Кадастровая подложка · нажмите на участок для получения данных
           </div>
         )}
-        {!cadastralOverlay && focusMissingCoords && toPositiveInt(focusedItem?.siteId) != null ? (
+        {!cadastralOverlay &&
+        focusMissingCoords &&
+        focusedItem?.importSource !== 'groro_parser' &&
+        toPositiveInt(focusedItem?.siteId) != null ? (
           <div
             role="status"
             className="pointer-events-auto absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[5010] rounded-2xl border border-black/[0.06] bg-[#fffffff2] px-4 py-3 shadow-[0_12px_40px_rgba(43,51,53,0.18)] backdrop-blur-md sm:left-auto sm:right-6 sm:max-w-md sm:translate-x-0"
