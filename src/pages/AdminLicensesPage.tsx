@@ -216,7 +216,8 @@ export default function AdminLicensesPage(): JSX.Element {
     }
     const data = body as { items?: LicenseItem[]; total?: number };
     const list = Array.isArray(data.items) ? data.items : [];
-    const t = Number(data.total) ?? 0;
+    const totalValue = Number(data.total);
+    const t = Number.isFinite(totalValue) ? totalValue : 0;
     setItems(list);
     setTotal(t);
     const maxPage = Math.max(1, Math.ceil(t / PAGE_SIZE) || 1);
@@ -236,11 +237,26 @@ export default function AdminLicensesPage(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
+    async function loadStats() {
+      try {
+        await fetchStats();
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка');
+      }
+    }
+    void loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     async function load() {
       setLoading(true);
       setError(null);
       try {
-        await Promise.all([fetchStats(), fetchTablePage(page)]);
+        await fetchTablePage(page);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка');
       } finally {
@@ -255,11 +271,14 @@ export default function AdminLicensesPage(): JSX.Element {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
-  async function reload(): Promise<void> {
+  async function reload(options?: { withStats?: boolean }): Promise<void> {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([fetchStats(), fetchTablePage(page)]);
+      await fetchTablePage(page);
+      if (options?.withStats) {
+        await fetchStats();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка');
     } finally {
@@ -278,7 +297,7 @@ export default function AdminLicensesPage(): JSX.Element {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { message?: string }).message ?? 'Ошибка одобрения');
       }
-      await reload();
+      await reload({ withStats: true });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка одобрения');
     }
@@ -310,7 +329,7 @@ export default function AdminLicensesPage(): JSX.Element {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { message?: string }).message ?? 'Ошибка отклонения');
       }
-      await reload();
+      await reload({ withStats: true });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка отклонения');
     }
@@ -366,7 +385,7 @@ export default function AdminLicensesPage(): JSX.Element {
       alert(message);
       setDupModalOpen(false);
       setDupGroups([]);
-      await reload();
+      await reload({ withStats: true });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка слияния дублей');
     } finally {
@@ -386,7 +405,7 @@ export default function AdminLicensesPage(): JSX.Element {
       if (!res.ok) {
         throw new Error((body as { message?: string }).message ?? 'Ошибка удаления');
       }
-      await reload();
+      await reload({ withStats: true });
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Ошибка удаления');
     }

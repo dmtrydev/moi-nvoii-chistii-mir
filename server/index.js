@@ -87,6 +87,14 @@ async function ensureDatabaseSchema() {
       const rpnSnapshotPath = path.join(__dirname, 'db', 'migrations', 'rpn-registry-snapshot.sql');
       const rpnSnapshotSql = await fsPromises.readFile(rpnSnapshotPath, 'utf8');
       await client.query(rpnSnapshotSql);
+      const adminSearchPerfPath = path.join(
+        __dirname,
+        'db',
+        'migrations',
+        'admin-license-search-performance.sql',
+      );
+      const adminSearchPerfSql = await fsPromises.readFile(adminSearchPerfPath, 'utf8');
+      await client.query(adminSearchPerfSql);
 
       console.log('DB schema initialized/ensured');
     });

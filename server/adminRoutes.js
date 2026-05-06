@@ -25,6 +25,8 @@ const requireSuperadminOnly = requireRole('SUPERADMIN');
 
 const MAX_ADMIN_SEARCH_TOKENS = 12;
 const MAX_ADMIN_SEARCH_TOKEN_LEN = 80;
+const ADMIN_LICENSES_DEFAULT_LIMIT = 50;
+const ADMIN_LICENSES_MAX_LIMIT = 100;
 
 function tokenizeAdminLicenseSearch(q) {
   const s = String(q ?? '').trim();
@@ -36,30 +38,34 @@ function tokenizeAdminLicenseSearch(q) {
     .slice(0, MAX_ADMIN_SEARCH_TOKENS);
 }
 
-/** Подстрока безопасна для POSITION: без wildcard как у ILIKE */
+/**
+ * Подстрочный поиск через ILIKE.
+ * Семантика совпадает с прошлым POSITION(... in lower(...)) > 0,
+ * но оставляет БД возможность использовать trigram-индексы.
+ */
 function sqlAdminLicenseTokenClause(paramPlaceholder) {
   return `(
-    position(${paramPlaceholder} in lower(coalesce(company_name, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(inn, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(address, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(region, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(import_source, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(file_original_name, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(file_stored_name, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(moderated_comment, ''))) > 0
-    OR position(${paramPlaceholder} in lower(coalesce(rejection_note, ''))) > 0
-    OR position(${paramPlaceholder} in lower(cast(id as text))) > 0
-    OR position(${paramPlaceholder} in lower(array_to_string(fkko_codes, ' '))) > 0
-    OR position(${paramPlaceholder} in lower(array_to_string(activity_types, ' '))) > 0
+    lower(coalesce(company_name, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(inn, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(address, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(region, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(import_source, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(file_original_name, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(file_stored_name, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(moderated_comment, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(coalesce(rejection_note, '')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(cast(id as text)) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(array_to_string(fkko_codes, ' ')) LIKE '%' || ${paramPlaceholder} || '%'
+    OR lower(array_to_string(activity_types, ' ')) LIKE '%' || ${paramPlaceholder} || '%'
     OR exists (
       select 1 from license_sites s
       where s.license_id = licenses.id
         and (
-          position(${paramPlaceholder} in lower(coalesce(s.address, ''))) > 0
-          or position(${paramPlaceholder} in lower(coalesce(s.region, ''))) > 0
-          or position(${paramPlaceholder} in lower(coalesce(s.site_label, ''))) > 0
-          or position(${paramPlaceholder} in lower(array_to_string(s.fkko_codes, ' '))) > 0
-          or position(${paramPlaceholder} in lower(array_to_string(s.activity_types, ' '))) > 0
+          lower(coalesce(s.address, '')) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(coalesce(s.region, '')) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(coalesce(s.site_label, '')) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(array_to_string(s.fkko_codes, ' ')) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(array_to_string(s.activity_types, ' ')) LIKE '%' || ${paramPlaceholder} || '%'
         )
     )
     OR exists (
@@ -67,10 +73,10 @@ function sqlAdminLicenseTokenClause(paramPlaceholder) {
       inner join site_fkko_activities sfa on sfa.site_id = s.id
       where s.license_id = licenses.id
         and (
-          position(${paramPlaceholder} in lower(sfa.fkko_code)) > 0
-          or position(${paramPlaceholder} in lower(coalesce(sfa.waste_name, ''))) > 0
-          or position(${paramPlaceholder} in lower(coalesce(sfa.activity_type, ''))) > 0
-          or position(${paramPlaceholder} in lower(coalesce(sfa.hazard_class, ''))) > 0
+          lower(sfa.fkko_code) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(coalesce(sfa.waste_name, '')) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(coalesce(sfa.activity_type, '')) LIKE '%' || ${paramPlaceholder} || '%'
+          or lower(coalesce(sfa.hazard_class, '')) LIKE '%' || ${paramPlaceholder} || '%'
         )
     )
   )`;
@@ -283,16 +289,22 @@ adminRouter.get('/licenses', async (req, res) => {
     ? importRegistryStatusStr
     : null;
   const registryInactiveOnly = String(importRegistryInactiveQ ?? '').toLowerCase() === 'true';
+  const rawLimit = Number(limit);
+  const rawOffset = Number(offset);
+  const safeLimit = Number.isFinite(rawLimit)
+    ? Math.min(ADMIN_LICENSES_MAX_LIMIT, Math.max(1, Math.trunc(rawLimit)))
+    : ADMIN_LICENSES_DEFAULT_LIMIT;
+  const safeOffset = Number.isFinite(rawOffset) ? Math.max(0, Math.trunc(rawOffset)) : 0;
 
   const whereParts = [];
-  const countParams = [];
+  const listParams = [];
   let pi = 1;
   if (!showDeleted) {
     whereParts.push('deleted_at IS NULL');
   }
   if (statusFilter) {
     whereParts.push(`status = $${pi++}`);
-    countParams.push(statusFilter);
+    listParams.push(statusFilter);
   }
   if (importSourceStr === 'any') {
     whereParts.push('import_source IS NOT NULL');
@@ -300,36 +312,29 @@ adminRouter.get('/licenses', async (req, res) => {
     whereParts.push('import_source IS NULL');
   } else if (importSourceStr.length > 0) {
     whereParts.push(`import_source = $${pi++}`);
-    countParams.push(importSourceStr);
+    listParams.push(importSourceStr);
   }
   if (registryInactiveOnly) {
     whereParts.push('import_registry_inactive = TRUE');
     whereParts.push(`import_source = $${pi++}`);
-    countParams.push('rpn_registry');
+    listParams.push('rpn_registry');
   }
   if (importRegistryStatusFilter) {
     whereParts.push(`import_registry_status = $${pi++}`);
-    countParams.push(importRegistryStatusFilter);
+    listParams.push(importRegistryStatusFilter);
   }
 
   const searchTokens = tokenizeAdminLicenseSearch(searchQ);
   for (const tok of searchTokens) {
     const ph = `$${pi++}`;
     whereParts.push(sqlAdminLicenseTokenClause(ph));
-    countParams.push(tok);
+    listParams.push(tok);
   }
 
   const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
-
-  const { rows: countRows } = await query(
-    `SELECT COUNT(*)::int AS c FROM licenses ${whereSql}`,
-    countParams,
-  );
-  const total = countRows[0]?.c ?? 0;
-
-  const listParams = [...countParams, Number(limit), Number(offset)];
   const limIdx = pi++;
-  const offIdx = pi;
+  const offIdx = pi++;
+  listParams.push(safeLimit, safeOffset);
   const rows = await query(
     `SELECT id,
             company_name AS "companyName",
@@ -354,15 +359,22 @@ adminRouter.get('/licenses', async (req, res) => {
             import_source AS "importSource",
             import_registry_status AS "importRegistryStatus",
             import_registry_status_ru AS "importRegistryStatusRu",
-            import_registry_inactive AS "importRegistryInactive"
+            import_registry_inactive AS "importRegistryInactive",
+            COUNT(*) OVER()::int AS "__total"
      FROM licenses
      ${whereSql}
      ORDER BY created_at DESC
      LIMIT $${limIdx} OFFSET $${offIdx}`,
     listParams,
   );
+  let total = rows.rows[0]?.__total ?? 0;
+  if (total === 0 && safeOffset > 0) {
+    const { rows: countRows } = await query(`SELECT COUNT(*)::int AS c FROM licenses ${whereSql}`, listParams.slice(0, -2));
+    total = countRows[0]?.c ?? 0;
+  }
+  const items = rows.rows.map(({ __total: _total, ...item }) => item);
 
-  res.json({ items: rows.rows, total });
+  res.json({ items, total });
 });
 
 const INN_EXPR = LICENSE_INN_NORMALIZED_EXPR;
