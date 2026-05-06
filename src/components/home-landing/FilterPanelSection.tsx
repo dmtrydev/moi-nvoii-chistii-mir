@@ -5,7 +5,12 @@ import filterSectionTitleIcon from '@/assets/home-landing/filter-section-title-i
 import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { AutocompleteInput } from '@/components/ui/AutocompleteInput';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
-import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
+import {
+  VidMenuCheckboxChecked,
+  VidMenuCheckboxCheckedSm,
+  VidMenuCheckboxUnchecked,
+  VidMenuCheckboxUncheckedSm,
+} from '@/components/home-landing/VidMenuCheckbox';
 import {
   buildFkkoSearchIndex,
   formatFkkoHuman,
@@ -431,7 +436,7 @@ export function FilterPanelSection({
             onChange={(e) => onGroroOnlyChange(e.target.checked)}
           />
           <span className="relative z-[2] inline-flex shrink-0">
-            {groroOnly ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+            {groroOnly ? <VidMenuCheckboxCheckedSm /> : <VidMenuCheckboxUncheckedSm />}
           </span>
           <span className="relative z-[2]">Только объекты размещения из ГРОРО</span>
         </label>

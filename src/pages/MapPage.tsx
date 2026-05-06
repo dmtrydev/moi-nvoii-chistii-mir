@@ -61,6 +61,7 @@ import homeResultsMapCtaIcon from '@/assets/home-landing/home-results-map-cta-ic
 import homeResultsEnterpriseCtaIcon from '@/assets/home-landing/home-results-enterprise-cta-icon.svg';
 import vidChevronClosed from '@/assets/home-landing/vid-chevron-closed.svg';
 import { VidMenuCheckboxChecked, VidMenuCheckboxUnchecked } from '@/components/home-landing/VidMenuCheckbox';
+import { VidMenuCheckboxCheckedSm, VidMenuCheckboxUncheckedSm } from '@/components/home-landing/VidMenuCheckbox';
 import backToHomeIconPlaceholder from '@/assets/map/back-to-home-icon-placeholder.svg';
 import collapseMenuIconPlaceholder from '@/assets/map/collapse-menu-icon-placeholder.svg';
 
@@ -1340,10 +1341,12 @@ export default function MapPage(): JSX.Element {
             <label className="relative z-[2] inline-flex items-center gap-2 rounded-xl border border-black/[0.06] bg-white/70 px-3 py-2 text-sm font-semibold text-[#2b3335]">
               <input
                 type="checkbox"
+                className="sr-only"
                 checked={groroOnlyMode}
                 onChange={(e) => setGroroOnlyMode(e.target.checked)}
               />
-              Показывать только объекты ГРОРО
+              {groroOnlyMode ? <VidMenuCheckboxCheckedSm /> : <VidMenuCheckboxUncheckedSm />}
+              Только объекты размещения из ГРОРО
             </label>
             <div className="relative z-[1] flex flex-col gap-3 pt-1 sm:flex-row sm:items-stretch">
               <button
@@ -1434,7 +1437,9 @@ export default function MapPage(): JSX.Element {
                     searched: true,
                   });
                   const focusSid = toPositiveInt(it.siteId);
-                  if (focusSid != null) mapParams.set('focusSite', String(focusSid));
+                  if (it.importSource !== 'groro_parser' && focusSid != null) {
+                    mapParams.set('focusSite', String(focusSid));
+                  }
                   return (
                     <div key={id ?? `${it.companyName}-${it.address}-${it.inn}`}>
                       <article className="rounded-[32.5px] border border-solid border-white bg-[#ffffff80] p-6 shadow-[inset_0px_0px_70.1px_#ffffffb2] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] sm:p-7 lg:p-8">

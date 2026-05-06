@@ -362,11 +362,24 @@ export function HomeLanding(): JSX.Element {
   useEffect(() => {
     runSearchRef.current = runSearch;
   }, [runSearch]);
+  useEffect(() => {
+    if (!hasSearched) return;
+    void runSearch(
+      {
+        region: filterRegion.trim(),
+        fkko: filterFkko,
+        vid: filterVid,
+        groroOnly,
+        searched: true,
+      },
+      { cacheFirst: false },
+    );
+  }, [groroOnly]);
   const lastHydratedSearchRef = useRef<string | null>(null);
 
-  /** Переход на карту с теми же фильтрами; `focusSiteId` — открыть маркер и карточку этой площадки. */
+  /** Переход на карту с теми же фильтрами; `focusSiteId` — открыть маркер обычной площадки. */
   const buildMapUrl = useCallback(
-    (focusSiteId?: number | null): string => {
+    (focusSiteId?: number | null, isGroroItem = false): string => {
       const params = buildSearchParamsFromFilters({
         region: filterRegion,
         fkko: filterFkko,
@@ -374,7 +387,7 @@ export function HomeLanding(): JSX.Element {
         groroOnly,
         searched: hasSearched || (typeof focusSiteId === 'number' && focusSiteId > 0),
       });
-      if (typeof focusSiteId === 'number' && focusSiteId > 0) {
+      if (!isGroroItem && typeof focusSiteId === 'number' && focusSiteId > 0) {
         params.set('focusSite', String(focusSiteId));
       }
       return `/map?${params.toString()}`;
@@ -680,7 +693,10 @@ export function HomeLanding(): JSX.Element {
                                 <div className="flex w-full flex-wrap items-center gap-2.5 lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
                                   <div className="ml-auto flex w-full max-w-[435px] flex-col items-stretch gap-3 lg:ml-0 lg:max-w-none lg:flex-row lg:items-center lg:gap-5">
                                     <Link
-                                      to={buildMapUrl(toPositiveInt(item.siteId))}
+                                      to={buildMapUrl(
+                                        toPositiveInt(item.siteId),
+                                        item.importSource === 'groro_parser',
+                                      )}
                                       className="group home-find-button relative inline-flex h-[50px] w-full items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:w-auto lg:rounded-[20px] lg:px-8 lg:min-w-[200px]"
                                     >
                                       <span className="relative z-[2] inline-flex items-center gap-2.5">
