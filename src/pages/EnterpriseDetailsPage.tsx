@@ -126,7 +126,8 @@ function moderationStatusLabel(status: string | null | undefined): string {
 }
 
 export default function EnterpriseDetailsPage(): JSX.Element {
-  const { id } = useParams<{ id: string }>();
+  const { id, groroId } = useParams<{ id: string; groroId: string }>();
+  const isGroro = Number.isFinite(Number(groroId)) && Number(groroId) > 0;
   const location = useLocation();
   const [item, setItem] = useState<LicenseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +145,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     : '/admin/licenses';
 
   useEffect(() => {
-    const numId = Number(id);
+    const numId = Number(isGroro ? groroId : id);
     if (!Number.isFinite(numId) || numId <= 0) {
       setLoading(false);
       setError('Некорректный идентификатор предприятия.');
@@ -155,6 +156,17 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     setError('');
     async function load() {
       try {
+        if (isGroro) {
+          const rg = await fetch(getApiUrl(`/api/groro-objects/${numId}`), {
+            credentials: 'include',
+          });
+          if (!rg.ok) throw new Error(`Ошибка ${rg.status}`);
+          const gData = (await rg.json()) as LicenseData;
+          if (!alive) return;
+          setItem(gData);
+          return;
+        }
+
         const r = await fetch(getApiUrl(`/api/licenses/${numId}/extended`), {
           credentials: 'include',
         });
@@ -182,9 +194,9 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, groroId, isGroro]);
 
-  const canModerate = user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN';
+  const canModerate = (user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN') && !isGroro;
   const isSuperAdmin = user?.role === 'SUPERADMIN';
   const display = canModerate && editing && draft ? draft : item;
 
@@ -1079,8 +1091,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
                 </section>
               )}
 
-              {/* Состояние лицензии в реестре Росприроднадзора (видно всем посетителям). */}
-              <RpnLicenseStateCard pps={item?.pps} rpnSnapshot={item?.rpnSnapshot} />
+              {!isGroro ? <RpnLicenseStateCard pps={item?.pps} rpnSnapshot={item?.rpnSnapshot} /> : null}
 
               {(item?.status ||
                 item?.rejectionNote ||

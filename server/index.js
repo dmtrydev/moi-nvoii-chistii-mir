@@ -1507,10 +1507,123 @@ app.get('/api/groro-objects', async (req, res) => {
     const region = String(req.query.region ?? '').trim();
     const fkko = String(req.query.fkko ?? '').replace(/\D/g, '');
     const items = await listGroroObjectsForMap(getPool(), { region, fkko });
-    return res.json({ items });
+    const mapped = items.map((r) => ({
+      id: r.id,
+      siteId: r.id,
+      companyName: r.operatorName || r.objectName || 'ГРОРО объект',
+      inn: r.operatorInn || '',
+      address: r.operatorAddress || '',
+      region: r.region || '',
+      lat: undefined,
+      lng: undefined,
+      fkkoCodes: Array.from(new Set((Array.isArray(r.wastes) ? r.wastes : []).map((w) => String(w.fkkoCode ?? '').replace(/\D/g, '')).filter((x) => /^\d{11}$/.test(x)))),
+      activityTypes: ['Размещение'],
+      importSource: 'groro_parser',
+      groroNumber: r.groroNumber,
+      importRegistryStatus: r.status,
+      importRegistryStatusRu: r.statusRu,
+      sites: [
+        {
+          id: r.id,
+          siteLabel: 'Основная площадка',
+          address: r.operatorAddress || '',
+          region: r.region || '',
+          lat: undefined,
+          lng: undefined,
+          fkkoCodes: Array.from(new Set((Array.isArray(r.wastes) ? r.wastes : []).map((w) => String(w.fkkoCode ?? '').replace(/\D/g, '')).filter((x) => /^\d{11}$/.test(x)))),
+          activityTypes: ['Размещение'],
+          entries: (Array.isArray(r.wastes) ? r.wastes : []).map((w) => ({
+            fkkoCode: String(w.fkkoCode ?? '').replace(/\D/g, ''),
+            wasteName: w.wasteName ?? '',
+            hazardClass: w.hazardClass ?? '',
+            activityTypes: [w.activityType ?? 'Размещение'],
+          })),
+        },
+      ],
+    }));
+    return res.json({ items: mapped });
   } catch (err) {
     console.error('groro-objects error:', err);
     return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка получения ГРОРО объектов' });
+  }
+});
+
+app.get('/api/groro-objects/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+    const rows = await query(
+      `SELECT
+         o.id,
+         o.groro_number AS "groroNumber",
+         o.object_name AS "objectName",
+         o.status,
+         o.status_ru AS "statusRu",
+         o.region,
+         o.operator_name AS "operatorName",
+         o.operator_inn AS "operatorInn",
+         o.operator_address AS "operatorAddress",
+         o.linked_license_id AS "linkedLicenseId",
+         o.created_at AS "createdAt",
+         COALESCE(
+          json_agg(
+            json_build_object(
+              'fkkoCode', w.fkko_code,
+              'wasteName', w.waste_name,
+              'hazardClass', w.hazard_class,
+              'activityType', w.activity_type
+            )
+          ) FILTER (WHERE w.id IS NOT NULL),
+          '[]'::json
+         ) AS wastes
+       FROM groro_objects o
+       LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
+       WHERE o.id = $1
+       GROUP BY o.id
+       LIMIT 1`,
+      [id],
+    );
+    if (!rows.rows.length) return res.status(404).json({ message: 'ГРОРО объект не найден' });
+    const r = rows.rows[0];
+    const fkkoCodes = Array.from(new Set((Array.isArray(r.wastes) ? r.wastes : []).map((w) => String(w.fkkoCode ?? '').replace(/\D/g, '')).filter((x) => /^\d{11}$/.test(x))));
+    return res.json({
+      id: r.id,
+      siteId: r.id,
+      companyName: r.operatorName || r.objectName || 'ГРОРО объект',
+      inn: r.operatorInn || '',
+      address: r.operatorAddress || '',
+      region: r.region || '',
+      lat: undefined,
+      lng: undefined,
+      fkkoCodes,
+      activityTypes: ['Размещение'],
+      importSource: 'groro_parser',
+      groroNumber: r.groroNumber,
+      importRegistryStatus: r.status,
+      importRegistryStatusRu: r.statusRu,
+      createdAt: r.createdAt,
+      sites: [
+        {
+          id: r.id,
+          siteLabel: 'Основная площадка',
+          address: r.operatorAddress || '',
+          region: r.region || '',
+          lat: undefined,
+          lng: undefined,
+          fkkoCodes,
+          activityTypes: ['Размещение'],
+          entries: (Array.isArray(r.wastes) ? r.wastes : []).map((w) => ({
+            fkkoCode: String(w.fkkoCode ?? '').replace(/\D/g, ''),
+            wasteName: w.wasteName ?? '',
+            hazardClass: w.hazardClass ?? '',
+            activityTypes: [w.activityType ?? 'Размещение'],
+          })),
+        },
+      ],
+    });
+  } catch (err) {
+    console.error('groro-object details error:', err);
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка загрузки ГРОРО карточки' });
   }
 });
 

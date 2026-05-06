@@ -144,6 +144,7 @@ function buildPpsCheckText(pps: PpsSummary | undefined, rpn: RpnSnapshotPublic |
 }
 
 export function buildMapEnterpriseRpnStrip(source: LicenseData): MapEnterpriseRpnStrip | null {
+  if (source.importSource === 'groro_parser') return null;
   const pps = source.pps;
   const rpn = source.rpnSnapshot ?? null;
   if (!pps && !rpn) return null;
@@ -269,7 +270,9 @@ export function buildMapEnterprisePopupViewModel(
   const licenseId = input.source.id;
   const enterpriseDetailsHref =
     typeof licenseId === 'number' && Number.isFinite(licenseId) && licenseId > 0
-      ? `/enterprise/${licenseId}`
+      ? input.source.importSource === 'groro_parser'
+        ? `/enterprise/groro/${licenseId}`
+        : `/enterprise/${licenseId}`
       : null;
 
   return {

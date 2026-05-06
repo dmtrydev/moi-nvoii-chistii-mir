@@ -355,8 +355,8 @@ function MapPointMarker({
   );
 
   const markerVariant = useMemo(
-    () => getMapMarkerVariant(point.source.activityTypes),
-    [point.source.activityTypes],
+    () => (point.source.importSource === 'groro_parser' ? 'storage' : getMapMarkerVariant(point.source.activityTypes)),
+    [point.source.activityTypes, point.source.importSource],
   );
   const markerIcon = useMemo(
     () => buildMapPointDivIcon(markerVariant, isSelected),
@@ -448,6 +448,7 @@ export default function MapPage(): JSX.Element {
   const [rasterBase, setRasterBase] = useState<RasterBaseId>('osm');
   const [cadastralOverlay, setCadastralOverlay] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const [groroLayerEnabled, setGroroLayerEnabled] = useState(true);
   const layerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layerControlRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -793,14 +794,40 @@ export default function MapPage(): JSX.Element {
       setIsSearching(true);
       setSearchError('');
       try {
-      const r = await fetch(getApiUrl(`/api/license-sites?${qs.toString()}`));
-      const data = await (r.ok ? r.json() : r.json().catch(() => ({})));
-      if (!r.ok) {
-        const msg = (data as { message?: string }).message;
-        throw new Error(msg ?? String(r.status));
+      const [rLic, rGroro] = await Promise.all([
+        fetch(getApiUrl(`/api/license-sites?${qs.toString()}`)),
+        groroLayerEnabled
+          ? fetch(
+              getApiUrl(
+                `/api/groro-objects?region=${encodeURIComponent(nextFilters.region)}&fkko=${encodeURIComponent(
+                  fkkoCodesToQueryParam(nextFilters.fkko),
+                )}`,
+              ),
+            )
+          : Promise.resolve(null),
+      ]);
+
+      const dataLic = await (rLic.ok ? rLic.json() : rLic.json().catch(() => ({})));
+      if (!rLic.ok) {
+        const msg = (dataLic as { message?: string }).message;
+        throw new Error(msg ?? String(rLic.status));
       }
-      const itemsArr = (data as { items?: LicenseData[] }).items;
-      const nextItems = Array.isArray(itemsArr) ? itemsArr : [];
+      const itemsLic = Array.isArray((dataLic as { items?: LicenseData[] }).items)
+        ? ((dataLic as { items?: LicenseData[] }).items as LicenseData[])
+        : [];
+      const dataGroro =
+        rGroro == null
+          ? { items: [] }
+          : await (rGroro.ok ? rGroro.json() : rGroro.json().catch(() => ({ items: [] })));
+      const itemsGroro = Array.isArray((dataGroro as { items?: LicenseData[] }).items)
+        ? ((dataGroro as { items?: LicenseData[] }).items as LicenseData[])
+        : [];
+      const merged = [...itemsLic, ...itemsGroro];
+      const nextItems = merged.filter((it) => {
+        if (!Array.isArray(nextFilters.vid) || nextFilters.vid.length === 0) return true;
+        const acts = Array.isArray(it.activityTypes) ? it.activityTypes : [];
+        return nextFilters.vid.some((v) => acts.includes(v));
+      });
       setSearchItems(nextItems);
       setResultsListPage(0);
       writeCachedResults(cacheKey, nextItems);
@@ -812,7 +839,7 @@ export default function MapPage(): JSX.Element {
       setIsSearching(false);
     }
   },
-    [filterRegion, filterFkko, filterVid]
+    [filterRegion, filterFkko, filterVid, groroLayerEnabled]
   );
   const runSearchRef = useRef(runSearch);
   useEffect(() => {
@@ -1433,7 +1460,13 @@ export default function MapPage(): JSX.Element {
                                   </span>
                                 </Link>
                                 <Link
-                                  to={id != null ? `/enterprise/${id}` : '/map'}
+                                  to={
+                                    id != null
+                                      ? it.importSource === 'groro_parser'
+                                        ? `/enterprise/groro/${id}`
+                                        : `/enterprise/${id}`
+                                      : '/map'
+                                  }
                                   className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[200px]"
                                 >
                                   <span className="relative z-[2] inline-flex items-center gap-2.5">
@@ -1703,6 +1736,22 @@ export default function MapPage(): JSX.Element {
             <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
               Наложение
             </div>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={groroLayerEnabled}
+              className={mapLayerOptionClass(groroLayerEnabled, false)}
+              onClick={() => setGroroLayerEnabled((v) => !v)}
+            >
+              <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
+                {groroLayerEnabled ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+                <span
+                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${groroLayerEnabled ? 'text-[#2b3335]' : 'text-[#828583]'}`}
+                >
+                  ГРОРО слой
+                </span>
+              </span>
+            </button>
             <button
               type="button"
               role="menuitemcheckbox"

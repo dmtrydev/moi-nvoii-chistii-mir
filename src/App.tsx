@@ -46,6 +46,7 @@ export default function App(): JSX.Element {
           <Route path="/directory" element={<FkkoDirectoryPage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/enterprise/:id" element={<EnterpriseDetailsPage />} />
+          <Route path="/enterprise/groro/:groroId" element={<EnterpriseDetailsPage />} />
           <Route path="/consent/personal-data" element={<PersonalDataConsentPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/cookie-policy" element={<CookiePolicyPage />} />
@@ -71,6 +72,7 @@ export default function App(): JSX.Element {
             <Route path="upload" element={<UserUploadPage />} />
             <Route path="support" element={<SupportChatPage />} />
             <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
+            <Route path="groro/:groroId" element={<EnterpriseDetailsPage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/403" element={<ForbiddenPage />} />
@@ -85,6 +87,7 @@ export default function App(): JSX.Element {
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="licenses" element={<AdminLicensesPage />} />
             <Route path="licenses/:id" element={<EnterpriseDetailsPage />} />
+            <Route path="groro/:groroId" element={<EnterpriseDetailsPage />} />
             <Route path="logs" element={<AdminLogsPage />} />
             <Route path="support" element={<SupportChatPage />} />
             <Route

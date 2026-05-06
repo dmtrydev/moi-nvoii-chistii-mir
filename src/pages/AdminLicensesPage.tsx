@@ -745,7 +745,7 @@ export default function AdminLicensesPage(): JSX.Element {
                         </button>
                       ) : null}
                       <Link
-                        to={`/admin/licenses/${lic.id}`}
+                        to={lic.importSource === 'groro_parser' ? `/admin/groro/${lic.id}` : `/admin/licenses/${lic.id}`}
                         state={{ from: `${location.pathname}${location.search}` }}
                         className="glass-btn-soft !h-8 !text-[11px]"
                       >
