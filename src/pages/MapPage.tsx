@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet';
 import { CadastreVectorSystem } from '@/components/map/CadastreVectorSystem';
 import { MapDragThroughPopup } from '@/components/map/MapDragThroughPopup';
+import { MapGlobeView } from '@/components/map/MapGlobeView';
 import { MarkerClusterGroup } from '@/components/map/MarkerClusterGroup';
 import '@/styles/map-cluster.css';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -171,14 +172,16 @@ const DEFAULT_MAP_CENTER: [number, number] = [55.751244, 37.618423];
 const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
 
-type RasterBaseId = 'osm' | 'carto' | 'esri';
+type RasterBaseId = 'osm' | 'carto' | 'esri' | 'globe';
 
-const RASTER_LAYER_OPTIONS: {
-  id: RasterBaseId;
+type FlatRasterLayer = {
+  id: Exclude<RasterBaseId, 'globe'>;
   label: string;
   tileUrl: string;
   attribution: string;
-}[] = [
+};
+
+const FLAT_RASTER_LAYERS: FlatRasterLayer[] = [
   {
     id: 'osm',
     label: 'Карта OSM',
@@ -200,6 +203,14 @@ const RASTER_LAYER_OPTIONS: {
     attribution:
       '&copy; Esri — Maxar, Earthstar Geographics, <a href="https://www.esri.com/">Esri</a>',
   },
+];
+
+const GLOBE_LAYER_OPTION = { id: 'globe' as const, label: '3D глобус' };
+
+/** Все пункты меню «Подложка» (плоские тайлы + режим глобуса). */
+const MAP_BASE_LAYER_MENU: Array<FlatRasterLayer | typeof GLOBE_LAYER_OPTION> = [
+  ...FLAT_RASTER_LAYERS,
+  GLOBE_LAYER_OPTION,
 ];
 
 type MapPoint = {
@@ -484,6 +495,11 @@ export default function MapPage(): JSX.Element {
     document.addEventListener('mousedown', onDocMouseDown);
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, [layerMenuOpen]);
+
+  useEffect(() => {
+    if (rasterBase !== 'globe') return;
+    setCadastralOverlay(false);
+  }, [rasterBase]);
 
   useEffect(() => {
     let alive = true;
@@ -984,9 +1000,14 @@ export default function MapPage(): JSX.Element {
 
     return byEnterprise;
   }, [mapPoints]);
-  const activeRaster = useMemo(() => {
-    const found = RASTER_LAYER_OPTIONS.find((o) => o.id === rasterBase);
-    return found ?? RASTER_LAYER_OPTIONS[0];
+  const activeFlatRaster = useMemo(() => {
+    const found = FLAT_RASTER_LAYERS.find((o) => o.id === rasterBase);
+    return found ?? FLAT_RASTER_LAYERS[0];
+  }, [rasterBase]);
+
+  const activeBaseLayerLabel = useMemo(() => {
+    const found = MAP_BASE_LAYER_MENU.find((o) => o.id === rasterBase);
+    return found?.label ?? FLAT_RASTER_LAYERS[0].label;
   }, [rasterBase]);
   const mapPushedLeft = isLgUp && menuVisible;
   const routePointA = routeStartPoint;
@@ -1493,86 +1514,98 @@ export default function MapPage(): JSX.Element {
             transitionDelay: `${HOME_INTRO_DELAY_MAP_MS}ms`,
           }}
         >
-        <MapContainer
-          center={focusCenter ?? DEFAULT_MAP_CENTER}
-          zoom={hasMapFocus ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM}
-          maxZoom={19}
-          className="absolute inset-0 z-0 h-full w-full min-h-0"
-          zoomControl
-          attributionControl={false}
-          closePopupOnClick={false}
-        >
-          <TileLayer
-            key={activeRaster.id}
-            url={activeRaster.tileUrl}
-            attribution={activeRaster.attribution}
+        {rasterBase === 'globe' ? (
+          <MapGlobeView
+            points={mapPoints}
+            selectedId={selectedId}
+            onSelectPoint={(p) => {
+              setFocusedItem(p.source);
+              if (p.pointId != null) setSelectedId(p.pointId);
+              setFocusCenter([p.lat, p.lng]);
+            }}
           />
-          {cadastralOverlay && (
+        ) : (
+          <MapContainer
+            center={focusCenter ?? DEFAULT_MAP_CENTER}
+            zoom={hasMapFocus ? FOCUSED_MAP_ZOOM : DEFAULT_MAP_ZOOM}
+            maxZoom={19}
+            className="absolute inset-0 z-0 h-full w-full min-h-0"
+            zoomControl
+            attributionControl={false}
+            closePopupOnClick={false}
+          >
             <TileLayer
-              key="cadastre-overlay"
-              url={getApiUrl('/api/cadastre/tiles/{z}/{x}/{y}')}
-              className="cadastre-tile-layer"
-              opacity={0.95}
-              maxNativeZoom={17}
-              maxZoom={19}
-              attribution='&copy; <a href="https://nspd.gov.ru/" target="_blank" rel="noreferrer">НСПД Росреестр</a>'
+              key={activeFlatRaster.id}
+              url={activeFlatRaster.tileUrl}
+              attribution={activeFlatRaster.attribution}
             />
-          )}
-          <MapDragThroughPopup />
-          <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
-          <CadastreVectorSystem enabled={cadastralOverlay} apiBase={getApiUrl} />
-          <MapRouteFitController path={routeResult?.path ?? null} />
-          {routeResult && (
-            <Polyline
-              positions={routeResult.path}
-              pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.85 }}
-            />
-          )}
-          {routePointA && (
-            <CircleMarker
-              center={routePointA.coords}
-              radius={7}
-              pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }}
-            />
-          )}
-          {routePointB && (
-            <CircleMarker
-              center={routePointB.coords}
-              radius={7}
-              pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
-            />
-          )}
-          <MarkerClusterGroup maxClusterRadius={60}>
-            {mapPoints.map((point) => {
-              const pointId = point.pointId;
-              const isSelected = selectedId != null && pointId != null && selectedId === pointId;
-              const enterpriseKey = buildEnterpriseKey(point);
-              const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
-              return (
-                <MapPointMarker
-                  key={point.key}
-                  point={point}
-                  siteCandidates={siteCandidates}
-                  isSelected={isSelected}
-                  routeBusy={routeBusy}
-                  onBuildRoute={(target) => {
-                    void handleBuildRouteFromClient(target);
-                  }}
-                  onSwitchSite={(site) => {
-                    // Only pan the map — don't change selectedId to avoid
-                    // closing the current popup and reopening a different one.
-                    setFocusCenter([site.lat, site.lng]);
-                  }}
-                  onSelect={() => {
-                    setFocusedItem(point.source);
-                    if (pointId != null) setSelectedId(pointId);
-                    setFocusCenter([point.lat, point.lng]);
-                  }}
-                />
-              );
-            })}
-          </MarkerClusterGroup>
-        </MapContainer>
+            {cadastralOverlay && (
+              <TileLayer
+                key="cadastre-overlay"
+                url={getApiUrl('/api/cadastre/tiles/{z}/{x}/{y}')}
+                className="cadastre-tile-layer"
+                opacity={0.95}
+                maxNativeZoom={17}
+                maxZoom={19}
+                attribution='&copy; <a href="https://nspd.gov.ru/" target="_blank" rel="noreferrer">НСПД Росреестр</a>'
+              />
+            )}
+            <MapDragThroughPopup />
+            <MapFocusController center={focusCenter} zoom={FOCUSED_MAP_ZOOM} />
+            <CadastreVectorSystem enabled={cadastralOverlay} apiBase={getApiUrl} />
+            <MapRouteFitController path={routeResult?.path ?? null} />
+            {routeResult && (
+              <Polyline
+                positions={routeResult.path}
+                pathOptions={{ color: '#2563eb', weight: 5, opacity: 0.85 }}
+              />
+            )}
+            {routePointA && (
+              <CircleMarker
+                center={routePointA.coords}
+                radius={7}
+                pathOptions={{ color: '#1d4ed8', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }}
+              />
+            )}
+            {routePointB && (
+              <CircleMarker
+                center={routePointB.coords}
+                radius={7}
+                pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
+              />
+            )}
+            <MarkerClusterGroup maxClusterRadius={60}>
+              {mapPoints.map((point) => {
+                const pointId = point.pointId;
+                const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+                const enterpriseKey = buildEnterpriseKey(point);
+                const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
+                return (
+                  <MapPointMarker
+                    key={point.key}
+                    point={point}
+                    siteCandidates={siteCandidates}
+                    isSelected={isSelected}
+                    routeBusy={routeBusy}
+                    onBuildRoute={(target) => {
+                      void handleBuildRouteFromClient(target);
+                    }}
+                    onSwitchSite={(site) => {
+                      // Only pan the map — don't change selectedId to avoid
+                      // closing the current popup and reopening a different one.
+                      setFocusCenter([site.lat, site.lng]);
+                    }}
+                    onSelect={() => {
+                      setFocusedItem(point.source);
+                      if (pointId != null) setSelectedId(pointId);
+                      setFocusCenter([point.lat, point.lng]);
+                    }}
+                  />
+                );
+              })}
+            </MarkerClusterGroup>
+          </MapContainer>
+        )}
         <div
           ref={layerControlRef}
           className="pointer-events-auto absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[2500] w-[min(100vw-2rem,280px)] sm:bottom-4 sm:right-4"
@@ -1599,7 +1632,7 @@ export default function MapPage(): JSX.Element {
               <span
                 className={`min-w-0 truncate ${vidLabelClass({ isOpen: layerMenuOpen, hasSelection: true })}`}
               >
-                {activeRaster.label}
+                {activeBaseLayerLabel}
               </span>
             </span>
             <img
@@ -1624,7 +1657,7 @@ export default function MapPage(): JSX.Element {
             </div>
             <div className="no-scrollbar max-h-[min(280px,45vh)] overflow-y-auto py-0">
               <ul className="list-none">
-                {RASTER_LAYER_OPTIONS.map((opt) => {
+                {MAP_BASE_LAYER_MENU.map((opt) => {
                   const selected = rasterBase === opt.id;
                   return (
                     <li key={opt.id}>
