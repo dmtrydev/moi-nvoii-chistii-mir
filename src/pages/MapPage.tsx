@@ -173,7 +173,6 @@ const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
 
 type RasterBaseId = 'osm' | 'carto' | 'esri' | 'globe';
-type EnterpriseLayerMode = 'licenses' | 'groro';
 
 type FlatRasterLayer = {
   id: Exclude<RasterBaseId, 'globe'>;
@@ -449,7 +448,7 @@ export default function MapPage(): JSX.Element {
   const [rasterBase, setRasterBase] = useState<RasterBaseId>('osm');
   const [cadastralOverlay, setCadastralOverlay] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
-  const [enterpriseLayerMode, setEnterpriseLayerMode] = useState<EnterpriseLayerMode>('licenses');
+  const [groroOnlyMode, setGroroOnlyMode] = useState(false);
   const layerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layerControlRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -649,10 +648,10 @@ export default function MapPage(): JSX.Element {
   /** Стабильная строка query: иначе `useSearchParams()` может давать новый объект на каждом рендере и ломать эффекты. */
   const mapQueryKey = useMemo(() => searchParams.toString(), [searchParams]);
 
-  const visibleSearchItems = useMemo(() => {
-    if (enterpriseLayerMode === 'groro') return searchItems.filter((it) => it.importSource === 'groro_parser');
-    return searchItems.filter((it) => it.importSource !== 'groro_parser');
-  }, [searchItems, enterpriseLayerMode]);
+  const visibleSearchItems = useMemo(
+    () => (groroOnlyMode ? searchItems.filter((it) => it.importSource === 'groro_parser') : searchItems),
+    [searchItems, groroOnlyMode],
+  );
   const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
   const resultsListTotal = visibleSearchItems.length;
   const resultsListPageCount = Math.max(1, Math.ceil(resultsListTotal / resultsPageSize));
@@ -773,7 +772,7 @@ export default function MapPage(): JSX.Element {
         searched: overrides?.searched ?? true,
       };
       const vid = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
-      const cacheKey = `${buildCanonicalSearchKey(nextFilters)}|layer:${enterpriseLayerMode}`;
+      const cacheKey = `${buildCanonicalSearchKey(nextFilters)}|groroOnly:${groroOnlyMode ? '1' : '0'}`;
 
       if (!vid) {
         if (!overrides) setFilterValidationError('Укажите вид обращения.');
@@ -799,7 +798,7 @@ export default function MapPage(): JSX.Element {
       setIsSearching(true);
       setSearchError('');
       try {
-      const itemsLic = enterpriseLayerMode === 'licenses'
+      const itemsLic = !groroOnlyMode
         ? await (async () => {
             const rLic = await fetch(getApiUrl(`/api/license-sites?${qs.toString()}`));
             const dataLic = await (rLic.ok ? rLic.json() : rLic.json().catch(() => ({})));
@@ -812,8 +811,7 @@ export default function MapPage(): JSX.Element {
               : [];
           })()
         : [];
-      const itemsGroro = enterpriseLayerMode === 'groro'
-        ? await (async () => {
+      const itemsGroro = await (async () => {
             const rGroro = await fetch(
               getApiUrl(
                 `/api/groro-objects?region=${encodeURIComponent(nextFilters.region)}&fkko=${encodeURIComponent(
@@ -829,9 +827,8 @@ export default function MapPage(): JSX.Element {
             return Array.isArray((dataGroro as { items?: LicenseData[] }).items)
               ? ((dataGroro as { items?: LicenseData[] }).items as LicenseData[])
               : [];
-          })()
-        : [];
-      const merged = enterpriseLayerMode === 'groro' ? itemsGroro : itemsLic;
+          })();
+      const merged = [...itemsLic, ...itemsGroro];
       const nextItems = merged.filter((it) => {
         if (!Array.isArray(nextFilters.vid) || nextFilters.vid.length === 0) return true;
         const acts = Array.isArray(it.activityTypes) ? it.activityTypes : [];
@@ -848,7 +845,7 @@ export default function MapPage(): JSX.Element {
       setIsSearching(false);
     }
   },
-    [filterRegion, filterFkko, filterVid, enterpriseLayerMode]
+    [filterRegion, filterFkko, filterVid, groroOnlyMode]
   );
   const runSearchRef = useRef(runSearch);
   useEffect(() => {
@@ -865,12 +862,12 @@ export default function MapPage(): JSX.Element {
       },
       { cacheFirst: false },
     );
-  }, [enterpriseLayerMode]);
+  }, [groroOnlyMode]);
   useEffect(() => {
     setFocusedItem(null);
     setSelectedId(null);
     setFocusCenter(null);
-  }, [enterpriseLayerMode]);
+  }, [groroOnlyMode]);
 
   const handleFindClick = useCallback(async () => {
     setResultsListPage(0);
@@ -1337,6 +1334,14 @@ export default function MapPage(): JSX.Element {
                 />
               </AutocompleteInput>
             </div>
+            <label className="relative z-[2] inline-flex items-center gap-2 rounded-xl border border-black/[0.06] bg-white/70 px-3 py-2 text-sm font-semibold text-[#2b3335]">
+              <input
+                type="checkbox"
+                checked={groroOnlyMode}
+                onChange={(e) => setGroroOnlyMode(e.target.checked)}
+              />
+              Показывать только объекты ГРОРО
+            </label>
             <div className="relative z-[1] flex flex-col gap-3 pt-1 sm:flex-row sm:items-stretch">
               <button
                 type="button"
@@ -1758,42 +1763,6 @@ export default function MapPage(): JSX.Element {
                 })}
               </ul>
             </div>
-            <div className="h-px bg-black/[0.06]" role="separator" />
-            <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
-              Слой предприятий
-            </div>
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={enterpriseLayerMode === 'licenses'}
-              className={mapLayerOptionClass(enterpriseLayerMode === 'licenses', false)}
-              onClick={() => setEnterpriseLayerMode('licenses')}
-            >
-              <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
-                {enterpriseLayerMode === 'licenses' ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
-                <span
-                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${enterpriseLayerMode === 'licenses' ? 'text-[#2b3335]' : 'text-[#828583]'}`}
-                >
-                  Обычные предприятия
-                </span>
-              </span>
-            </button>
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={enterpriseLayerMode === 'groro'}
-              className={mapLayerOptionClass(enterpriseLayerMode === 'groro', false)}
-              onClick={() => setEnterpriseLayerMode('groro')}
-            >
-              <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
-                {enterpriseLayerMode === 'groro' ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
-                <span
-                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${enterpriseLayerMode === 'groro' ? 'text-[#2b3335]' : 'text-[#828583]'}`}
-                >
-                  ГРОРО
-                </span>
-              </span>
-            </button>
             <div className="h-px bg-black/[0.06]" role="separator" />
             <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
               Наложение
