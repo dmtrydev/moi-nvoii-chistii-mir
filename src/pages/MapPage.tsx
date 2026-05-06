@@ -173,6 +173,7 @@ const DEFAULT_MAP_ZOOM = 5;
 const FOCUSED_MAP_ZOOM = 14;
 
 type RasterBaseId = 'osm' | 'carto' | 'esri' | 'globe';
+type EnterpriseLayerMode = 'licenses' | 'groro';
 
 type FlatRasterLayer = {
   id: Exclude<RasterBaseId, 'globe'>;
@@ -448,7 +449,7 @@ export default function MapPage(): JSX.Element {
   const [rasterBase, setRasterBase] = useState<RasterBaseId>('osm');
   const [cadastralOverlay, setCadastralOverlay] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
-  const [groroLayerEnabled, setGroroLayerEnabled] = useState(true);
+  const [enterpriseLayerMode, setEnterpriseLayerMode] = useState<EnterpriseLayerMode>('licenses');
   const layerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layerControlRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -648,10 +649,10 @@ export default function MapPage(): JSX.Element {
   /** Стабильная строка query: иначе `useSearchParams()` может давать новый объект на каждом рендере и ломать эффекты. */
   const mapQueryKey = useMemo(() => searchParams.toString(), [searchParams]);
 
-  const visibleSearchItems = useMemo(
-    () => searchItems.filter((it) => groroLayerEnabled || it.importSource !== 'groro_parser'),
-    [searchItems, groroLayerEnabled],
-  );
+  const visibleSearchItems = useMemo(() => {
+    if (enterpriseLayerMode === 'groro') return searchItems.filter((it) => it.importSource === 'groro_parser');
+    return searchItems.filter((it) => it.importSource !== 'groro_parser');
+  }, [searchItems, enterpriseLayerMode]);
   const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
   const resultsListTotal = visibleSearchItems.length;
   const resultsListPageCount = Math.max(1, Math.ceil(resultsListTotal / resultsPageSize));
@@ -772,7 +773,7 @@ export default function MapPage(): JSX.Element {
         searched: overrides?.searched ?? true,
       };
       const vid = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
-      const cacheKey = `${buildCanonicalSearchKey(nextFilters)}|groro:${groroLayerEnabled ? '1' : '0'}`;
+      const cacheKey = `${buildCanonicalSearchKey(nextFilters)}|layer:${enterpriseLayerMode}`;
 
       if (!vid) {
         if (!overrides) setFilterValidationError('Укажите вид обращения.');
@@ -798,35 +799,39 @@ export default function MapPage(): JSX.Element {
       setIsSearching(true);
       setSearchError('');
       try {
-      const [rLic, rGroro] = await Promise.all([
-        fetch(getApiUrl(`/api/license-sites?${qs.toString()}`)),
-        groroLayerEnabled
-          ? fetch(
+      const itemsLic = enterpriseLayerMode === 'licenses'
+        ? await (async () => {
+            const rLic = await fetch(getApiUrl(`/api/license-sites?${qs.toString()}`));
+            const dataLic = await (rLic.ok ? rLic.json() : rLic.json().catch(() => ({})));
+            if (!rLic.ok) {
+              const msg = (dataLic as { message?: string }).message;
+              throw new Error(msg ?? String(rLic.status));
+            }
+            return Array.isArray((dataLic as { items?: LicenseData[] }).items)
+              ? ((dataLic as { items?: LicenseData[] }).items as LicenseData[])
+              : [];
+          })()
+        : [];
+      const itemsGroro = enterpriseLayerMode === 'groro'
+        ? await (async () => {
+            const rGroro = await fetch(
               getApiUrl(
                 `/api/groro-objects?region=${encodeURIComponent(nextFilters.region)}&fkko=${encodeURIComponent(
                   fkkoCodesToQueryParam(nextFilters.fkko),
                 )}`,
               ),
-            )
-          : Promise.resolve(null),
-      ]);
-
-      const dataLic = await (rLic.ok ? rLic.json() : rLic.json().catch(() => ({})));
-      if (!rLic.ok) {
-        const msg = (dataLic as { message?: string }).message;
-        throw new Error(msg ?? String(rLic.status));
-      }
-      const itemsLic = Array.isArray((dataLic as { items?: LicenseData[] }).items)
-        ? ((dataLic as { items?: LicenseData[] }).items as LicenseData[])
+            );
+            const dataGroro = await (rGroro.ok ? rGroro.json() : rGroro.json().catch(() => ({ items: [] })));
+            if (!rGroro.ok) {
+              const msg = (dataGroro as { message?: string }).message;
+              throw new Error(msg ?? String(rGroro.status));
+            }
+            return Array.isArray((dataGroro as { items?: LicenseData[] }).items)
+              ? ((dataGroro as { items?: LicenseData[] }).items as LicenseData[])
+              : [];
+          })()
         : [];
-      const dataGroro =
-        rGroro == null
-          ? { items: [] }
-          : await (rGroro.ok ? rGroro.json() : rGroro.json().catch(() => ({ items: [] })));
-      const itemsGroro = Array.isArray((dataGroro as { items?: LicenseData[] }).items)
-        ? ((dataGroro as { items?: LicenseData[] }).items as LicenseData[])
-        : [];
-      const merged = [...itemsLic, ...itemsGroro];
+      const merged = enterpriseLayerMode === 'groro' ? itemsGroro : itemsLic;
       const nextItems = merged.filter((it) => {
         if (!Array.isArray(nextFilters.vid) || nextFilters.vid.length === 0) return true;
         const acts = Array.isArray(it.activityTypes) ? it.activityTypes : [];
@@ -843,7 +848,7 @@ export default function MapPage(): JSX.Element {
       setIsSearching(false);
     }
   },
-    [filterRegion, filterFkko, filterVid, groroLayerEnabled]
+    [filterRegion, filterFkko, filterVid, enterpriseLayerMode]
   );
   const runSearchRef = useRef(runSearch);
   useEffect(() => {
@@ -860,7 +865,11 @@ export default function MapPage(): JSX.Element {
       },
       { cacheFirst: false },
     );
-  }, [groroLayerEnabled]);
+  }, [enterpriseLayerMode]);
+  useEffect(() => {
+    setFocusedItem(null);
+    setSelectedId(null);
+  }, [enterpriseLayerMode]);
 
   const handleFindClick = useCallback(async () => {
     setResultsListPage(0);
@@ -1750,24 +1759,44 @@ export default function MapPage(): JSX.Element {
             </div>
             <div className="h-px bg-black/[0.06]" role="separator" />
             <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
-              Наложение
+              Слой предприятий
             </div>
             <button
               type="button"
-              role="menuitemcheckbox"
-              aria-checked={groroLayerEnabled}
-              className={mapLayerOptionClass(groroLayerEnabled, false)}
-              onClick={() => setGroroLayerEnabled((v) => !v)}
+              role="menuitemradio"
+              aria-checked={enterpriseLayerMode === 'licenses'}
+              className={mapLayerOptionClass(enterpriseLayerMode === 'licenses', false)}
+              onClick={() => setEnterpriseLayerMode('licenses')}
             >
               <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
-                {groroLayerEnabled ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+                {enterpriseLayerMode === 'licenses' ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
                 <span
-                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${groroLayerEnabled ? 'text-[#2b3335]' : 'text-[#828583]'}`}
+                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${enterpriseLayerMode === 'licenses' ? 'text-[#2b3335]' : 'text-[#828583]'}`}
                 >
-                  ГРОРО слой
+                  Обычные предприятия
                 </span>
               </span>
             </button>
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={enterpriseLayerMode === 'groro'}
+              className={mapLayerOptionClass(enterpriseLayerMode === 'groro', false)}
+              onClick={() => setEnterpriseLayerMode('groro')}
+            >
+              <span className="inline-flex w-full min-h-[60px] items-center gap-3 px-[15px] py-3 text-left">
+                {enterpriseLayerMode === 'groro' ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+                <span
+                  className={`flex-1 font-nunito font-semibold text-lg leading-[normal] ${enterpriseLayerMode === 'groro' ? 'text-[#2b3335]' : 'text-[#828583]'}`}
+                >
+                  ГРОРО
+                </span>
+              </span>
+            </button>
+            <div className="h-px bg-black/[0.06]" role="separator" />
+            <div className="px-[15px] pb-1 pt-2 font-nunito text-[11px] font-bold uppercase tracking-[0.14em] text-[#828583]">
+              Наложение
+            </div>
             <button
               type="button"
               role="menuitemcheckbox"
