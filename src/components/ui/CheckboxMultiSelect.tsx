@@ -56,7 +56,7 @@ export function CheckboxMultiSelect({
                 className={[
                   'h-5 w-5 rounded-[4px] border flex items-center justify-center transition-colors',
                   checked
-                    ? 'bg-gradient-to-br from-accent-from to-accent-to border-transparent text-[#1a2e12]'
+                    ? 'bg-[linear-gradient(128deg,rgba(219,236,168,0.96)_0%,rgba(188,220,87,0.98)_100%)] border-white/90 text-[#1a2e12] shadow-[0_3px_10px_rgba(163,200,59,0.45),inset_0_0_6px_rgba(255,255,255,0.5)]'
                     : 'bg-white border-black/15 text-transparent',
                 ].join(' ')}
               >

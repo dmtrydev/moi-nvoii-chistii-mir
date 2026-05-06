@@ -28,7 +28,7 @@ function UnifiedCheckbox({ checked }: { checked: boolean }): JSX.Element {
   if (checked) {
     return (
       <span className="relative block w-[35px] h-[35px]">
-        <span className="absolute inset-0 bg-[#b5d44a] rounded-[9px]" />
+        <span className="absolute inset-0 rounded-[9px] border border-white/90 bg-[linear-gradient(128deg,rgba(219,236,168,0.96)_0%,rgba(188,220,87,0.98)_100%)] shadow-[0_3px_14px_rgba(163,200,59,0.55),inset_0_0_8px_rgba(255,255,255,0.55)]" />
         <svg className="absolute inset-0 w-full h-full p-[8px]" viewBox="0 0 24 24" fill="none" aria-hidden>
           <path
             d="M4 12L9 17L20 6"

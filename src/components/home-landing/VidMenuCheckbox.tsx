@@ -5,7 +5,7 @@ import type { JSX } from 'react';
 export function VidMenuCheckboxChecked(): JSX.Element {
   return (
     <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#c8e06a_0%,#a8c83a_100%)] shadow-[0_2px_8px_rgba(160,200,50,0.25)]"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-white/90 bg-[linear-gradient(128deg,rgba(219,236,168,0.96)_0%,rgba(188,220,87,0.98)_100%)] shadow-[0_3px_14px_rgba(163,200,59,0.55),inset_0_0_8px_rgba(255,255,255,0.55)]"
       aria-hidden
     >
       <svg width="20" height="16" viewBox="0 0 20 16" fill="none">
