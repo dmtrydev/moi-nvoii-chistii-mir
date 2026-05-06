@@ -27,25 +27,25 @@ const routeCtaLabelShiftClass = [
 function PopupContactsSubscriptionTeaser(): JSX.Element {
   return (
     <div
-      className="relative w-full min-w-0 overflow-hidden rounded-[16px] border border-white/80 bg-white/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
+      className="relative w-full min-w-0 overflow-hidden rounded-[14px] border border-white/75 bg-white/30 px-2.5 pb-2.5 pt-2"
       aria-label="Контакты организации доступны по подписке"
     >
       <div
-        className="pointer-events-none select-none rounded-[12px] border border-white/75 bg-white/35 px-3 py-2.5 blur-[6px] motion-reduce:blur-[3px]"
+        className="pointer-events-none select-none rounded-[10px] border border-white/60 bg-white/20 px-3 py-2 blur-[6px] opacity-90 motion-reduce:blur-[3px]"
         aria-hidden
       >
-        <p className="font-nunito text-[13px] font-semibold tracking-wide text-[#2b3335]">
+        <p className="font-nunito text-[12px] font-semibold tracking-wide text-[#2b3335]">
           +7&nbsp;(9••)&nbsp;•••-••-••
         </p>
-        <p className="mt-1 font-nunito text-[13px] font-semibold tracking-wide text-[#2b3335]">
+        <p className="mt-0.5 font-nunito text-[12px] font-semibold tracking-wide text-[#2b3335]">
           director•••@••••••.ru
         </p>
       </div>
       <Link
         to="/price"
-        className="group relative mt-3 flex h-[44px] w-full min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-[14px] border-[none] home-find-button before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[14px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2"
+        className="group relative -mt-1.5 flex h-[42px] w-full min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-[13px] border-[none] home-find-button before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[13px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2"
       >
-        <span className="relative z-[2] font-nunito text-base font-bold text-[#2b3335]">Купить подписку</span>
+        <span className="relative z-[2] font-nunito text-[15px] font-bold text-[#2b3335]">Купить подписку</span>
       </Link>
     </div>
   );
