@@ -53,6 +53,21 @@ function normalizeText(value: unknown): string | null {
   return s ? s : null;
 }
 
+/**
+ * В попапе карты типичные почтовые сокращения иногда приходят без пробела после точки
+ * («край.Красноярский», «ул.им»). Добавляет пробел только после известных аббревиатур.
+ */
+export function formatRuPostalAbbrevSpaces(address: string): string {
+  const raw = String(address ?? '').trim();
+  if (!raw) return raw;
+
+  const abbrev =
+    'край|обл|респ|ао|р-н|г|пгт|п/ст|п|пос|с|дер|мкр|тер|ул|пр-д|пр-т|просп|пр|пер|наб|б-р|ш|шоссе|проезд|д|стр|корп|к|оф|кв|лит|им';
+  const re = new RegExp(`(^|[\\s,])((?:${abbrev})\\.)(?=[^\\s,.])`, 'gi');
+
+  return raw.replace(re, (_, lead: string, abbrWithDot: string) => `${lead}${abbrWithDot} `);
+}
+
 function sameCoord(a?: number | null, b?: number | null): boolean {
   if (typeof a !== 'number' || typeof b !== 'number') return false;
   return Math.abs(a - b) < 0.000001;
@@ -239,7 +254,9 @@ export function buildMapEnterprisePopupViewModel(
 ): MapEnterprisePopupViewModel {
   const matchedSite = findMatchedSite(input.source, input.pointAddress, input.pointLat, input.pointLng);
   const title = normalizeText(input.source.companyName) ?? 'Организация';
-  const subtitleAddress = normalizeText(input.pointAddress) ?? normalizeText(input.source.address) ?? 'Адрес не указан';
+  const subtitleAddress = formatRuPostalAbbrevSpaces(
+    normalizeText(input.pointAddress) ?? normalizeText(input.source.address) ?? 'Адрес не указан',
+  );
   const inn = normalizeText(input.pointInn) ?? normalizeText(input.source.inn) ?? 'не указан';
   const siteSwitches = buildSiteSwitches(
     input.source,
