@@ -1509,13 +1509,13 @@ app.get('/api/groro-objects', async (req, res) => {
     const items = await listGroroObjectsForMap(getPool(), { region, fkko });
     const mapped = items.map((r) => ({
       id: r.id,
-      siteId: r.id,
+      siteId: r.mapSiteId ?? r.id,
       companyName: r.operatorName || r.objectName || 'ГРОРО объект',
       inn: r.operatorInn || '',
-      address: r.operatorAddress || '',
-      region: r.region || '',
-      lat: undefined,
-      lng: undefined,
+      address: r.mapAddress || r.operatorAddress || '',
+      region: r.mapRegion || r.region || '',
+      lat: typeof r.lat === 'number' ? r.lat : undefined,
+      lng: typeof r.lng === 'number' ? r.lng : undefined,
       fkkoCodes: Array.from(new Set((Array.isArray(r.wastes) ? r.wastes : []).map((w) => String(w.fkkoCode ?? '').replace(/\D/g, '')).filter((x) => /^\d{11}$/.test(x)))),
       activityTypes: ['Размещение'],
       importSource: 'groro_parser',
@@ -1524,12 +1524,12 @@ app.get('/api/groro-objects', async (req, res) => {
       importRegistryStatusRu: r.statusRu,
       sites: [
         {
-          id: r.id,
+          id: r.mapSiteId ?? r.id,
           siteLabel: 'Основная площадка',
-          address: r.operatorAddress || '',
-          region: r.region || '',
-          lat: undefined,
-          lng: undefined,
+          address: r.mapAddress || r.operatorAddress || '',
+          region: r.mapRegion || r.region || '',
+          lat: typeof r.lat === 'number' ? r.lat : undefined,
+          lng: typeof r.lng === 'number' ? r.lng : undefined,
           fkkoCodes: Array.from(new Set((Array.isArray(r.wastes) ? r.wastes : []).map((w) => String(w.fkkoCode ?? '').replace(/\D/g, '')).filter((x) => /^\d{11}$/.test(x)))),
           activityTypes: ['Размещение'],
           entries: (Array.isArray(r.wastes) ? r.wastes : []).map((w) => ({
@@ -1564,6 +1564,11 @@ app.get('/api/groro-objects/:id', async (req, res) => {
          o.operator_inn AS "operatorInn",
          o.operator_address AS "operatorAddress",
          o.linked_license_id AS "linkedLicenseId",
+         ls.id AS "mapSiteId",
+         COALESCE(ls.address, o.operator_address, l.address) AS "mapAddress",
+         COALESCE(ls.region, o.region, l.region) AS "mapRegion",
+         COALESCE(ls.lat, l.lat) AS lat,
+         COALESCE(ls.lng, l.lng) AS lng,
          o.moderation_status AS "moderationStatus",
          o.reward,
          o.rejection_note AS "rejectionNote",
@@ -1582,6 +1587,16 @@ app.get('/api/groro-objects/:id', async (req, res) => {
           '[]'::json
          ) AS wastes
        FROM groro_objects o
+       LEFT JOIN licenses l ON l.id = o.linked_license_id
+       LEFT JOIN LATERAL (
+         SELECT s.id, s.address, s.region, s.lat, s.lng
+         FROM license_sites s
+         WHERE s.license_id = l.id
+           AND s.lat IS NOT NULL
+           AND s.lng IS NOT NULL
+         ORDER BY s.id ASC
+         LIMIT 1
+       ) ls ON TRUE
        LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
        WHERE o.id = $1
          AND o.deleted_at IS NULL
@@ -1594,13 +1609,13 @@ app.get('/api/groro-objects/:id', async (req, res) => {
     const fkkoCodes = Array.from(new Set((Array.isArray(r.wastes) ? r.wastes : []).map((w) => String(w.fkkoCode ?? '').replace(/\D/g, '')).filter((x) => /^\d{11}$/.test(x))));
     return res.json({
       id: r.id,
-      siteId: r.id,
+      siteId: r.mapSiteId ?? r.id,
       companyName: r.operatorName || r.objectName || 'ГРОРО объект',
       inn: r.operatorInn || '',
-      address: r.operatorAddress || '',
-      region: r.region || '',
-      lat: undefined,
-      lng: undefined,
+      address: r.mapAddress || r.operatorAddress || '',
+      region: r.mapRegion || r.region || '',
+      lat: typeof r.lat === 'number' ? r.lat : undefined,
+      lng: typeof r.lng === 'number' ? r.lng : undefined,
       fkkoCodes,
       activityTypes: ['Размещение'],
       importSource: 'groro_parser',
@@ -1615,12 +1630,12 @@ app.get('/api/groro-objects/:id', async (req, res) => {
       createdAt: r.createdAt,
       sites: [
         {
-          id: r.id,
+          id: r.mapSiteId ?? r.id,
           siteLabel: 'Основная площадка',
-          address: r.operatorAddress || '',
-          region: r.region || '',
-          lat: undefined,
-          lng: undefined,
+          address: r.mapAddress || r.operatorAddress || '',
+          region: r.mapRegion || r.region || '',
+          lat: typeof r.lat === 'number' ? r.lat : undefined,
+          lng: typeof r.lng === 'number' ? r.lng : undefined,
           fkkoCodes,
           activityTypes: ['Размещение'],
           entries: (Array.isArray(r.wastes) ? r.wastes : []).map((w) => ({

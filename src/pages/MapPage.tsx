@@ -869,6 +869,7 @@ export default function MapPage(): JSX.Element {
   useEffect(() => {
     setFocusedItem(null);
     setSelectedId(null);
+    setFocusCenter(null);
   }, [enterpriseLayerMode]);
 
   const handleFindClick = useCallback(async () => {

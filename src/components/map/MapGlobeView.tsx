@@ -414,7 +414,10 @@ function GlobeHtmlOverlay({
       {unions.map((u) => {
         if (u.kind === 'single') {
           const p = u.point;
-          const variant = getMapMarkerVariant(p.source.activityTypes);
+          const variant =
+            p.source.importSource === 'groro_parser'
+              ? 'storage'
+              : getMapMarkerVariant(p.source.activityTypes);
           const selected = selectedId != null && p.pointId != null && selectedId === p.pointId;
           return (
             <Html

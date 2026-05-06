@@ -96,6 +96,11 @@ export async function listGroroObjectsForMap(pool, { region = '', fkko = '' } = 
       o.operator_inn AS "operatorInn",
       o.operator_address AS "operatorAddress",
       o.linked_license_id AS "linkedLicenseId",
+      ls.id AS "mapSiteId",
+      COALESCE(ls.address, o.operator_address, l.address) AS "mapAddress",
+      COALESCE(ls.region, o.region, l.region) AS "mapRegion",
+      COALESCE(ls.lat, l.lat) AS lat,
+      COALESCE(ls.lng, l.lng) AS lng,
       COALESCE(
         json_agg(
           json_build_object(
@@ -108,6 +113,16 @@ export async function listGroroObjectsForMap(pool, { region = '', fkko = '' } = 
         '[]'::json
       ) AS wastes
     FROM groro_objects o
+    LEFT JOIN licenses l ON l.id = o.linked_license_id
+    LEFT JOIN LATERAL (
+      SELECT s.id, s.address, s.region, s.lat, s.lng
+      FROM license_sites s
+      WHERE s.license_id = l.id
+        AND s.lat IS NOT NULL
+        AND s.lng IS NOT NULL
+      ORDER BY s.id ASC
+      LIMIT 1
+    ) ls ON TRUE
     LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
     GROUP BY o.id
