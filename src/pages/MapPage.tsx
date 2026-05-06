@@ -751,15 +751,31 @@ export default function MapPage(): JSX.Element {
         if (!alive) return;
         let next = data;
         if (
-          !(typeof data.lat === 'number' && Number.isFinite(data.lat) && typeof data.lng === 'number' && Number.isFinite(data.lng)) &&
-          String(data.address ?? '').trim()
+          !(typeof next.lat === 'number' && Number.isFinite(next.lat) && typeof next.lng === 'number' && Number.isFinite(next.lng)) &&
+          Array.isArray(next.sites) &&
+          next.sites.length > 0
+        ) {
+          const s = next.sites.find(
+            (x) =>
+              typeof x.lat === 'number' &&
+              Number.isFinite(x.lat) &&
+              typeof x.lng === 'number' &&
+              Number.isFinite(x.lng),
+          );
+          if (s && typeof s.lat === 'number' && typeof s.lng === 'number') {
+            next = { ...next, lat: s.lat, lng: s.lng };
+          }
+        }
+        if (
+          !(typeof next.lat === 'number' && Number.isFinite(next.lat) && typeof next.lng === 'number' && Number.isFinite(next.lng)) &&
+          String(next.address ?? '').trim()
         ) {
           try {
-            const g = await fetch(getApiUrl(`/api/geocode?address=${encodeURIComponent(String(data.address))}`));
+            const g = await fetch(getApiUrl(`/api/geocode?address=${encodeURIComponent(String(next.address))}`));
             const geocoded = (await g.json().catch(() => ({}))) as { lat?: number; lng?: number };
             if (g.ok && typeof geocoded.lat === 'number' && typeof geocoded.lng === 'number') {
               next = {
-                ...data,
+                ...next,
                 lat: geocoded.lat,
                 lng: geocoded.lng,
               };
@@ -1751,7 +1767,10 @@ export default function MapPage(): JSX.Element {
                 pathOptions={{ color: '#b91c1c', fillColor: '#ef4444', fillOpacity: 1, weight: 2 }}
               />
             )}
-            <MarkerClusterGroup maxClusterRadius={60}>
+            <MarkerClusterGroup
+              maxClusterRadius={60}
+              clusterVariant={groroOnlyMode ? 'storage' : 'eco'}
+            >
               {mapPoints.map((point) => {
                 const pointId = point.pointId;
                 const isSelected = selectedId != null && pointId != null && selectedId === pointId;

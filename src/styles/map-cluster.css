@@ -139,6 +139,28 @@
     inset 0 0 14px rgba(255, 255, 255, 0.7);
 }
 
+.map-cluster-icon--variant-storage {
+  background: linear-gradient(
+    128deg,
+    rgba(253, 230, 138, 0.98) 0%,
+    rgba(234, 179, 8, 0.98) 100%
+  );
+  box-shadow:
+    0 4px 20px rgba(217, 119, 6, 0.5),
+    inset 0 0 10px rgba(255, 255, 255, 0.58);
+}
+
+.map-cluster-icon--variant-tech {
+  background: linear-gradient(
+    128deg,
+    rgba(186, 230, 253, 0.98) 0%,
+    rgba(59, 130, 246, 0.95) 100%
+  );
+  box-shadow:
+    0 4px 20px rgba(37, 99, 235, 0.45),
+    inset 0 0 10px rgba(255, 255, 255, 0.58);
+}
+
 .map-cluster-icon--sm {
   width: 36px;
   height: 36px;
