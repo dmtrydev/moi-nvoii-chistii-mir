@@ -611,7 +611,7 @@
     word-break: break-word;
   }
   .moinoviichistiimir-popup-enterprise__address {
-    margin: 0 0 10px;
+    margin: 0 0 6px;
     color: #6a7175;
     word-break: break-word;
     font-family: var(--font-heading-nunito);
@@ -621,7 +621,7 @@
   }
   /** РПН / ППС: компактные строки в тон адресу, без «формы» и верхнего регистра */
   .moinoviichistiimir-popup-enterprise__rpnMeta {
-    margin: 8px 0 8px;
+    margin: 2px 0 8px;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -706,15 +706,11 @@
   }
   .moinoviichistiimir-popup-enterprise__row {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
-    column-gap: 6px;
-    row-gap: 2px;
+    flex-direction: column;
+    gap: 4px;
     padding-bottom: 6px;
   }
   .moinoviichistiimir-popup-enterprise__label {
-    flex-shrink: 0;
     color: #3a4346;
     font-family: var(--font-heading-nunito);
     font-weight: var(--font-weight-heading-semibold);
@@ -722,8 +718,6 @@
     line-height: normal;
   }
   .moinoviichistiimir-popup-enterprise__value {
-    flex: 1 1 12rem;
-    min-width: 0;
     color: #30393d;
     word-break: break-word;
     font-family: var(--font-heading-nunito);
@@ -771,7 +765,7 @@
     }
     .moinoviichistiimir-popup-enterprise__address {
       font-size: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
     .moinoviichistiimir-popup-enterprise__rpnMetaLine {
       font-size: 11px;

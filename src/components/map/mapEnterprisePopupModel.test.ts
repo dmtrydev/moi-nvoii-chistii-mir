@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LicenseData } from '@/types';
-import {
-  buildMapEnterprisePopupViewModel,
-  formatRuPostalAbbrevSpaces,
-} from '@/components/map/mapEnterprisePopupModel';
+import { buildMapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 
 function baseSource(): LicenseData {
   return {
@@ -27,24 +24,6 @@ function baseSource(): LicenseData {
     ],
   };
 }
-
-describe('formatRuPostalAbbrevSpaces', () => {
-  it('inserts space after glued postal abbreviations', () => {
-    expect(
-      formatRuPostalAbbrevSpaces(
-        'край.Красноярский, р-н.Эвенкийский, п.Эконда, ул.им Максима Ялогира, д.2В',
-      ),
-    ).toBe(
-      'край. Красноярский, р-н. Эвенкийский, п. Эконда, ул. им Максима Ялогира, д. 2В',
-    );
-  });
-
-  it('does not alter abbreviations already followed by space or comma', () => {
-    expect(formatRuPostalAbbrevSpaces('г. Курган, ул. Омская, д. 15')).toBe(
-      'г. Курган, ул. Омская, д. 15',
-    );
-  });
-});
 
 describe('buildMapEnterprisePopupViewModel', () => {
   it('builds rows from source and matched site', () => {
