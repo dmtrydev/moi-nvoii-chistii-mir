@@ -35,6 +35,12 @@ import {
 } from '@/utils/fkko';
 import { ACTIVITY_TYPE_FILTER_ORDER, normalizeActivityTypesForFilter } from '@/utils/activityTypesFilter';
 import { getMapMarkerVariant, type MapMarkerVariant } from '@/utils/mapMarkerVariant';
+import {
+  getMapEntityDetailsHref,
+  getMapEntityKind,
+  getMapEntitySelectionKey,
+  isGroroEntity,
+} from '@/utils/mapEntity';
 import { toPositiveInt } from '@/utils/positiveInt';
 import {
   buildCanonicalSearchKey,
@@ -314,12 +320,13 @@ function formatRouteDistance(totalMeters: number): string {
 }
 
 function buildEnterpriseKey(point: MapPoint): string {
+  const kind = getMapEntityKind(point.source);
   const inn = String(point.inn || '').trim();
-  if (inn && inn !== 'не указан') return `inn:${inn}`;
+  if (inn && inn !== 'не указан') return `${kind}:inn:${inn}`;
   const sourceId = toPositiveInt(point.source.id);
-  if (sourceId != null) return `source:${sourceId}`;
+  if (sourceId != null) return `${kind}:source:${sourceId}`;
   const name = String(point.companyName || '').trim().toLowerCase();
-  return `name:${name}`;
+  return `${kind}:name:${name}`;
 }
 
 function MapPointMarker({
@@ -356,8 +363,8 @@ function MapPointMarker({
   );
 
   const markerVariant = useMemo(
-    () => (point.source.importSource === 'groro_parser' ? 'storage' : getMapMarkerVariant(point.source.activityTypes)),
-    [point.source.activityTypes, point.source.importSource],
+    () => (isGroroEntity(point.source) ? 'storage' : getMapMarkerVariant(point.source.activityTypes)),
+    [point.source.activityTypes, point.source],
   );
   const markerIcon = useMemo(
     () => buildMapPointDivIcon(markerVariant, isSelected),
@@ -452,7 +459,7 @@ export default function MapPage(): JSX.Element {
   const [groroOnlyMode, setGroroOnlyMode] = useState(false);
   const layerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layerControlRef = useRef<HTMLDivElement>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedMarkerKey, setSelectedMarkerKey] = useState<string | null>(null);
   const [focusCenter, setFocusCenter] = useState<[number, number] | null>(null);
   const [focusGeocodeBusy, setFocusGeocodeBusy] = useState(false);
   const [routeStartPoint, setRouteStartPoint] = useState<RouteEndpoint | null>(null);
@@ -651,7 +658,7 @@ export default function MapPage(): JSX.Element {
   const mapQueryKey = useMemo(() => searchParams.toString(), [searchParams]);
 
   const visibleSearchItems = useMemo(
-    () => (groroOnlyMode ? searchItems.filter((it) => it.importSource === 'groro_parser') : searchItems),
+    () => (groroOnlyMode ? searchItems.filter((it) => isGroroEntity(it)) : searchItems),
     [searchItems, groroOnlyMode],
   );
   const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
@@ -729,7 +736,7 @@ export default function MapPage(): JSX.Element {
       .then((data: LicenseData) => {
         if (!alive) return;
         const sid = toPositiveInt(data.siteId);
-        if (sid != null) setSelectedId(sid);
+        setSelectedMarkerKey(getMapEntitySelectionKey(data, sid));
         if (typeof data.lat === 'number' && typeof data.lng === 'number') {
           setFocusCenter([data.lat, data.lng]);
         }
@@ -787,7 +794,7 @@ export default function MapPage(): JSX.Element {
         if (!alive) return;
         setFocusedItem(next);
         const sid = toPositiveInt(next.siteId) ?? toPositiveInt(next.id);
-        if (sid != null) setSelectedId(sid);
+        setSelectedMarkerKey(getMapEntitySelectionKey(next, sid));
         if (typeof next.lat === 'number' && typeof next.lng === 'number') {
           setFocusCenter([next.lat, next.lng]);
         }
@@ -896,7 +903,7 @@ export default function MapPage(): JSX.Element {
       const merged = [...itemsLic, ...itemsGroro];
       const missingForGeocode = merged.filter(
         (it) =>
-          it.importSource === 'groro_parser' &&
+          isGroroEntity(it) &&
           (typeof it.lat !== 'number' || !Number.isFinite(it.lat) || typeof it.lng !== 'number' || !Number.isFinite(it.lng)) &&
           String(it.address ?? '').trim().length > 0,
       );
@@ -973,7 +980,7 @@ export default function MapPage(): JSX.Element {
   }, [groroOnlyMode]);
   useEffect(() => {
     setFocusedItem(null);
-    setSelectedId(null);
+    setSelectedMarkerKey(null);
     setFocusCenter(null);
   }, [groroOnlyMode]);
 
@@ -1016,7 +1023,7 @@ export default function MapPage(): JSX.Element {
         setFocusCenter([updated.lat, updated.lng]);
       }
       const updSid = toPositiveInt(updated.siteId);
-      if (updSid != null) setSelectedId(updSid);
+      setSelectedMarkerKey(getMapEntitySelectionKey(updated, updSid));
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Ошибка геокодирования');
     }
@@ -1542,9 +1549,9 @@ export default function MapPage(): JSX.Element {
                     searched: true,
                   });
                   const focusSid = toPositiveInt(it.siteId);
-                  if (it.importSource !== 'groro_parser' && focusSid != null) {
+                  if (!isGroroEntity(it) && focusSid != null) {
                     mapParams.set('focusSite', String(focusSid));
-                  } else if (it.importSource === 'groro_parser' && typeof it.id === 'number') {
+                  } else if (isGroroEntity(it) && typeof it.id === 'number') {
                     mapParams.set('focusGroro', String(it.id));
                   }
                   return (
@@ -1607,11 +1614,7 @@ export default function MapPage(): JSX.Element {
                                 </Link>
                                 <Link
                                   to={
-                                    id != null
-                                      ? it.importSource === 'groro_parser'
-                                        ? `/enterprise/groro/${id}`
-                                        : `/enterprise/${id}`
-                                      : '/map'
+                                    getMapEntityDetailsHref(it) ?? '/map'
                                   }
                                   className="group home-find-button relative inline-flex h-[50px] w-full min-w-0 items-center justify-center overflow-hidden rounded-[16px] px-5 before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[16px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:h-[56px] sm:rounded-[18px] sm:px-7 sm:min-w-[200px] lg:h-[60px] lg:rounded-[20px] lg:min-w-[200px]"
                                 >
@@ -1697,11 +1700,11 @@ export default function MapPage(): JSX.Element {
           <MapGlobeView
             points={mapPoints}
             siteCandidatesForPoint={(pt) => mapPointCandidatesByEnterprise.get(buildEnterpriseKey(pt)) ?? []}
-            selectedId={selectedId}
+            selectedMarkerKey={selectedMarkerKey}
             focusCenter={focusCenter}
             onSelectPoint={(p) => {
               setFocusedItem(p.source);
-              if (p.pointId != null) setSelectedId(p.pointId);
+              setSelectedMarkerKey(getMapEntitySelectionKey(p.source, p.pointId));
               setFocusCenter([p.lat, p.lng]);
             }}
             onBuildRoute={(target) => {
@@ -1711,7 +1714,7 @@ export default function MapPage(): JSX.Element {
               setFocusCenter([site.lat, site.lng]);
             }}
             routeBusy={routeBusy}
-            onClosePopup={() => setSelectedId(null)}
+            onClosePopup={() => setSelectedMarkerKey(null)}
             onApproachFlat={(lat, lng) => {
               setRasterBase('osm');
               setFocusCenter([lat, lng]);
@@ -1773,7 +1776,9 @@ export default function MapPage(): JSX.Element {
             >
               {mapPoints.map((point) => {
                 const pointId = point.pointId;
-                const isSelected = selectedId != null && pointId != null && selectedId === pointId;
+                const isSelected =
+                  selectedMarkerKey != null &&
+                  selectedMarkerKey === getMapEntitySelectionKey(point.source, pointId);
                 const enterpriseKey = buildEnterpriseKey(point);
                 const siteCandidates = mapPointCandidatesByEnterprise.get(enterpriseKey) ?? [];
                 return (
@@ -1787,13 +1792,13 @@ export default function MapPage(): JSX.Element {
                       void handleBuildRouteFromClient(target);
                     }}
                     onSwitchSite={(site) => {
-                      // Only pan the map — don't change selectedId to avoid
+                      // Only pan the map — don't change selected marker to avoid
                       // closing the current popup and reopening a different one.
                       setFocusCenter([site.lat, site.lng]);
                     }}
                     onSelect={() => {
                       setFocusedItem(point.source);
-                      if (pointId != null) setSelectedId(pointId);
+                      setSelectedMarkerKey(getMapEntitySelectionKey(point.source, pointId));
                       setFocusCenter([point.lat, point.lng]);
                     }}
                   />

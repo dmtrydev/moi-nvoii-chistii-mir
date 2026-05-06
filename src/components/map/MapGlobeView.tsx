@@ -10,6 +10,7 @@ import {
   type MapEnterprisePopupViewModel,
 } from '@/components/map/mapEnterprisePopupModel';
 import { getMapMarkerVariant, type MapMarkerVariant } from '@/utils/mapMarkerVariant';
+import { getMapEntitySelectionKey, isGroroEntity } from '@/utils/mapEntity';
 import '@/styles/map-cluster.css';
 
 export type GlobeMapPoint = {
@@ -225,7 +226,7 @@ function EarthGlobe(): JSX.Element {
 type GlobeOverlayProps = {
   points: GlobeMapPoint[];
   siteCandidatesForPoint: (point: GlobeMapPoint) => PopupSiteCandidate[];
-  selectedId: number | null;
+  selectedMarkerKey: string | null;
   focusCenter: [number, number] | null;
   onSelectPoint: (point: GlobeMapPoint) => void;
   onBuildRoute: (point: GlobeMapPoint) => void;
@@ -239,7 +240,7 @@ type GlobeOverlayProps = {
 function GlobeHtmlOverlay({
   points,
   siteCandidatesForPoint,
-  selectedId,
+  selectedMarkerKey,
   focusCenter,
   onSelectPoint,
   onBuildRoute,
@@ -378,8 +379,11 @@ function GlobeHtmlOverlay({
   );
 
   const selectedPoint = useMemo(
-    () => (selectedId == null ? null : points.find((p) => p.pointId === selectedId) ?? null),
-    [points, selectedId],
+    () =>
+      selectedMarkerKey == null
+        ? null
+        : points.find((p) => getMapEntitySelectionKey(p.source, p.pointId) === selectedMarkerKey) ?? null,
+    [points, selectedMarkerKey],
   );
 
   const popupModel: MapEnterprisePopupViewModel | null = useMemo(() => {
@@ -415,10 +419,12 @@ function GlobeHtmlOverlay({
         if (u.kind === 'single') {
           const p = u.point;
           const variant =
-            p.source.importSource === 'groro_parser'
+            isGroroEntity(p.source)
               ? 'storage'
               : getMapMarkerVariant(p.source.activityTypes);
-          const selected = selectedId != null && p.pointId != null && selectedId === p.pointId;
+          const selected =
+            selectedMarkerKey != null &&
+            selectedMarkerKey === getMapEntitySelectionKey(p.source, p.pointId);
           return (
             <Html
               key={p.key}
@@ -519,7 +525,7 @@ function GlobeScene(props: GlobeOverlayProps): JSX.Element {
 type Props = {
   points: GlobeMapPoint[];
   siteCandidatesForPoint: (point: GlobeMapPoint) => PopupSiteCandidate[];
-  selectedId: number | null;
+  selectedMarkerKey: string | null;
   focusCenter: [number, number] | null;
   onSelectPoint: (point: GlobeMapPoint) => void;
   onBuildRoute: (point: GlobeMapPoint) => void;
@@ -537,7 +543,7 @@ type Props = {
 export function MapGlobeView({
   points,
   siteCandidatesForPoint,
-  selectedId,
+  selectedMarkerKey,
   focusCenter,
   onSelectPoint,
   onBuildRoute,
@@ -565,7 +571,7 @@ export function MapGlobeView({
         <GlobeScene
           points={points}
           siteCandidatesForPoint={siteCandidatesForPoint}
-          selectedId={selectedId}
+          selectedMarkerKey={selectedMarkerKey}
           focusCenter={focusCenter}
           onSelectPoint={onSelectPoint}
           onBuildRoute={onBuildRoute}

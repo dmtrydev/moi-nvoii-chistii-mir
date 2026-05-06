@@ -65,6 +65,23 @@ describe('buildMapEnterprisePopupViewModel', () => {
     expect(model.enterpriseDetailsHref).toBeNull();
   });
 
+  it('builds groro details href for groro entities', () => {
+    const source = baseSource();
+    source.id = 77;
+    source.importSource = 'groro_parser';
+
+    const model = buildMapEnterprisePopupViewModel({
+      pointAddress: source.address,
+      pointInn: source.inn,
+      source,
+      pointLat: 55.1,
+      pointLng: 65.3,
+    });
+
+    expect(model.enterpriseDetailsHref).toBe('/enterprise/groro/77');
+    expect(model.rpnStrip).toBeNull();
+  });
+
   it('uses safe fallbacks for empty values', () => {
     const source = baseSource();
     source.companyName = '';

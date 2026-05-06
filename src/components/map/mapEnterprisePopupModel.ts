@@ -1,4 +1,5 @@
 import type { LicenseData, LicenseSiteData, PpsState, PpsSummary, RpnSnapshotPublic } from '@/types';
+import { getMapEntityDetailsHref, isGroroEntity } from '@/utils/mapEntity';
 
 /** Значение строки контактов в балуне карты до выдачи телефона/e-mail по подписке. */
 export const POPUP_CONTACTS_SUBSCRIPTION_PLACEHOLDER = 'Скоро по подписке';
@@ -32,7 +33,7 @@ export type MapEnterprisePopupViewModel = {
   subtitleAddress: string;
   /** Реестр РПН / ППС; null если бэкенд не отдал блок или данных нет. */
   rpnStrip: MapEnterpriseRpnStrip | null;
-  /** Ссылка на страницу `/enterprise/:id`; текст статуса реестра ведёт туда как гиперссылка. */
+  /** Ссылка на страницу `/enterprise/:id` или `/enterprise/groro/:id`; текст статуса ведёт туда. */
   enterpriseDetailsHref: string | null;
   infoRows: PopupInfoRow[];
   siteSwitches: PopupSiteSwitch[];
@@ -144,7 +145,7 @@ function buildPpsCheckText(pps: PpsSummary | undefined, rpn: RpnSnapshotPublic |
 }
 
 export function buildMapEnterpriseRpnStrip(source: LicenseData): MapEnterpriseRpnStrip | null {
-  if (source.importSource === 'groro_parser') return null;
+  if (isGroroEntity(source)) return null;
   const pps = source.pps;
   const rpn = source.rpnSnapshot ?? null;
   if (!pps && !rpn) return null;
@@ -267,13 +268,7 @@ export function buildMapEnterprisePopupViewModel(
     });
   }
 
-  const licenseId = input.source.id;
-  const enterpriseDetailsHref =
-    typeof licenseId === 'number' && Number.isFinite(licenseId) && licenseId > 0
-      ? input.source.importSource === 'groro_parser'
-        ? `/enterprise/groro/${licenseId}`
-        : `/enterprise/${licenseId}`
-      : null;
+  const enterpriseDetailsHref = getMapEntityDetailsHref(input.source);
 
   return {
     title,
