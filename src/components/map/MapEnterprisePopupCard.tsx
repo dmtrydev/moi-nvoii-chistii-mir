@@ -27,66 +27,26 @@ const routeCtaLabelShiftClass = [
 function PopupContactsSubscriptionTeaser(): JSX.Element {
   return (
     <div
-      className="relative w-full min-w-0 overflow-hidden rounded-[22px] border-[none] bg-[#ffffff4c] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)] backdrop-blur-[10px] backdrop-brightness-[100%] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[22px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] sm:p-[18px]"
+      className="relative w-full min-w-0 overflow-hidden rounded-[16px] border border-white/80 bg-white/45 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
       aria-label="Контакты организации доступны по подписке"
     >
-      <div className="relative z-[2] flex flex-col">
-        <p className="font-nunito text-[17px] font-semibold leading-tight text-[#2b3335] sm:text-[18px]">
-          Доступ по подписке
+      <div
+        className="pointer-events-none select-none rounded-[12px] border border-white/75 bg-white/35 px-3 py-2.5 blur-[6px] motion-reduce:blur-[3px]"
+        aria-hidden
+      >
+        <p className="font-nunito text-[13px] font-semibold tracking-wide text-[#2b3335]">
+          +7&nbsp;(9••)&nbsp;•••-••-••
         </p>
-        <p className="mt-2 font-nunito text-sm leading-5 text-[#5e6567]">
-          Телефон, e-mail и документы откроются после оформления подписки.
+        <p className="mt-1 font-nunito text-[13px] font-semibold tracking-wide text-[#2b3335]">
+          director•••@••••••.ru
         </p>
-
-        <div className="relative mt-3 min-h-[5.25rem] overflow-hidden rounded-[18px] border border-white/80 bg-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
-          <div
-            className="pointer-events-none flex select-none flex-col gap-2 px-3.5 py-3.5 blur-[6px] motion-reduce:blur-[3px] motion-reduce:opacity-90 sm:px-4 sm:py-4"
-            aria-hidden
-          >
-            <span className="font-nunito text-[13px] font-semibold tracking-wide text-[#2b3335] sm:text-sm">
-              +7&nbsp;(9••)&nbsp;•••-••-••
-            </span>
-            <span className="font-nunito text-[13px] font-semibold tracking-wide text-[#2b3335] sm:text-sm">
-              director•••@••••••.ru
-            </span>
-          </div>
-          <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gradient-to-b from-white/10 via-white/25 to-white/45"
-            aria-hidden
-          >
-            <div
-              className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-white/95 bg-[#ffffff]/85 text-[#5e6567] shadow-[0_10px_28px_rgba(15,23,42,0.12)] backdrop-blur-[6px] [-webkit-backdrop-filter:blur(6px)_brightness(100%)] sm:h-[52px] sm:w-[52px]"
-              title="Доступно по подписке"
-            >
-              <svg
-                width={22}
-                height={22}
-                viewBox="0 0 24 24"
-                fill="none"
-                className="shrink-0"
-                aria-hidden
-              >
-                <path
-                  d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <Link
-          to="/price"
-          className="group relative z-[2] mt-4 flex h-[52px] w-full min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-[20px] border-[none] home-find-button before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2 sm:h-[56px]"
-        >
-          <span className="relative z-[2] font-nunito text-lg font-semibold text-[#2b3335] sm:text-xl">
-            Купить подписку
-          </span>
-        </Link>
       </div>
+      <Link
+        to="/price"
+        className="group relative mt-3 flex h-[44px] w-full min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-[14px] border-[none] home-find-button before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[14px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b3335]/25 focus-visible:ring-offset-2"
+      >
+        <span className="relative z-[2] font-nunito text-base font-bold text-[#2b3335]">Купить подписку</span>
+      </Link>
     </div>
   );
 }
