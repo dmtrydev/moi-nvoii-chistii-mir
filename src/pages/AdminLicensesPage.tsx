@@ -12,6 +12,7 @@ function getApiUrl(path: string): string {
 type AdminImportListFilter =
   | 'all'
   | 'rpn_registry'
+  | 'groro_parser'
   | 'registry_any'
   | 'manual'
   | 'registry_inactive';
@@ -30,9 +31,13 @@ interface LicenseItem {
   deletedAt: string | null;
   createdAt: string;
   importSource?: string | null;
+  importNeedsReview?: boolean;
   importRegistryStatus?: string | null;
   importRegistryStatusRu?: string | null;
   importRegistryInactive?: boolean;
+  groroNumber?: string | null;
+  groroStatus?: string | null;
+  groroStatusRu?: string | null;
 }
 
 interface DuplicateLicenseRow {
@@ -72,7 +77,14 @@ type RegistryStatusFilter =
   | 'unknown';
 
 function parseImportListFilter(v: string | null): AdminImportListFilter {
-  if (v === 'all' || v === 'rpn_registry' || v === 'registry_any' || v === 'manual' || v === 'registry_inactive') {
+  if (
+    v === 'all' ||
+    v === 'rpn_registry' ||
+    v === 'groro_parser' ||
+    v === 'registry_any' ||
+    v === 'manual' ||
+    v === 'registry_inactive'
+  ) {
     return v;
   }
   return 'all';
@@ -124,6 +136,7 @@ export default function AdminLicensesPage(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<AdminStatusFilter>(initialStatusFilter);
   const [registryStatusFilter, setRegistryStatusFilter] =
     useState<RegistryStatusFilter>(initialRegistryStatusFilter);
+  const [needsReviewOnly, setNeedsReviewOnly] = useState<boolean>(false);
   const [listSearchInput, setListSearchInput] = useState(initialSearchQ);
   const [listSearchQ, setListSearchQ] = useState(initialSearchQ);
   const didInitFiltersRef = useRef(false);
@@ -200,9 +213,11 @@ export default function AdminLicensesPage(): JSX.Element {
     qs.set('limit', String(PAGE_SIZE));
     qs.set('offset', String(offset));
     if (importListFilter === 'rpn_registry') qs.set('importSource', 'rpn_registry');
+    if (importListFilter === 'groro_parser') qs.set('importSource', 'groro_parser');
     if (importListFilter === 'registry_any') qs.set('importSource', 'any');
     if (importListFilter === 'manual') qs.set('importSource', 'manual');
     if (importListFilter === 'registry_inactive') qs.set('importRegistryInactive', 'true');
+    if (needsReviewOnly) qs.set('importNeedsReview', 'true');
     if (statusFilter !== 'all') qs.set('status', statusFilter);
     if (registryStatusFilter !== 'all') qs.set('importRegistryStatus', registryStatusFilter);
     if (listSearchQ) qs.set('q', listSearchQ);
@@ -233,7 +248,7 @@ export default function AdminLicensesPage(): JSX.Element {
     }
     setPage(1);
     setListUrlState({ page: 1 });
-  }, [importListFilter, statusFilter, registryStatusFilter, listSearchQ]);
+  }, [importListFilter, statusFilter, registryStatusFilter, needsReviewOnly, listSearchQ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -267,7 +282,7 @@ export default function AdminLicensesPage(): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [page, importListFilter, statusFilter, registryStatusFilter, listSearchQ]);
+  }, [page, importListFilter, statusFilter, registryStatusFilter, needsReviewOnly, listSearchQ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
 
@@ -602,10 +617,19 @@ export default function AdminLicensesPage(): JSX.Element {
           >
             <option value="all">Все записи</option>
             <option value="rpn_registry">Импорт через парсер (реестр РПН)</option>
+            <option value="groro_parser">Импорт ГРОРО</option>
             <option value="manual">Загрузка лицензии с сайта (PDF)</option>
             <option value="registry_any">Любой импорт из реестра</option>
             <option value="registry_inactive">Неактивные в реестре</option>
           </select>
+          <label className="inline-flex items-center gap-2 text-xs text-ink">
+            <input
+              type="checkbox"
+              checked={needsReviewOnly}
+              onChange={(e) => setNeedsReviewOnly(e.target.checked)}
+            />
+            Только требует проверки
+          </label>
           <select
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-sm text-ink max-w-full"
             value={registryStatusFilter}
@@ -648,10 +672,19 @@ export default function AdminLicensesPage(): JSX.Element {
                         className="inline-flex px-2 py-0.5 rounded-lg bg-sky-100 text-sky-950 text-[11px] font-semibold"
                         title={lic.importSource ?? 'rpn_registry'}
                       >
-                        Реестр
+                        {lic.importSource === 'groro_parser' ? 'ГРОРО' : 'Реестр'}
                       </span>
+                      {lic.groroNumber ? (
+                        <div className="text-[11px] text-ink-muted">ГРОРО: {lic.groroNumber}</div>
+                      ) : null}
+                      {lic.groroStatusRu ? (
+                        <div className="text-[11px] text-ink-muted">Статус ГРОРО: {lic.groroStatusRu}</div>
+                      ) : null}
                       {lic.importRegistryInactive ? (
                         <div className="text-[11px] text-rose-800 font-medium">Неактивна (реестр)</div>
+                      ) : null}
+                      {lic.importNeedsReview ? (
+                        <div className="text-[11px] text-amber-800 font-medium">Требует проверки</div>
                       ) : null}
                       {lic.importRegistryStatusRu ? (
                         <div className="text-[11px] text-ink-muted">

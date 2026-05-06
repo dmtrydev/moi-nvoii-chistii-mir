@@ -36,6 +36,11 @@ ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_needs_review BOOLEAN NOT NU
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_inactive BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_status TEXT;
 ALTER TABLE licenses ADD COLUMN IF NOT EXISTS import_registry_status_ru TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS groro_number TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS groro_status TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS groro_status_ru TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS groro_object_name TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS groro_operator_name TEXT;
 
 DO $$
 BEGIN
@@ -56,6 +61,12 @@ $$;
 CREATE INDEX IF NOT EXISTS idx_licenses_import_source
   ON licenses (import_source)
   WHERE import_source IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_licenses_groro_number
+  ON licenses (groro_number)
+  WHERE groro_number IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_licenses_groro_number_source
+  ON licenses (groro_number, import_source)
+  WHERE import_source = 'groro_parser' AND groro_number IS NOT NULL AND deleted_at IS NULL;
 
 -- Площадки (адреса осуществления деятельности) в рамках одной лицензии.
 -- Здесь хранится привязка: адрес -> виды работ -> коды ФККО.

@@ -95,6 +95,9 @@ async function ensureDatabaseSchema() {
       );
       const adminSearchPerfSql = await fsPromises.readFile(adminSearchPerfPath, 'utf8');
       await client.query(adminSearchPerfSql);
+      const groroImportPath = path.join(__dirname, 'db', 'migrations', 'groro-import-columns.sql');
+      const groroImportSql = await fsPromises.readFile(groroImportPath, 'utf8');
+      await client.query(groroImportSql);
 
       console.log('DB schema initialized/ensured');
     });
