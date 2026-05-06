@@ -345,6 +345,13 @@ adminRouter.get('/licenses', async (req, res) => {
     const groroWhere = [];
     const groroParams = [];
     let gi = 1;
+    if (!showDeleted) {
+      groroWhere.push(`o.deleted_at IS NULL`);
+    }
+    if (statusFilter) {
+      groroWhere.push(`o.moderation_status = $${gi++}`);
+      groroParams.push(statusFilter);
+    }
     if (searchTokens.length > 0) {
       for (const tok of searchTokens) {
         groroWhere.push(`(
@@ -381,16 +388,16 @@ adminRouter.get('/licenses', async (req, res) => {
          NULL::float8 AS lng,
          COALESCE(array_agg(DISTINCT w.fkko_code) FILTER (WHERE w.fkko_code IS NOT NULL), '{}'::text[]) AS "fkkoCodes",
          COALESCE(array_agg(DISTINCT w.activity_type) FILTER (WHERE w.activity_type IS NOT NULL), '{}'::text[]) AS "activityTypes",
-         'approved'::text AS status,
-         0::int AS reward,
-         NULL::text AS "rejectionNote",
-         NULL::text AS "moderatedComment",
-         NULL::timestamptz AS "moderatedAt",
+         o.moderation_status AS status,
+         o.reward AS reward,
+         o.rejection_note AS "rejectionNote",
+         o.moderated_comment AS "moderatedComment",
+         o.moderated_at AS "moderatedAt",
          NULL::text AS "fileOriginalName",
          NULL::text AS "fileStoredName",
          NULL::int AS "ownerUserId",
-         NULL::timestamptz AS "deletedAt",
-         NULL::int AS "deletedBy",
+         o.deleted_at AS "deletedAt",
+         o.deleted_by AS "deletedBy",
          o.created_at AS "createdAt",
          'groro_parser'::text AS "importSource",
          (o.operator_inn IS NULL OR length(trim(o.operator_inn)) = 0) AS "importNeedsReview",
@@ -609,6 +616,78 @@ async function replaceSiteFkkoActivities(client, siteId, s) {
       );
     }
   }
+}
+
+async function fetchGroroExtendedJson(client, id) {
+  const rows = await client.query(
+    `SELECT
+       o.id,
+       COALESCE(o.operator_name, o.object_name, 'ГРОРО объект') AS "companyName",
+       o.operator_inn AS inn,
+       o.operator_address AS address,
+       o.region,
+       NULL::float8 AS lat,
+       NULL::float8 AS lng,
+       o.moderation_status AS status,
+       o.reward,
+       o.rejection_note AS "rejectionNote",
+       o.moderated_comment AS "moderatedComment",
+       o.moderated_at AS "moderatedAt",
+       o.created_at AS "createdAt",
+       o.deleted_at AS "deletedAt",
+       o.deleted_by AS "deletedBy",
+       'groro_parser'::text AS "importSource",
+       o.status AS "importRegistryStatus",
+       o.status_ru AS "importRegistryStatusRu",
+       FALSE AS "importRegistryInactive",
+       o.groro_number AS "groroNumber",
+       o.status AS "groroStatus",
+       o.status_ru AS "groroStatusRu",
+       COALESCE(
+         array_agg(DISTINCT w.fkko_code) FILTER (WHERE w.fkko_code IS NOT NULL),
+         '{}'::text[]
+       ) AS "fkkoCodes",
+       COALESCE(
+         array_agg(DISTINCT w.activity_type) FILTER (WHERE w.activity_type IS NOT NULL),
+         '{}'::text[]
+       ) AS "activityTypes",
+       COALESCE(
+         json_agg(
+           json_build_object(
+             'fkkoCode', w.fkko_code,
+             'wasteName', w.waste_name,
+             'hazardClass', w.hazard_class,
+             'activityTypes', ARRAY[w.activity_type]
+           )
+         ) FILTER (WHERE w.id IS NOT NULL),
+         '[]'::json
+       ) AS entries_json
+     FROM groro_objects o
+     LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
+     WHERE o.id = $1
+     GROUP BY o.id
+     LIMIT 1`,
+    [id],
+  );
+  if (!rows.rows.length) return null;
+  const r = rows.rows[0];
+  return {
+    ...r,
+    siteId: r.id,
+    sites: [
+      {
+        id: r.id,
+        siteLabel: 'Основная площадка',
+        address: r.address ?? '',
+        region: r.region ?? null,
+        lat: null,
+        lng: null,
+        fkkoCodes: Array.isArray(r.fkkoCodes) ? r.fkkoCodes : [],
+        activityTypes: Array.isArray(r.activityTypes) ? r.activityTypes : [],
+        entries: Array.isArray(r.entries_json) ? r.entries_json : [],
+      },
+    ],
+  };
 }
 
 adminRouter.post('/import/groro', requireSuperadminOnly, async (req, res) => {
@@ -851,6 +930,157 @@ adminRouter.patch('/licenses/:id', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+adminRouter.patch('/groro/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+  const body = req.body ?? {};
+  const companyNameStr = String(body.companyName ?? '').trim();
+  if (!companyNameStr) return res.status(400).json({ message: 'companyName обязателен' });
+  const innStr = body.inn == null ? null : normalizeInn(String(body.inn).trim());
+  const addressStr = body.address == null ? null : String(body.address).trim() || null;
+  const regionStr = body.region == null ? null : String(body.region).trim() || null;
+  const sites = normalizeAdminSitesWithIds(Array.isArray(body.sites) ? body.sites : []);
+  const entries = sites.flatMap((s) => (Array.isArray(s.entries) ? s.entries : []));
+  if (entries.length === 0) {
+    return res.status(400).json({ message: 'Добавьте минимум одну строку ФККО для ГРОРО объекта.' });
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const before = await fetchGroroExtendedJson(client, id);
+    if (!before) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'ГРОРО объект не найден' });
+    }
+    await client.query(
+      `UPDATE groro_objects
+       SET operator_name = $2,
+           object_name = COALESCE(NULLIF(object_name, ''), $2),
+           operator_inn = $3,
+           operator_address = $4,
+           region = $5,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id, companyNameStr, innStr, addressStr, regionStr],
+    );
+    await client.query(`DELETE FROM groro_wastes WHERE groro_object_id = $1`, [id]);
+    for (const e of entries) {
+      const fkkoCode = String(e.fkkoCode ?? '').replace(/\D/g, '');
+      if (!/^\d{11}$/.test(fkkoCode)) continue;
+      const acts = Array.isArray(e.activityTypes) && e.activityTypes.length ? e.activityTypes : ['Размещение'];
+      for (const act of acts) {
+        await client.query(
+          `INSERT INTO groro_wastes (groro_object_id, fkko_code, waste_name, hazard_class, activity_type)
+           VALUES ($1,$2,$3,$4,$5)
+           ON CONFLICT (groro_object_id, fkko_code, activity_type, waste_name) DO NOTHING`,
+          [id, fkkoCode, e.wasteName || null, e.hazardClass || null, act],
+        );
+      }
+    }
+    const after = await fetchGroroExtendedJson(client, id);
+    await client.query('COMMIT');
+    await createAuditLog({
+      req,
+      action: 'GRORO_ADMIN_UPDATE',
+      entityType: 'GRORO_OBJECT',
+      entityId: String(id),
+      severity: 'INFO',
+      changes: { before: { companyName: before.companyName }, after: { companyName: after.companyName } },
+    });
+    return res.json(after);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка сохранения ГРОРО' });
+  } finally {
+    client.release();
+  }
+});
+
+adminRouter.post('/groro/:id/approve', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+  const updated = await query(
+    `UPDATE groro_objects
+     SET moderation_status = 'approved',
+         moderated_by = $2,
+         moderated_at = NOW(),
+         moderated_comment = COALESCE(moderated_comment, ''),
+         rejection_note = NULL
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, moderation_status AS status`,
+    [id, req.user?.id ?? null],
+  );
+  if (!updated.rows.length) return res.status(404).json({ message: 'Объект не найден' });
+  return res.json({ message: 'ГРОРО объект одобрен', license: updated.rows[0] });
+});
+
+adminRouter.post('/groro/:id/recheck', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+  const updated = await query(
+    `UPDATE groro_objects
+     SET moderation_status = 'recheck',
+         moderated_by = $2,
+         moderated_at = NOW(),
+         moderated_comment = COALESCE(moderated_comment, ''),
+         rejection_note = NULL
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, moderation_status AS status`,
+    [id, req.user?.id ?? null],
+  );
+  if (!updated.rows.length) return res.status(404).json({ message: 'Объект не найден' });
+  return res.json({ message: 'ГРОРО объект отправлен на перепроверку', license: updated.rows[0] });
+});
+
+adminRouter.post('/groro/:id/reject', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+  const note =
+    typeof req.body?.note === 'string' && req.body.note.trim()
+      ? req.body.note.trim().slice(0, 1000)
+      : 'Причина не указана';
+  const updated = await query(
+    `UPDATE groro_objects
+     SET moderation_status = 'rejected',
+         moderated_by = $2,
+         moderated_at = NOW(),
+         moderated_comment = $3,
+         rejection_note = $3
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, moderation_status AS status, rejection_note AS "rejectionNote"`,
+    [id, req.user?.id ?? null, note],
+  );
+  if (!updated.rows.length) return res.status(404).json({ message: 'Объект не найден' });
+  return res.json({ message: 'ГРОРО объект отклонён', license: updated.rows[0] });
+});
+
+adminRouter.delete('/groro/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+  const updated = await query(
+    `UPDATE groro_objects
+     SET deleted_at = NOW(), deleted_by = $2
+     WHERE id = $1 AND deleted_at IS NULL
+     RETURNING id, deleted_at AS "deletedAt", deleted_by AS "deletedBy"`,
+    [id, req.user?.id ?? null],
+  );
+  if (!updated.rows.length) return res.status(404).json({ message: 'Объект не найден или уже удалён' });
+  return res.json(updated.rows[0]);
+});
+
+adminRouter.delete('/groro/:id/hard', requireSuperadminOnly, async (req, res) => {
+  const id = Number(req.params.id);
+  const confirm = String(req.body?.confirm ?? '').trim();
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ message: 'Некорректный id' });
+  if (confirm !== 'DELETE') return res.status(400).json({ message: 'Подтвердите удаление кодом DELETE' });
+  const before = await query(`SELECT id FROM groro_objects WHERE id = $1 LIMIT 1`, [id]);
+  if (!before.rows.length) return res.status(404).json({ message: 'Объект не найден' });
+  await query(`DELETE FROM groro_objects WHERE id = $1`, [id]);
+  return res.json({ ok: true, id });
 });
 
 adminRouter.post('/licenses/batch-ai-approve', async (req, res) => {

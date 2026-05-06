@@ -1564,6 +1564,11 @@ app.get('/api/groro-objects/:id', async (req, res) => {
          o.operator_inn AS "operatorInn",
          o.operator_address AS "operatorAddress",
          o.linked_license_id AS "linkedLicenseId",
+         o.moderation_status AS "moderationStatus",
+         o.reward,
+         o.rejection_note AS "rejectionNote",
+         o.moderated_comment AS "moderatedComment",
+         o.moderated_at AS "moderatedAt",
          o.created_at AS "createdAt",
          COALESCE(
           json_agg(
@@ -1579,6 +1584,7 @@ app.get('/api/groro-objects/:id', async (req, res) => {
        FROM groro_objects o
        LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
        WHERE o.id = $1
+         AND o.deleted_at IS NULL
        GROUP BY o.id
        LIMIT 1`,
       [id],
@@ -1598,6 +1604,11 @@ app.get('/api/groro-objects/:id', async (req, res) => {
       fkkoCodes,
       activityTypes: ['Размещение'],
       importSource: 'groro_parser',
+      status: r.moderationStatus ?? 'pending',
+      reward: Number(r.reward ?? 100),
+      rejectionNote: r.rejectionNote ?? null,
+      moderatedComment: r.moderatedComment ?? null,
+      moderatedAt: r.moderatedAt ?? null,
       groroNumber: r.groroNumber,
       importRegistryStatus: r.status,
       importRegistryStatusRu: r.statusRu,

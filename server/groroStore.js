@@ -74,6 +74,8 @@ export async function listGroroObjectsForMap(pool, { region = '', fkko = '' } = 
   const params = [];
   let pi = 1;
   const where = [];
+  where.push(`o.deleted_at IS NULL`);
+  where.push(`o.moderation_status = 'approved'`);
   if (region) {
     where.push(`o.region = $${pi++}`);
     params.push(region);

@@ -302,9 +302,9 @@ export default function AdminLicensesPage(): JSX.Element {
     }
   }
 
-  async function handleApprove(id: number): Promise<void> {
+  async function handleApprove(id: number, path: string): Promise<void> {
     try {
-      const res = await fetch(getApiUrl(`/api/admin/licenses/${id}/approve`), {
+      const res = await fetch(getApiUrl(`/api/admin/${path}/${id}/approve`), {
         method: 'POST',
         headers: {},
         credentials: 'include',
@@ -319,7 +319,11 @@ export default function AdminLicensesPage(): JSX.Element {
     }
   }
 
-  async function handleManualApproveRejected(id: number): Promise<void> {
+  function adminEntityPath(lic: LicenseItem): string {
+    return lic.importSource === 'groro_parser' ? 'groro' : 'licenses';
+  }
+
+  async function handleManualApproveRejected(id: number, path: string): Promise<void> {
     if (
       !window.confirm(
         'Заявка была отклонена (в том числе автоматически по ИИ). Одобрить вручную и опубликовать объект?',
@@ -327,13 +331,26 @@ export default function AdminLicensesPage(): JSX.Element {
     ) {
       return;
     }
-    await handleApprove(id);
+    try {
+      const res = await fetch(getApiUrl(`/api/admin/${path}/${id}/approve`), {
+        method: 'POST',
+        headers: {},
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { message?: string }).message ?? 'Ошибка одобрения');
+      }
+      await reload({ withStats: true });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Ошибка одобрения');
+    }
   }
 
-  async function handleReject(id: number): Promise<void> {
+  async function handleReject(id: number, path: string): Promise<void> {
     try {
       const note = window.prompt('Введите причину отклонения (будет отображаться заявителю):') ?? '';
-      const res = await fetch(getApiUrl(`/api/admin/licenses/${id}/reject`), {
+      const res = await fetch(getApiUrl(`/api/admin/${path}/${id}/reject`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -409,10 +426,10 @@ export default function AdminLicensesPage(): JSX.Element {
     }
   }
 
-  async function handleDelete(id: number): Promise<void> {
+  async function handleDelete(id: number, path: string): Promise<void> {
     if (!window.confirm('Удалить объект? Его маркер пропадёт с карты.')) return;
     try {
-      const res = await fetch(getApiUrl(`/api/admin/licenses/${id}`), {
+      const res = await fetch(getApiUrl(`/api/admin/${path}/${id}`), {
         method: 'DELETE',
         headers: {},
         credentials: 'include',
@@ -714,14 +731,28 @@ export default function AdminLicensesPage(): JSX.Element {
                   {lic.deletedAt ? new Date(lic.deletedAt).toLocaleDateString() : '—'}
                 </td>
                 <td className="px-3 py-1.5">
-                  {!lic.deletedAt && lic.importSource !== 'groro_parser' ? (
+                  {!lic.deletedAt ? (
                     <div className="flex flex-wrap gap-2 items-center">
+                      {lic.status !== 'recheck' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void fetch(getApiUrl(`/api/admin/${adminEntityPath(lic)}/${lic.id}/recheck`), {
+                              method: 'POST',
+                              credentials: 'include',
+                            }).then(() => reload({ withStats: true }));
+                          }}
+                          className="glass-btn-soft !h-8 !text-[11px]"
+                        >
+                          Перепроверка
+                        </button>
+                      ) : null}
                       {lic.status !== 'approved' ? (
                         <button
                           type="button"
                           onClick={() => {
-                            if (lic.status === 'rejected') void handleManualApproveRejected(lic.id);
-                            else void handleApprove(lic.id);
+                            if (lic.status === 'rejected') void handleManualApproveRejected(lic.id, adminEntityPath(lic));
+                            else void handleApprove(lic.id, adminEntityPath(lic));
                           }}
                           className="glass-btn-dark !h-8 !text-[11px]"
                         >
@@ -732,7 +763,7 @@ export default function AdminLicensesPage(): JSX.Element {
                         <button
                           type="button"
                           onClick={() => {
-                            void handleReject(lic.id);
+                            void handleReject(lic.id, adminEntityPath(lic));
                           }}
                           className="glass-btn-soft !h-8 !text-[11px]"
                           style={{
@@ -754,15 +785,13 @@ export default function AdminLicensesPage(): JSX.Element {
                       <button
                         type="button"
                         onClick={() => {
-                          void handleDelete(lic.id);
+                          void handleDelete(lic.id, adminEntityPath(lic));
                         }}
                         className="glass-btn-dark !h-8 !text-[11px] !bg-[#7f1d1d] !border-[#7f1d1d] hover:!bg-[#991b1b]"
                       >
                         Удалить
                       </button>
                     </div>
-                  ) : lic.importSource === 'groro_parser' ? (
-                    <span className="text-xs text-ink-muted">Управление в слое ГРОРО</span>
                   ) : null}
                 </td>
               </tr>

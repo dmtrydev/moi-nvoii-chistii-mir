@@ -196,7 +196,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     };
   }, [id, groroId, isGroro]);
 
-  const canModerate = (user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN') && !isGroro;
+  const canModerate = user?.role === 'MODERATOR' || user?.role === 'SUPERADMIN';
   const isSuperAdmin = user?.role === 'SUPERADMIN';
   const display = canModerate && editing && draft ? draft : item;
 
@@ -246,7 +246,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
 
   async function approveCurrent(): Promise<void> {
     if (!item?.id) return;
-    const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/approve`), {
+    const res = await fetch(getApiUrl(`/api/admin/${isGroro ? 'groro' : 'licenses'}/${item.id}/approve`), {
       method: 'POST',
       credentials: 'include',
     });
@@ -259,7 +259,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
   async function rejectCurrent(): Promise<void> {
     if (!item?.id) return;
     const note = window.prompt('Введите причину отклонения (будет отображаться заявителю):') ?? '';
-    const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/reject`), {
+    const res = await fetch(getApiUrl(`/api/admin/${isGroro ? 'groro' : 'licenses'}/${item.id}/reject`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -273,7 +273,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
 
   async function markCurrentAsRecheck(): Promise<void> {
     if (!item?.id) return;
-    const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/recheck`), {
+    const res = await fetch(getApiUrl(`/api/admin/${isGroro ? 'groro' : 'licenses'}/${item.id}/recheck`), {
       method: 'POST',
       credentials: 'include',
     });
@@ -293,7 +293,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
       alert('Подтверждение не пройдено: нужно ввести DELETE');
       return;
     }
-    const res = await fetch(getApiUrl(`/api/admin/licenses/${item.id}/hard`), {
+    const res = await fetch(getApiUrl(`/api/admin/${isGroro ? 'groro' : 'licenses'}/${item.id}/hard`), {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -303,7 +303,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     });
     const body = (await res.json().catch(() => ({}))) as { message?: string };
     if (!res.ok) throw new Error(body.message ?? 'Не удалось удалить из БД');
-    window.location.href = '/admin/licenses';
+    window.location.href = isGroro ? '/admin/licenses?listFilter=groro_parser' : '/admin/licenses';
   }
 
   async function applyGeocodeToDraft(kind: 'license' | 'site', siteIdx?: number): Promise<void> {
@@ -355,7 +355,7 @@ export default function EnterpriseDetailsPage(): JSX.Element {
     setPatchLoading(true);
     setPatchError('');
     try {
-      const res = await fetch(getApiUrl(`/api/admin/licenses/${draft.id}`), {
+      const res = await fetch(getApiUrl(`/api/admin/${isGroro ? 'groro' : 'licenses'}/${draft.id}`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
