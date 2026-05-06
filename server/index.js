@@ -35,6 +35,7 @@ import cadastreRouter from './cadastreRoutes.js';
 import rpnSyncRouter from './rpnSyncRoutes.js';
 import { extractTextFromPdf } from './pdfText.js';
 import { TIMEWEB_BASE, callTimewebAiJson, isTimewebAiConfigured } from './aiClient.js';
+import { listGroroObjectsForMap } from './groroStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -98,6 +99,9 @@ async function ensureDatabaseSchema() {
       const groroImportPath = path.join(__dirname, 'db', 'migrations', 'groro-import-columns.sql');
       const groroImportSql = await fsPromises.readFile(groroImportPath, 'utf8');
       await client.query(groroImportSql);
+      const groroObjectsPath = path.join(__dirname, 'db', 'migrations', 'groro-objects.sql');
+      const groroObjectsSql = await fsPromises.readFile(groroObjectsPath, 'utf8');
+      await client.query(groroObjectsSql);
 
       console.log('DB schema initialized/ensured');
     });
@@ -1495,6 +1499,18 @@ app.post('/api/license-sites/:id/geocode', async (req, res) => {
   } catch (err) {
     console.error('geocode license site error:', err);
     return res.status(500).json({ message: err.message || 'Ошибка геокодирования' });
+  }
+});
+
+app.get('/api/groro-objects', async (req, res) => {
+  try {
+    const region = String(req.query.region ?? '').trim();
+    const fkko = String(req.query.fkko ?? '').replace(/\D/g, '');
+    const items = await listGroroObjectsForMap(getPool(), { region, fkko });
+    return res.json({ items });
+  } catch (err) {
+    console.error('groro-objects error:', err);
+    return res.status(500).json({ message: err instanceof Error ? err.message : 'Ошибка получения ГРОРО объектов' });
   }
 });
 

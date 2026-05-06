@@ -118,3 +118,88 @@ export async function fetchGroroCard(url, fetchImpl = fetch) {
   return parseGroroCardHtml(html);
 }
 
+function clean(v) {
+  const s = String(v ?? '').trim();
+  return s.length ? s : null;
+}
+
+function parseStatusRuToCode(statusRu) {
+  const s = String(statusRu ?? '').toLowerCase();
+  if (s.includes('действ')) return 'active';
+  if (s.includes('исключ')) return 'excluded';
+  return 'unknown';
+}
+
+function parseWastesFromRawTail(tail) {
+  const block = String(tail ?? '').replace(/^~+/, '');
+  if (!block) return [];
+  return block
+    .split('*')
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) => {
+      const cells = row.split('~');
+      const fkkoCode = normalizeFkkoCode(cells[0]);
+      const wasteName = clean(cells[2] ?? cells[1]);
+      if (!/^\d{11}$/.test(fkkoCode) || !wasteName) return null;
+      return {
+        fkkoCode,
+        wasteName,
+        hazardClass: fkkoCode.at(-1) ?? null,
+        activityTypes: [DEFAULT_ACTIVITY],
+      };
+    })
+    .filter(Boolean);
+}
+
+export function parseGroroObjectRaw(raw, sourceObjectId = null) {
+  const [head, tail = ''] = String(raw ?? '').split('&');
+  const p = String(head).split('~');
+  if (p.length < 15) return null;
+  const objectName = clean(p[0]);
+  const regionRaw = clean(p[1]);
+  const groroNumber = clean(p[2]);
+  const statusRu = clean(p[3]) ?? 'Неизвестный';
+  const status = parseStatusRuToCode(statusRu);
+  const operatorName = clean(p[p.length - 6]) ?? clean(p[14]) ?? objectName;
+  const operatorInn = clean(p[p.length - 5]) ?? clean(p[15]);
+  const operatorAddress = clean(p[p.length - 4]) ?? clean(p[16]);
+  const wastes = parseWastesFromRawTail(tail);
+  if (!objectName || !groroNumber || wastes.length === 0) return null;
+  return {
+    sourceObjectId: sourceObjectId == null ? null : String(sourceObjectId),
+    groroNumber,
+    registryStatus: status,
+    registryStatusRu: statusRu,
+    objectName,
+    region: regionRaw ? regionRaw.replace(/\s*\(\d+\)\s*$/, '') : null,
+    operatorName,
+    operatorInn,
+    operatorAddress,
+    wastes,
+  };
+}
+
+export async function fetchGroroObjectById(idObject, fetchImpl = fetch) {
+  const body = new URLSearchParams({
+    function: 'getObjectItem',
+    idObject: String(idObject),
+  });
+  const res = await fetchImpl('https://www.airsoft-bit.ru/media/eco_catalog/groro/groroGetData.php', {
+    method: 'POST',
+    headers: {
+      Accept: '*/*',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body,
+  });
+  if (!res.ok) {
+    throw new Error(`GRORO id fetch failed: HTTP ${res.status}`);
+  }
+  const text = await res.text();
+  const parsed = parseGroroObjectRaw(text, idObject);
+  if (!parsed) throw new Error('GRORO raw object parse failed');
+  return parsed;
+}
+

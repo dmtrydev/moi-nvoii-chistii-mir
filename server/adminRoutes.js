@@ -19,8 +19,9 @@ import {
   isFkkoTitlesSyncRunning,
 } from './fkkoTitlesSync.js';
 import { upsertFkkoOfficialTitles } from './fkkoOfficialTitles.js';
-import { fetchGroroCard } from './groroParser.js';
+import { fetchGroroObjectById } from './groroParser.js';
 import { enrichFromRusprofile } from './rusprofileEnrich.js';
+import { upsertGroroObject } from './groroStore.js';
 
 const adminRouter = express.Router();
 const requireSuperadminOnly = requireRole('SUPERADMIN');
@@ -29,7 +30,6 @@ const MAX_ADMIN_SEARCH_TOKENS = 12;
 const MAX_ADMIN_SEARCH_TOKEN_LEN = 80;
 const ADMIN_LICENSES_DEFAULT_LIMIT = 50;
 const ADMIN_LICENSES_MAX_LIMIT = 100;
-const GRORO_IMPORT_SOURCE = 'groro_parser';
 
 function tokenizeAdminLicenseSearch(q) {
   const s = String(q ?? '').trim();
@@ -514,12 +514,6 @@ function parseCoord(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-function toGroroRegistryStatusRu(status) {
-  const s = String(status ?? '').trim().toLowerCase();
-  if (s === 'active') return 'Действующий';
-  return 'Неизвестный';
-}
-
 async function replaceSiteFkkoActivities(client, siteId, s) {
   const entries =
     Array.isArray(s.entries) && s.entries.length > 0
@@ -543,139 +537,28 @@ async function replaceSiteFkkoActivities(client, siteId, s) {
   }
 }
 
-async function upsertGroroLicenseInTx(client, payload) {
-  const existing = await client.query(
-    `SELECT id
-     FROM licenses
-     WHERE import_source = $1
-       AND groro_number = $2
-       AND deleted_at IS NULL
-     LIMIT 1`,
-    [GRORO_IMPORT_SOURCE, payload.groroNumber],
-  );
-  const existingId = Number(existing.rows[0]?.id ?? 0) || null;
-
-  const sites = [
-    {
-      clientId: null,
-      address: payload.operatorAddress,
-      region: payload.region,
-      siteLabel: 'Основная площадка',
-      lat: null,
-      lng: null,
-      fkkoCodes: [...new Set(payload.wastes.map((w) => w.fkkoCode))],
-      activityTypes: ['Размещение'],
-      entries: payload.wastes,
-    },
-  ];
-  const { fkkoArr, activityArr } = aggregateFkkoAndActivityFromSites(sites);
-  const statusRu = toGroroRegistryStatusRu(payload.registryStatus);
-  const companyName =
-    String(payload.operatorName ?? '').trim() ||
-    String(payload.objectName ?? '').trim() ||
-    `ГРОРО объект ${payload.groroNumber}`;
-  const inn = payload.operatorInn ? String(payload.operatorInn) : null;
-  const needsReview = !inn || payload.enrichUncertain;
-
-  if (!existingId) {
-    const inserted = await client.query(
-      `INSERT INTO licenses
-        (company_name, inn, address, region, lat, lng, fkko_codes, activity_types, status, reward,
-         import_source, import_needs_review, groro_number, groro_status, groro_status_ru,
-         groro_object_name, groro_operator_name)
-       VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, 'pending', 100,
-         $7, $8, $9, $10, $11, $12, $13)
-       RETURNING id`,
-      [
-        companyName,
-        inn,
-        payload.operatorAddress,
-        payload.region,
-        fkkoArr,
-        activityArr,
-        GRORO_IMPORT_SOURCE,
-        needsReview,
-        payload.groroNumber,
-        payload.registryStatus,
-        statusRu,
-        payload.objectName,
-        payload.operatorName,
-      ],
-    );
-    const licenseId = Number(inserted.rows[0]?.id);
-    for (const s of sites) {
-      const siteIns = await client.query(
-        `INSERT INTO license_sites (license_id, site_label, address, region, lat, lng, fkko_codes, activity_types)
-         VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6)
-         RETURNING id`,
-        [licenseId, s.siteLabel, s.address, s.region, s.fkkoCodes, s.activityTypes],
-      );
-      await replaceSiteFkkoActivities(client, Number(siteIns.rows[0].id), s);
-    }
-    return { action: 'inserted', licenseId };
-  }
-
-  await client.query(`DELETE FROM license_sites WHERE license_id = $1`, [existingId]);
-  await client.query(
-    `UPDATE licenses
-     SET company_name = $2,
-         inn = $3,
-         address = $4,
-         region = $5,
-         fkko_codes = $6,
-         activity_types = $7,
-         import_needs_review = $8,
-         groro_status = $9,
-         groro_status_ru = $10,
-         groro_object_name = $11,
-         groro_operator_name = $12
-     WHERE id = $1`,
-    [
-      existingId,
-      companyName,
-      inn,
-      payload.operatorAddress,
-      payload.region,
-      fkkoArr,
-      activityArr,
-      needsReview,
-      payload.registryStatus,
-      statusRu,
-      payload.objectName,
-      payload.operatorName,
-    ],
-  );
-  for (const s of sites) {
-    const siteIns = await client.query(
-      `INSERT INTO license_sites (license_id, site_label, address, region, lat, lng, fkko_codes, activity_types)
-       VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6)
-       RETURNING id`,
-      [existingId, s.siteLabel, s.address, s.region, s.fkkoCodes, s.activityTypes],
-    );
-    await replaceSiteFkkoActivities(client, Number(siteIns.rows[0].id), s);
-  }
-  return { action: 'updated', licenseId: existingId };
-}
-
 adminRouter.post('/import/groro', requireSuperadminOnly, async (req, res) => {
-  const rawUrls = Array.isArray(req.body?.cardUrls) ? req.body.cardUrls : [];
-  const cardUrls = rawUrls.map((u) => String(u ?? '').trim()).filter(Boolean).slice(0, 200);
-  if (cardUrls.length === 0) {
-    return res.status(400).json({ message: 'Передайте cardUrls (массив ссылок на карточки ГРОРО).' });
+  const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const ids = rawIds
+    .map((v) => String(v ?? '').replace(/\D/g, ''))
+    .filter(Boolean)
+    .slice(0, 1000);
+  if (ids.length === 0) {
+    return res.status(400).json({ message: 'Передайте ids (массив idObject карточек ГРОРО).' });
   }
 
-  const stats = { total: cardUrls.length, inserted: 0, updated: 0, skipped: 0, failed: 0 };
+  const stats = { total: ids.length, inserted: 0, updated: 0, skipped: 0, failed: 0 };
   const errors = [];
   const pool = getPool();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    for (const url of cardUrls) {
+    for (const idObject of ids) {
       try {
-        const card = await fetchGroroCard(url);
+        const card = await fetchGroroObjectById(idObject);
         if (!card?.groroNumber || !Array.isArray(card.wastes) || card.wastes.length === 0) {
           stats.skipped += 1;
-          errors.push({ url, reason: 'missing-required-fields' });
+          errors.push({ idObject, reason: 'missing-required-fields' });
           continue;
         }
         let operatorInn = card.operatorInn ? normalizeInn(card.operatorInn) : null;
@@ -691,22 +574,19 @@ adminRouter.post('/import/groro', requireSuperadminOnly, async (req, res) => {
           enrichUncertain = true;
         }
 
-        const upsertOut = await upsertGroroLicenseInTx(client, {
-          groroNumber: card.groroNumber,
-          registryStatus: card.registryStatus || 'unknown',
-          objectName: card.objectName,
-          region: card.region,
-          operatorName: card.operatorName,
+        const upsertOut = await upsertGroroObject(client, {
+          sourceObjectId: idObject,
+          ...card,
           operatorInn,
           operatorAddress,
-          enrichUncertain,
-          wastes: card.wastes,
+          enrichUncertain, // сохраняется в raw_payload
         });
         if (upsertOut.action === 'inserted') stats.inserted += 1;
+        else if (upsertOut.inserted) stats.inserted += 1;
         else stats.updated += 1;
       } catch (err) {
         stats.failed += 1;
-        errors.push({ url, reason: err instanceof Error ? err.message : 'failed' });
+        errors.push({ idObject, reason: err instanceof Error ? err.message : 'failed' });
       }
     }
     await client.query('COMMIT');
