@@ -426,10 +426,13 @@ export function FilterPanelSection({
         <label className="relative z-[2] inline-flex min-h-[52px] w-full items-center gap-3 rounded-[20px] bg-[#ffffff73] px-4 py-2 font-nunito text-base font-semibold text-[#2b3335] backdrop-blur-[10px] [-webkit-backdrop-filter:blur(10px)_brightness(100%)] before:pointer-events-none before:absolute before:inset-0 before:z-[1] before:rounded-[20px] before:p-px before:content-[''] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:[background:linear-gradient(132deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.3)_100%)]">
           <input
             type="checkbox"
-            className="relative z-[2] h-4 w-4"
+            className="sr-only"
             checked={groroOnly}
             onChange={(e) => onGroroOnlyChange(e.target.checked)}
           />
+          <span className="relative z-[2] inline-flex shrink-0">
+            {groroOnly ? <VidMenuCheckboxChecked /> : <VidMenuCheckboxUnchecked />}
+          </span>
           <span className="relative z-[2]">Только объекты размещения из ГРОРО</span>
         </label>
       </div>
