@@ -1517,12 +1517,22 @@ export default function MapPage(): JSX.Element {
         {rasterBase === 'globe' ? (
           <MapGlobeView
             points={mapPoints}
+            siteCandidatesForPoint={(pt) => mapPointCandidatesByEnterprise.get(buildEnterpriseKey(pt)) ?? []}
             selectedId={selectedId}
+            focusCenter={focusCenter}
             onSelectPoint={(p) => {
               setFocusedItem(p.source);
               if (p.pointId != null) setSelectedId(p.pointId);
               setFocusCenter([p.lat, p.lng]);
             }}
+            onBuildRoute={(target) => {
+              void handleBuildRouteFromClient(target);
+            }}
+            onSwitchSite={(site) => {
+              setFocusCenter([site.lat, site.lng]);
+            }}
+            routeBusy={routeBusy}
+            onClosePopup={() => setSelectedId(null)}
           />
         ) : (
           <MapContainer

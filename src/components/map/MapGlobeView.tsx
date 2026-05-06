@@ -1,19 +1,43 @@
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, useTexture } from '@react-three/drei';
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Html, OrbitControls, Stars, useTexture } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { LicenseData } from '@/types';
+import { MapEnterprisePopupCard } from '@/components/map/MapEnterprisePopupCard';
+import {
+  buildMapEnterprisePopupViewModel,
+  type MapEnterprisePopupViewModel,
+} from '@/components/map/mapEnterprisePopupModel';
 import { getMapMarkerVariant, type MapMarkerVariant } from '@/utils/mapMarkerVariant';
+import '@/styles/map-cluster.css';
 
-export type MapGlobeViewPoint = {
+export type GlobeMapPoint = {
   key: string;
   lat: number;
   lng: number;
   pointId: number | null;
+  companyName: string;
+  address: string;
+  inn: string;
+  siteLabel: string;
   source: LicenseData;
 };
 
+/** @deprecated используйте GlobeMapPoint */
+export type MapGlobeViewPoint = GlobeMapPoint;
+
+type PopupSiteCandidate = {
+  pointId: number | null;
+  lat: number;
+  lng: number;
+  label: string;
+};
+
 const GLOBE_RADIUS = 1;
+const CLUSTER_RADIUS_PX = 60;
+const SPIDER_RADIUS_WORLD = 0.042;
+const ZOOM_CLUSTER_DIST_FACTOR = 1.22;
 
 function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector3 {
   const phi = ((90 - lat) * Math.PI) / 180;
@@ -24,10 +48,157 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
   return new THREE.Vector3(x, y, z);
 }
 
-function markerColor(variant: MapMarkerVariant): string {
-  if (variant === 'storage') return '#eab308';
-  if (variant === 'tech') return '#3b82f6';
-  return '#bcdc57';
+function centroidOnGlobe(members: GlobeMapPoint[]): THREE.Vector3 {
+  const v = new THREE.Vector3();
+  for (const p of members) {
+    v.add(latLngToVector3(p.lat, p.lng, 1));
+  }
+  if (v.lengthSq() < 1e-12) return latLngToVector3(members[0]!.lat, members[0]!.lng, GLOBE_RADIUS * 1.018);
+  return v.normalize().multiplyScalar(GLOBE_RADIUS * 1.018);
+}
+
+function stableClusterId(members: GlobeMapPoint[]): string {
+  return [...members.map((m) => m.key)].sort().join('|');
+}
+
+function spiderTangentOffsets(n: number, radiusWorld: number, surfaceNormal: THREE.Vector3): THREE.Vector3[] {
+  let t1 = new THREE.Vector3(0, 1, 0).cross(surfaceNormal);
+  if (t1.lengthSq() < 1e-8) t1 = new THREE.Vector3(1, 0, 0).cross(surfaceNormal);
+  t1.normalize();
+  const t2 = surfaceNormal.clone().cross(t1).normalize();
+  const out: THREE.Vector3[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / Math.max(n, 1)) * Math.PI * 2;
+    out.push(t1.clone().multiplyScalar(Math.cos(a) * radiusWorld).add(t2.clone().multiplyScalar(Math.sin(a) * radiusWorld)));
+  }
+  return out;
+}
+
+function worldToScreenXY(
+  world: THREE.Vector3,
+  camera: THREE.Camera,
+  width: number,
+  height: number,
+): { x: number; y: number; ndcZ: number } | null {
+  const v = world.clone().project(camera);
+  if (v.z < -1 || v.z > 1) return null;
+  const x = (v.x * 0.5 + 0.5) * width;
+  const y = (-v.y * 0.5 + 0.5) * height;
+  return { x, y, ndcZ: v.z };
+}
+
+function isOnFrontHemisphere(world: THREE.Vector3, camera: THREE.Camera): boolean {
+  const wn = world.clone().normalize();
+  const c = camera.position.clone().normalize();
+  return wn.dot(c) > 0.06;
+}
+
+type ProjectedPoint = {
+  point: GlobeMapPoint;
+  world: THREE.Vector3;
+  x: number;
+  y: number;
+};
+
+function projectVisiblePoints(
+  points: GlobeMapPoint[],
+  camera: THREE.Camera,
+  width: number,
+  height: number,
+): ProjectedPoint[] {
+  const out: ProjectedPoint[] = [];
+  for (const point of points) {
+    const world = latLngToVector3(point.lat, point.lng, GLOBE_RADIUS * 1.018);
+    if (!isOnFrontHemisphere(world, camera)) continue;
+    const scr = worldToScreenXY(world, camera, width, height);
+    if (!scr) continue;
+    out.push({ point, world, x: scr.x, y: scr.y });
+  }
+  return out;
+}
+
+type ScreenUnion =
+  | { kind: 'single'; point: GlobeMapPoint; world: THREE.Vector3 }
+  | { kind: 'cluster'; id: string; members: GlobeMapPoint[]; world: THREE.Vector3; count: number };
+
+function clusterScreenPoints(projected: ProjectedPoint[], radiusPx: number): ScreenUnion[] {
+  const R2 = radiusPx * radiusPx;
+  const used = new Set<number>();
+  const unions: ScreenUnion[] = [];
+
+  const dist2 = (a: number, b: number): number => {
+    const dx = projected[a]!.x - projected[b]!.x;
+    const dy = projected[a]!.y - projected[b]!.y;
+    return dx * dx + dy * dy;
+  };
+
+  for (let i = 0; i < projected.length; i++) {
+    if (used.has(i)) continue;
+    const groupIdx = new Set<number>([i]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (let j = 0; j < projected.length; j++) {
+        if (groupIdx.has(j) || used.has(j)) continue;
+        for (const g of groupIdx) {
+          if (dist2(g, j) <= R2) {
+            groupIdx.add(j);
+            grew = true;
+            break;
+          }
+        }
+      }
+    }
+    groupIdx.forEach((idx) => used.add(idx));
+    const idxList = [...groupIdx];
+    const members = idxList.map((idx) => projected[idx]!.point);
+    const world = centroidOnGlobe(members);
+    if (members.length === 1) {
+      unions.push({ kind: 'single', point: members[0]!, world: projected[idxList[0]!]!.world });
+    } else {
+      unions.push({
+        kind: 'cluster',
+        id: stableClusterId(members),
+        members,
+        world,
+        count: members.length,
+      });
+    }
+  }
+  return unions;
+}
+
+function expandSpiderfied(unions: ScreenUnion[], spiderfiedId: string | null): ScreenUnion[] {
+  if (!spiderfiedId) return unions;
+  const next: ScreenUnion[] = [];
+  for (const u of unions) {
+    if (u.kind === 'cluster' && u.id === spiderfiedId && u.members.length > 1) {
+      const base = u.world.clone();
+      const n = base.clone().normalize();
+      const offs = spiderTangentOffsets(u.members.length, SPIDER_RADIUS_WORLD, n);
+      u.members.forEach((pt, idx) => {
+        const o = offs[idx] ?? new THREE.Vector3();
+        const pos = base.clone().add(o).normalize().multiplyScalar(GLOBE_RADIUS * 1.018);
+        next.push({ kind: 'single', point: pt, world: pos });
+      });
+    } else {
+      next.push(u);
+    }
+  }
+  return next;
+}
+
+function markerDotClassList(variant: MapMarkerVariant, selected: boolean): string {
+  const parts = ['map-marker-dot'];
+  if (variant === 'storage') parts.push('map-marker-dot--variant-storage');
+  if (variant === 'tech') parts.push('map-marker-dot--variant-tech');
+  if (selected) parts.push('map-marker-dot--emphasis');
+  return parts.join(' ');
+}
+
+function clusterIconClass(count: number): string {
+  const tier = count < 10 ? 'sm' : count < 100 ? 'md' : 'lg';
+  return `map-cluster-icon map-cluster-icon--${tier}`;
 }
 
 function EarthGlobe(): JSX.Element {
@@ -47,76 +218,262 @@ function EarthGlobe(): JSX.Element {
   );
 }
 
-function VariantMarkerInstanced({
-  points,
-  variant,
-  color,
-  selectedId,
-  onSelect,
-}: {
-  points: MapGlobeViewPoint[];
-  variant: MapMarkerVariant;
-  color: string;
+type GlobeOverlayProps = {
+  points: GlobeMapPoint[];
+  siteCandidatesForPoint: (point: GlobeMapPoint) => PopupSiteCandidate[];
   selectedId: number | null;
-  onSelect: (p: MapGlobeViewPoint) => void;
-}): JSX.Element | null {
-  const subset = useMemo(
-    () => points.filter((p) => getMapMarkerVariant(p.source.activityTypes) === variant),
-    [points, variant],
-  );
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const obj = useMemo(() => new THREE.Object3D(), []);
-  const markerR = 0.028 * GLOBE_RADIUS;
+  focusCenter: [number, number] | null;
+  onSelectPoint: (point: GlobeMapPoint) => void;
+  onBuildRoute: (point: GlobeMapPoint) => void;
+  onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }, point: GlobeMapPoint) => void;
+  routeBusy: boolean;
+  onClosePopup: () => void;
+};
 
-  useLayoutEffect(() => {
-    const mesh = meshRef.current;
-    if (!mesh || subset.length === 0) return;
-    subset.forEach((p, i) => {
-      const v = latLngToVector3(p.lat, p.lng, GLOBE_RADIUS * 1.018);
-      obj.position.copy(v);
-      const sel = p.pointId != null && selectedId === p.pointId;
-      obj.scale.setScalar(sel ? 1.45 : 1);
-      obj.updateMatrix();
-      mesh.setMatrixAt(i, obj.matrix);
+function GlobeHtmlOverlay({
+  points,
+  siteCandidatesForPoint,
+  selectedId,
+  focusCenter,
+  onSelectPoint,
+  onBuildRoute,
+  onSwitchSite,
+  routeBusy,
+  onClosePopup,
+}: GlobeOverlayProps): JSX.Element {
+  const { camera, size } = useThree();
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const [unions, setUnions] = useState<ScreenUnion[]>([]);
+  const [spiderfiedId, setSpiderfiedId] = useState<string | null>(null);
+  const camPosPrev = useRef(new THREE.Vector3().setScalar(Number.NaN));
+  const camQuatPrev = useRef(new THREE.Quaternion().set(0, 0, 0, 0));
+  const lastClusterComputeRef = useRef(0);
+  const zoomRafRef = useRef(0);
+  const lastFocusKeyRef = useRef<string | null>(null);
+  const spiderfiedIdRef = useRef(spiderfiedId);
+  spiderfiedIdRef.current = spiderfiedId;
+
+  const recomputeUnions = useCallback(() => {
+    const projected = projectVisiblePoints(points, camera, size.width, size.height);
+    const base = clusterScreenPoints(projected, CLUSTER_RADIUS_PX);
+    setUnions(expandSpiderfied(base, spiderfiedIdRef.current));
+  }, [points, camera, size.width, size.height]);
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(zoomRafRef.current);
+  }, []);
+
+  useEffect(() => {
+    lastClusterComputeRef.current = 0;
+    recomputeUnions();
+  }, [recomputeUnions, spiderfiedId]);
+
+  useEffect(() => {
+    if (!focusCenter) return;
+    const key = `${focusCenter[0].toFixed(5)},${focusCenter[1].toFixed(5)}`;
+    if (lastFocusKeyRef.current === key) return;
+    lastFocusKeyRef.current = key;
+    requestAnimationFrame(() => {
+      const ctrl = controlsRef.current;
+      if (!ctrl) return;
+      const [lat, lng] = focusCenter;
+      const dir = latLngToVector3(lat, lng, 1).normalize();
+      const dist = Math.max(ctrl.minDistance, camera.position.length());
+      camera.position.copy(dir.multiplyScalar(dist));
+      ctrl.target.set(0, 0, 0);
+      ctrl.update();
+      recomputeUnions();
     });
-    mesh.instanceMatrix.needsUpdate = true;
-  }, [subset, selectedId, obj]);
+  }, [focusCenter, camera, recomputeUnions]);
 
-  if (subset.length === 0) return null;
+  const runClusterZoom = useCallback(
+    (members: GlobeMapPoint[]) => {
+      cancelAnimationFrame(zoomRafRef.current);
+      const clusterDir = centroidOnGlobe(members).normalize();
+      let step = 0;
+      const tick = (): void => {
+        const ctrl = controlsRef.current;
+        if (!ctrl || step++ > 40) {
+          recomputeUnions();
+          return;
+        }
+        const minD = ctrl.minDistance;
+        const len = camera.position.length();
+        if (len <= minD * 1.02) {
+          recomputeUnions();
+          return;
+        }
+        const nextDist = Math.max(minD, len * 0.9);
+        const curDir = camera.position.clone().normalize();
+        const newDir = curDir.lerp(clusterDir, 0.16).normalize();
+        camera.position.copy(newDir.multiplyScalar(nextDist));
+        ctrl.target.set(0, 0, 0);
+        ctrl.update();
+        zoomRafRef.current = requestAnimationFrame(tick);
+      };
+      zoomRafRef.current = requestAnimationFrame(tick);
+    },
+    [camera, recomputeUnions],
+  );
+
+  useFrame(() => {
+    const moved =
+      Number.isNaN(camPosPrev.current.x) ||
+      camPosPrev.current.distanceToSquared(camera.position) > 1e-7 ||
+      Math.abs(camQuatPrev.current.angleTo(camera.quaternion)) > 2e-4;
+
+    if (!moved) return;
+    camPosPrev.current.copy(camera.position);
+    camQuatPrev.current.copy(camera.quaternion);
+
+    const now = performance.now();
+    if (now - lastClusterComputeRef.current < 72) return;
+    lastClusterComputeRef.current = now;
+    recomputeUnions();
+  });
+
+  const onClusterClick = useCallback(
+    (clusterId: string, members: GlobeMapPoint[]) => {
+      if (spiderfiedId === clusterId) {
+        setSpiderfiedId(null);
+        return;
+      }
+      const ctrl = controlsRef.current;
+      const minD = ctrl?.minDistance ?? 1.55;
+      const dist = camera.position.length();
+
+      if (dist > minD * ZOOM_CLUSTER_DIST_FACTOR) {
+        setSpiderfiedId(null);
+        runClusterZoom(members);
+        return;
+      }
+      setSpiderfiedId(clusterId);
+    },
+    [camera, spiderfiedId, runClusterZoom],
+  );
+
+  const selectedPoint = useMemo(
+    () => (selectedId == null ? null : points.find((p) => p.pointId === selectedId) ?? null),
+    [points, selectedId],
+  );
+
+  const popupModel: MapEnterprisePopupViewModel | null = useMemo(() => {
+    if (!selectedPoint) return null;
+    return buildMapEnterprisePopupViewModel({
+      pointAddress: selectedPoint.address,
+      pointInn: selectedPoint.inn,
+      source: selectedPoint.source,
+      pointId: selectedPoint.pointId,
+      pointLat: selectedPoint.lat,
+      pointLng: selectedPoint.lng,
+      siteCandidates: siteCandidatesForPoint(selectedPoint),
+    });
+  }, [selectedPoint, siteCandidatesForPoint]);
+
+  const selectedWorld =
+    selectedPoint != null ? latLngToVector3(selectedPoint.lat, selectedPoint.lng, GLOBE_RADIUS * 1.018) : null;
 
   return (
-    <instancedMesh
-      ref={meshRef}
-      args={[undefined, undefined, subset.length]}
-      frustumCulled={false}
-      onClick={(e) => {
-        e.stopPropagation();
-        const i = e.instanceId;
-        if (i == null || i >= subset.length) return;
-        onSelect(subset[i]!);
-      }}
-    >
-      <sphereGeometry args={[markerR, 12, 12]} />
-      <meshStandardMaterial
-        color={color}
-        emissive={color}
-        emissiveIntensity={0.22}
-        roughness={0.45}
-        metalness={0.15}
+    <>
+      <OrbitControls
+        ref={controlsRef}
+        enablePan={false}
+        minDistance={1.55}
+        maxDistance={4.2}
+        rotateSpeed={0.55}
+        zoomSpeed={0.65}
+        enableDamping
+        dampingFactor={0.08}
       />
-    </instancedMesh>
+
+      {unions.map((u) => {
+        if (u.kind === 'single') {
+          const p = u.point;
+          const variant = getMapMarkerVariant(p.source.activityTypes);
+          const selected = selectedId != null && p.pointId != null && selectedId === p.pointId;
+          return (
+            <Html
+              key={p.key}
+              position={u.world}
+              center
+              distanceFactor={5.5}
+              style={{ pointerEvents: 'auto' }}
+              zIndexRange={[100, 0]}
+            >
+              <button
+                type="button"
+                className={markerDotClassList(variant, selected)}
+                aria-label="Открыть карточку"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSpiderfiedId(null);
+                  onSelectPoint(p);
+                }}
+              />
+            </Html>
+          );
+        }
+        return (
+          <Html
+            key={u.id}
+            position={u.world}
+            center
+            distanceFactor={5.5}
+            style={{ pointerEvents: 'auto' }}
+            zIndexRange={[100, 0]}
+          >
+            <button
+              type="button"
+              className={clusterIconClass(u.count)}
+              aria-label={`Кластер, объектов: ${u.count}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClusterClick(u.id, u.members);
+              }}
+            >
+              {u.count}
+            </button>
+          </Html>
+        );
+      })}
+
+      {selectedWorld && popupModel && selectedPoint && isOnFrontHemisphere(selectedWorld, camera) && (
+        <Html
+          position={selectedWorld.clone().add(selectedWorld.clone().normalize().multiplyScalar(0.06))}
+          center
+          distanceFactor={4.2}
+          style={{ pointerEvents: 'auto', width: 'min(420px, calc(100vw - 48px))', maxWidth: 'min(420px, calc(100vw - 48px))' }}
+          zIndexRange={[200, 100]}
+        >
+          <div className="relative rounded-[14px] border border-black/[0.06] bg-white shadow-[0_12px_40px_rgba(43,51,53,0.18)]">
+            <button
+              type="button"
+              className="absolute right-3 top-3 z-[2] flex h-[30px] w-[30px] items-center justify-center rounded-full border border-white/95 bg-white/75 text-[#3a4346] transition-colors hover:bg-white/95"
+              aria-label="Закрыть"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClosePopup();
+              }}
+            >
+              <span className="relative inline-block h-3 w-3">
+                <span className="absolute left-1/2 top-1/2 block h-px w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-current" />
+                <span className="absolute left-1/2 top-1/2 block h-px w-3 -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-current" />
+              </span>
+            </button>
+            <MapEnterprisePopupCard
+              model={popupModel}
+              routeDisabled={routeBusy}
+              onBuildRoute={() => onBuildRoute(selectedPoint)}
+              onSwitchSite={(site) => onSwitchSite(site, selectedPoint)}
+            />
+          </div>
+        </Html>
+      )}
+    </>
   );
 }
 
-function GlobeScene({
-  points,
-  selectedId,
-  onSelectPoint,
-}: {
-  points: MapGlobeViewPoint[];
-  selectedId: number | null;
-  onSelectPoint: (p: MapGlobeViewPoint) => void;
-}): JSX.Element {
+function GlobeScene(props: GlobeOverlayProps): JSX.Element {
   return (
     <>
       <ambientLight intensity={0.55} />
@@ -126,51 +483,39 @@ function GlobeScene({
       <Suspense fallback={null}>
         <EarthGlobe />
       </Suspense>
-      <VariantMarkerInstanced
-        points={points}
-        variant="eco"
-        color={markerColor('eco')}
-        selectedId={selectedId}
-        onSelect={onSelectPoint}
-      />
-      <VariantMarkerInstanced
-        points={points}
-        variant="storage"
-        color={markerColor('storage')}
-        selectedId={selectedId}
-        onSelect={onSelectPoint}
-      />
-      <VariantMarkerInstanced
-        points={points}
-        variant="tech"
-        color={markerColor('tech')}
-        selectedId={selectedId}
-        onSelect={onSelectPoint}
-      />
-      <OrbitControls
-        enablePan={false}
-        minDistance={1.55}
-        maxDistance={4.2}
-        rotateSpeed={0.55}
-        zoomSpeed={0.65}
-        enableDamping
-        dampingFactor={0.08}
-      />
+      <GlobeHtmlOverlay {...props} />
     </>
   );
 }
 
 type Props = {
-  points: MapGlobeViewPoint[];
+  points: GlobeMapPoint[];
+  siteCandidatesForPoint: (point: GlobeMapPoint) => PopupSiteCandidate[];
   selectedId: number | null;
-  onSelectPoint: (p: MapGlobeViewPoint) => void;
+  focusCenter: [number, number] | null;
+  onSelectPoint: (point: GlobeMapPoint) => void;
+  onBuildRoute: (point: GlobeMapPoint) => void;
+  onSwitchSite: (site: { pointId: number | null; lat: number; lng: number }, point: GlobeMapPoint) => void;
+  routeBusy: boolean;
+  onClosePopup: () => void;
   className?: string;
 };
 
 /**
- * 3D глобус с теми же точками и цветовой логикой маркеров, что и на Leaflet-карте.
+ * 3D глобус: те же CSS-маркеры и кластеры, что на Leaflet, карточка предприятия и переключение площадок.
  */
-export function MapGlobeView({ points, selectedId, onSelectPoint, className = '' }: Props): JSX.Element {
+export function MapGlobeView({
+  points,
+  siteCandidatesForPoint,
+  selectedId,
+  focusCenter,
+  onSelectPoint,
+  onBuildRoute,
+  onSwitchSite,
+  routeBusy,
+  onClosePopup,
+  className = '',
+}: Props): JSX.Element {
   return (
     <div className={`absolute inset-0 z-0 min-h-0 w-full bg-[#050814] ${className}`.trim()}>
       <Canvas
@@ -182,11 +527,18 @@ export function MapGlobeView({ points, selectedId, onSelectPoint, className = ''
           gl.setClearColor('#050814', 1);
         }}
       >
-        <GlobeScene points={points} selectedId={selectedId} onSelectPoint={onSelectPoint} />
+        <GlobeScene
+          points={points}
+          siteCandidatesForPoint={siteCandidatesForPoint}
+          selectedId={selectedId}
+          focusCenter={focusCenter}
+          onSelectPoint={onSelectPoint}
+          onBuildRoute={onBuildRoute}
+          onSwitchSite={onSwitchSite}
+          routeBusy={routeBusy}
+          onClosePopup={onClosePopup}
+        />
       </Canvas>
-      <p className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 text-center font-nunito text-[11px] font-semibold text-white/45 sm:left-auto sm:right-4 sm:text-left">
-        Вращайте и масштабируйте · те же метки, что на карте · клик по точке — выбор объекта
-      </p>
     </div>
   );
 }
