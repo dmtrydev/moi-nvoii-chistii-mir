@@ -340,6 +340,80 @@ adminRouter.get('/licenses', async (req, res) => {
   }
 
   const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  if (importSourceStr === 'groro_parser') {
+    const groroWhere = [];
+    const groroParams = [];
+    let gi = 1;
+    if (searchTokens.length > 0) {
+      for (const tok of searchTokens) {
+        groroWhere.push(`(
+          lower(coalesce(o.object_name, '')) LIKE '%' || $${gi} || '%'
+          OR lower(coalesce(o.operator_name, '')) LIKE '%' || $${gi} || '%'
+          OR lower(coalesce(o.operator_inn, '')) LIKE '%' || $${gi} || '%'
+          OR lower(coalesce(o.operator_address, '')) LIKE '%' || $${gi} || '%'
+          OR lower(coalesce(o.region, '')) LIKE '%' || $${gi} || '%'
+          OR lower(coalesce(o.groro_number, '')) LIKE '%' || $${gi} || '%'
+        )`);
+        groroParams.push(tok);
+        gi += 1;
+      }
+    }
+    if (importRegistryStatusFilter) {
+      groroWhere.push(`o.status = $${gi++}`);
+      groroParams.push(importRegistryStatusFilter);
+    }
+    if (needsReviewOnly) {
+      groroWhere.push(`(o.operator_inn IS NULL OR length(trim(o.operator_inn)) = 0)`);
+    }
+    const gWhereSql = groroWhere.length ? `WHERE ${groroWhere.join(' AND ')}` : '';
+    const gl = gi++;
+    const go = gi++;
+    groroParams.push(safeLimit, safeOffset);
+    const gRows = await query(
+      `SELECT
+         o.id,
+         o.operator_name AS "companyName",
+         o.operator_inn AS inn,
+         o.operator_address AS address,
+         o.region,
+         NULL::float8 AS lat,
+         NULL::float8 AS lng,
+         COALESCE(array_agg(DISTINCT w.fkko_code) FILTER (WHERE w.fkko_code IS NOT NULL), '{}'::text[]) AS "fkkoCodes",
+         COALESCE(array_agg(DISTINCT w.activity_type) FILTER (WHERE w.activity_type IS NOT NULL), '{}'::text[]) AS "activityTypes",
+         'approved'::text AS status,
+         0::int AS reward,
+         NULL::text AS "rejectionNote",
+         NULL::text AS "moderatedComment",
+         NULL::timestamptz AS "moderatedAt",
+         NULL::text AS "fileOriginalName",
+         NULL::text AS "fileStoredName",
+         NULL::int AS "ownerUserId",
+         NULL::timestamptz AS "deletedAt",
+         NULL::int AS "deletedBy",
+         o.created_at AS "createdAt",
+         'groro_parser'::text AS "importSource",
+         (o.operator_inn IS NULL OR length(trim(o.operator_inn)) = 0) AS "importNeedsReview",
+         o.status AS "importRegistryStatus",
+         o.status_ru AS "importRegistryStatusRu",
+         FALSE AS "importRegistryInactive",
+         o.groro_number AS "groroNumber",
+         o.status AS "groroStatus",
+         o.status_ru AS "groroStatusRu",
+         COUNT(*) OVER()::int AS "__total"
+       FROM groro_objects o
+       LEFT JOIN groro_wastes w ON w.groro_object_id = o.id
+       ${gWhereSql}
+       GROUP BY o.id
+       ORDER BY o.updated_at DESC
+       LIMIT $${gl} OFFSET $${go}`,
+      groroParams,
+    );
+    const gTotal = gRows.rows[0]?.__total ?? 0;
+    const gItems = gRows.rows.map(({ __total: _total, ...item }) => item);
+    return res.json({ items: gItems, total: gTotal });
+  }
+
   const limIdx = pi++;
   const offIdx = pi++;
   listParams.push(safeLimit, safeOffset);

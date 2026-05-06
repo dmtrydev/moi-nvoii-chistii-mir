@@ -38,6 +38,7 @@ interface LicenseItem {
   groroNumber?: string | null;
   groroStatus?: string | null;
   groroStatusRu?: string | null;
+  isReadonly?: boolean;
 }
 
 interface DuplicateLicenseRow {
@@ -713,7 +714,7 @@ export default function AdminLicensesPage(): JSX.Element {
                   {lic.deletedAt ? new Date(lic.deletedAt).toLocaleDateString() : '—'}
                 </td>
                 <td className="px-3 py-1.5">
-                  {!lic.deletedAt ? (
+                  {!lic.deletedAt && lic.importSource !== 'groro_parser' ? (
                     <div className="flex flex-wrap gap-2 items-center">
                       {lic.status !== 'approved' ? (
                         <button
@@ -760,6 +761,8 @@ export default function AdminLicensesPage(): JSX.Element {
                         Удалить
                       </button>
                     </div>
+                  ) : lic.importSource === 'groro_parser' ? (
+                    <span className="text-xs text-ink-muted">Управление в слое ГРОРО</span>
                   ) : null}
                 </td>
               </tr>
