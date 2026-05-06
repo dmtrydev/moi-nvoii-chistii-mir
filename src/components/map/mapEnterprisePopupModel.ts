@@ -29,6 +29,8 @@ export type MapEnterprisePopupViewModel = {
   subtitleAddress: string;
   /** Реестр РПН / ППС; null если бэкенд не отдал блок или данных нет. */
   rpnStrip: MapEnterpriseRpnStrip | null;
+  /** Ссылка на страницу `/enterprise/:id`; текст статуса реестра ведёт туда как гиперссылка. */
+  enterpriseDetailsHref: string | null;
   infoRows: PopupInfoRow[];
   siteSwitches: PopupSiteSwitch[];
 };
@@ -261,9 +263,16 @@ export function buildMapEnterprisePopupViewModel(
     });
   }
 
+  const licenseId = input.source.id;
+  const enterpriseDetailsHref =
+    typeof licenseId === 'number' && Number.isFinite(licenseId) && licenseId > 0
+      ? `/enterprise/${licenseId}`
+      : null;
+
   return {
     title,
     subtitleAddress,
+    enterpriseDetailsHref,
     rpnStrip: buildMapEnterpriseRpnStrip(input.source),
     infoRows: [
       { key: 'inn', label: 'ИНН:', value: inn },

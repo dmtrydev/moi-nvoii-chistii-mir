@@ -667,6 +667,18 @@
     font-weight: var(--font-weight-heading-semibold);
     word-break: break-word;
   }
+  a.moinoviichistiimir-popup-enterprise__rpnMetaLink {
+    color: inherit;
+    font-weight: inherit;
+    text-decoration: underline;
+    text-decoration-color: rgba(80, 88, 92, 0.38);
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  a.moinoviichistiimir-popup-enterprise__rpnMetaLink:hover {
+    text-decoration-color: rgba(43, 51, 53, 0.65);
+    color: #3d4549;
+  }
   .moinoviichistiimir-popup-enterprise__headDivider {
     width: 100%;
     height: 1px;

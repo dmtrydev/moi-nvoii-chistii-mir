@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { MapEnterprisePopupViewModel } from '@/components/map/mapEnterprisePopupModel';
 import type { PpsState } from '@/types';
 import sborActiveIcon from '@/assets/home-landing/activity-strip/enterprise-activity-sbor-active.svg';
@@ -112,9 +113,19 @@ export const MapEnterprisePopupCard = memo(function MapEnterprisePopupCard({
                 aria-hidden
                 className={`moinoviichistiimir-popup-enterprise__rpnMetaDot ${RPN_STATE_DOT_CLASS[model.rpnStrip.state]}`}
               />
-              <span className="moinoviichistiimir-popup-enterprise__rpnMetaVal">
-                {model.rpnStrip.registryStatusText}
-              </span>
+              {model.enterpriseDetailsHref ? (
+                <Link
+                  to={model.enterpriseDetailsHref}
+                  className="moinoviichistiimir-popup-enterprise__rpnMetaVal moinoviichistiimir-popup-enterprise__rpnMetaLink"
+                  title="Подробная карточка организации"
+                >
+                  {model.rpnStrip.registryStatusText}
+                </Link>
+              ) : (
+                <span className="moinoviichistiimir-popup-enterprise__rpnMetaVal">
+                  {model.rpnStrip.registryStatusText}
+                </span>
+              )}
             </p>
             <p className="moinoviichistiimir-popup-enterprise__rpnMetaLine">
               <span className="moinoviichistiimir-popup-enterprise__rpnMetaKey">{RPN_META_PPS_LABEL}</span>
