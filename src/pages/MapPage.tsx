@@ -648,17 +648,21 @@ export default function MapPage(): JSX.Element {
   /** Стабильная строка query: иначе `useSearchParams()` может давать новый объект на каждом рендере и ломать эффекты. */
   const mapQueryKey = useMemo(() => searchParams.toString(), [searchParams]);
 
+  const visibleSearchItems = useMemo(
+    () => searchItems.filter((it) => groroLayerEnabled || it.importSource !== 'groro_parser'),
+    [searchItems, groroLayerEnabled],
+  );
   const resultsPageSize = SEARCH_RESULTS_PAGE_SIZE;
-  const resultsListTotal = searchItems.length;
+  const resultsListTotal = visibleSearchItems.length;
   const resultsListPageCount = Math.max(1, Math.ceil(resultsListTotal / resultsPageSize));
   const resultsListPageClamped = Math.min(resultsListPage, resultsListPageCount - 1);
   const pagedSearchItems = useMemo(
     () =>
-      searchItems.slice(
+      visibleSearchItems.slice(
         resultsListPageClamped * resultsPageSize,
         resultsListPageClamped * resultsPageSize + resultsPageSize,
       ),
-    [searchItems, resultsListPageClamped, resultsPageSize],
+    [visibleSearchItems, resultsListPageClamped, resultsPageSize],
   );
   useEffect(() => {
     if (resultsListPageClamped !== resultsListPage) setResultsListPage(resultsListPageClamped);
@@ -768,7 +772,7 @@ export default function MapPage(): JSX.Element {
         searched: overrides?.searched ?? true,
       };
       const vid = nextFilters.vid.map((x) => String(x).trim()).filter(Boolean).join(', ');
-      const cacheKey = buildCanonicalSearchKey(nextFilters);
+      const cacheKey = `${buildCanonicalSearchKey(nextFilters)}|groro:${groroLayerEnabled ? '1' : '0'}`;
 
       if (!vid) {
         if (!overrides) setFilterValidationError('Укажите вид обращения.');
@@ -845,6 +849,18 @@ export default function MapPage(): JSX.Element {
   useEffect(() => {
     runSearchRef.current = runSearch;
   }, [runSearch]);
+  useEffect(() => {
+    if (!hasSearched) return;
+    void runSearch(
+      {
+        region: filterRegion.trim(),
+        fkko: filterFkko,
+        vid: filterVid,
+        searched: true,
+      },
+      { cacheFirst: false },
+    );
+  }, [groroLayerEnabled]);
 
   const handleFindClick = useCallback(async () => {
     setResultsListPage(0);
@@ -924,7 +940,7 @@ export default function MapPage(): JSX.Element {
       const points: MapPoint[] = [];
       const seenPointIds = new Set<number>();
 
-      for (const item of searchItems) {
+      for (const item of visibleSearchItems) {
         const baseId = toPositiveInt(item.siteId) ?? toPositiveInt(item.id) ?? null;
         if (
           typeof item.lat === 'number' &&
@@ -997,7 +1013,7 @@ export default function MapPage(): JSX.Element {
 
       return points;
     },
-    [searchItems, focusedItem],
+    [visibleSearchItems, focusedItem],
   );
   const mapPointCandidatesByEnterprise = useMemo(() => {
     const byEnterprise = new Map<string, PopupSiteCandidate[]>();
@@ -1366,14 +1382,14 @@ export default function MapPage(): JSX.Element {
               {searchError}
             </div>
           )}
-          {hasSearched && !isSearching && !searchError && searchItems.length === 0 && (
+          {hasSearched && !isSearching && !searchError && visibleSearchItems.length === 0 && (
             <div className="text-xs text-ink-muted">Ничего не найдено</div>
           )}
 
-          {hasSearched && searchItems.length > 0 && (
+          {hasSearched && visibleSearchItems.length > 0 && (
             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
               <div className="text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-                Найдено: {searchItems.length}
+                Найдено: {visibleSearchItems.length}
               </div>
               <SearchResultsPagination
                 total={resultsListTotal}
@@ -1383,7 +1399,7 @@ export default function MapPage(): JSX.Element {
                 onPrev={() => setResultsListPage((p) => Math.max(0, p - 1))}
                 onNext={() =>
                   setResultsListPage((p) => {
-                    const last = Math.max(0, Math.ceil(searchItems.length / resultsPageSize) - 1);
+                    const last = Math.max(0, Math.ceil(visibleSearchItems.length / resultsPageSize) - 1);
                     return Math.min(last, p + 1);
                   })
                 }
@@ -1503,7 +1519,7 @@ export default function MapPage(): JSX.Element {
                   );
                 })}
               </div>
-              {searchItems.length > 20 && (
+              {visibleSearchItems.length > 20 && (
                 <div className="text-xs text-ink-muted">Показаны первые 20 результатов</div>
               )}
             </div>
